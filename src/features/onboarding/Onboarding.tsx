@@ -14,6 +14,7 @@ import { AuraField } from '@/ui/AuraField'
 import { CountUp } from '@/ui/CountUp'
 import { DisciplineDot, Eyebrow, StatusTag, Stepper, Toggle } from '@/ui/primitives'
 import { Wordmark } from '@/app/Shell'
+import { landing } from '@/app/landing'
 import { cx, dvar } from '@/lib/format'
 
 type Level = 0 | 1 | 2
@@ -130,6 +131,7 @@ export function Onboarding() {
   const startDemo = useStore((s) => s.startDemo)
   const complete = useStore((s) => s.completeOnboarding)
   const startWorkout = useStore((s) => s.startWorkout)
+  const startSolo = useStore((s) => s.startSoloAssessment)
 
   const [step, setStep] = useState(0)
   const [name, setName] = useState('')
@@ -294,7 +296,7 @@ export function Onboarding() {
 
           {/* 4 · Assessment */}
           {step === 4 && (
-            <Step eyebrow="Starting point" title="What can you do today?" sub="Answer honestly and skip anything you have not tried. These become estimates, clearly labelled, until you log the real thing.">
+            <Step eyebrow="Starting point" title="What can you do today?" sub="A quick estimate to get you started. Answer honestly and skip anything you have not tried. The physical assessment afterwards replaces these with real results.">
               <div className="space-y-6">
                 {questions.map((q) => (
                   <div key={q.id}>
@@ -354,7 +356,8 @@ export function Onboarding() {
 
               <div className="mt-6 flex w-full flex-col gap-2.5">
                 <button className="btn btn-primary btn-lg" onClick={() => finish(true)}>Start my first session</button>
-                <button className="btn btn-outline" onClick={() => finish(false)}>Go to my profile</button>
+                <button className="btn btn-outline" onClick={() => { complete(result()); landing.to = `/assess/${startSolo()}` }}>Test it properly: take the physical assessment</button>
+                <button className="btn btn-quiet" onClick={() => finish(false)}>Go to my profile</button>
               </div>
             </div>
           )}

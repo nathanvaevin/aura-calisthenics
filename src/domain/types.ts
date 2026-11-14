@@ -117,10 +117,11 @@ export interface Skill extends SkillDef {
  * How we know. Order matters: later tiers outrank earlier ones.
  *   estimated – inferred from onboarding answers, never shown as mastery
  *   self      – logged by the athlete
- *   coach     – confirmed by a coach who saw it
- *   video     – confirmed from submitted video
+ *   observed  – a coach was present and watched it, without checking it against the standard
+ *   coach     – formally verified by a coach against the written standard
+ *   video     – formally verified from submitted video
  */
-export type EvidenceTier = 'estimated' | 'self' | 'coach' | 'video'
+export type EvidenceTier = 'estimated' | 'self' | 'observed' | 'coach' | 'video'
 
 export interface Evidence {
   id: string
@@ -129,9 +130,13 @@ export interface Evidence {
   /** Reps or seconds. */
   value: number
   tier: EvidenceTier
-  source: 'onboarding' | 'workout' | 'manual'
+  source: 'onboarding' | 'workout' | 'manual' | 'assessment'
   date: string
   logId?: string
+  /** The assessment session this came from, when source is 'assessment'. */
+  assessmentId?: string
+  /** Coach who watched it (tier observed). */
+  observedBy?: string
   verifiedBy?: string
   verifiedAt?: string
   note?: string
@@ -205,6 +210,8 @@ export interface WorkoutLog {
   finishedAt?: string
   rpe?: number
   note?: string
+  /** Where it was done, when the athlete was checked in at a place. */
+  placeId?: string
   entries: LogEntry[]
 }
 
@@ -271,4 +278,152 @@ export interface Athlete {
   /** Sessions per week the athlete intends to train. */
   weeklyTarget: number
   equipment: EquipmentId[]
+
+  // Identity beyond ability. All optional; who sees each part is set in `privacy`.
+  /** Where they are originally from. Free text, as coarse as they like. */
+  from?: string
+  environments?: TrainingEnvironment[]
+  /** The one place they call their own. */
+  homePlaceId?: string
+  favouritePlaces?: string[]
+  /** Happy to be approached to train together. Shown wherever their presence is. */
+  openToTrain?: boolean
+  privacy?: AthletePrivacy
+}
+
+// ── Identity, places and presence ────────────────────────────────────────
+
+/**
+ * Who may see something. `following` means the athletes this person follows:
+ * a list they control, unlike their followers.
+ */
+export type Audience = 'me' | 'following' | 'everyone'
+
+export type TrainingEnvironment = 'outdoor' | 'gym' | 'studio' | 'home'
+
+export interface AthletePrivacy {
+  /** Where they are from. */
+  origin: Audience
+  /** The city they are based in. */
+  base: Audience
+  /** Home spot, favourite places and preferred environments: things they declared. */
+  places: Audience
+  /** Recent visits and "regular" status: things derived from where they actually went. */
+  visits: Audience
+}
+
+export type PlaceKind = 'calisthenics' | 'outdoor' | 'gym' | 'studio' | 'other'
+
+export type PlaceEquipment =
+  | 'bar' | 'low_bar' | 'dip_bars' | 'rings' | 'monkey_bars' | 'stall_bars' | 'parallettes' | 'box' | 'wall'
+
+export type PlaceAmenity = 'water' | 'lit' | 'covered' | 'toilets' | 'soft_ground' | 'showers' | 'accessible'
+
+export interface Place {
+  id: string
+  name: string
+  kind: PlaceKind
+  lat: number
+  lon: number
+  /** Street, park or neighbourhood, when known. */
+  address?: string
+  equipment: PlaceEquipment[]
+  amenities: PlaceAmenity[]
+  access?: 'free' | 'members'
+  hours?: string
+  note?: string
+  /** osm: mapped by OpenStreetMap contributors · athlete: added in Aura by a person */
+  source: 'osm' | 'athlete'
+  /** OpenStreetMap element behind the record, as "node/123". */
+  osm?: string
+  /** Mapped elements merged into this one place (a circuit of stations is one place). */
+  parts?: number
+  fetchedAt?: string
+  /** Name of whoever added it, for athlete-added places. */
+  addedBy?: string
+  addedAt?: string
+  /** Details were corrected on this device; a refresh from the source will not overwrite them. */
+  editedAt?: string
+  /** Last time this device's athlete confirmed the details while checked in on site. */
+  confirmedAt?: string
+}
+
+/**
+ * One stay at a place. It is "now" only between `startedAt` and `endsAt`;
+ * after that it is history. Coordinates of the athlete are never stored.
+ */
+export interface Visit {
+  id: string
+  athleteId: string
+  placeId: string
+  startedAt: string
+  endsAt: string
+  /** Who could see this stay, live and afterwards. History is further limited by `privacy.visits`. */
+  audience: Audience
+  /** The device confirmed, once, that it was at the place. Otherwise the stay is the athlete's word. */
+  onSite: boolean
+  sample?: boolean
+}
+
+// ── Assessments ──────────────────────────────────────────────────────────
+
+/** How a single assessment result is known. Mirrors the evidence tiers it can become. */
+export type ResultTier = 'self' | 'observed' | 'coach'
+
+export interface AssessmentResult {
+  /** Reps, seconds, or the chosen option index. Zero means attempted, not yet. */
+  value: number
+  tier: ResultTier
+  at: string
+  /** Could not be tested today (no equipment, injury). Not an attempt. */
+  skipped?: boolean
+}
+
+/**
+ * One assessment event: a coach's group session, or an athlete testing alone.
+ * `origin` says where this copy came from, which decides what the device can do with it.
+ */
+export interface AssessmentSession {
+  id: string
+  protocol: string
+  title: string
+  kind: 'baseline' | 'retest'
+  groupName: string
+  /** Local athlete id of the coach when the coach is on this device. */
+  coachId: string | null
+  coachName: string
+  courseId?: string
+  /** Earlier session this one is compared against. */
+  baselineId?: string
+  stations: DisciplineId[]
+  status: 'open' | 'finalised'
+  /** local: created on this device · invite: joined from a coach's link · solo: self-directed */
+  origin: 'local' | 'invite' | 'solo'
+  createdAt: string
+  finalisedAt?: string
+  /** Minutes per station for the rotation timer. */
+  stationMinutes: number
+  rotationStartedAt?: string
+  /** Seeded demonstration data. */
+  sample?: boolean
+}
+
+export interface AssessmentParticipant {
+  id: string
+  sessionId: string
+  /** Local athlete this participant is, when known on this device. */
+  athleteId?: string
+  name: string
+  joinedAt: string
+  /** self: on their own phone here · coach: added by the coach · import: handed in by link · sample: demo data */
+  via: 'self' | 'coach' | 'import' | 'sample'
+  /** Who may see this participant's individual profile. The coach always can. */
+  sharing: 'coach' | 'group'
+  /** Name of the partner who counted and timed. */
+  partner?: string
+  results: Record<string, AssessmentResult>
+  skipped: DisciplineId[]
+  /** Stations where the participant asked for the coach. */
+  flags: DisciplineId[]
+  submittedAt?: string
 }

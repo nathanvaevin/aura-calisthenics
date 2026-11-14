@@ -14,6 +14,8 @@ import { Bar, DisciplineDot, Eyebrow, Ring, SectionTitle, Sparkline, StatusTag, 
 import { AuraSheet, LogEvidenceSheet, RatingSheet } from '@/features/shared/Explainers'
 import { SkillSheet } from '@/features/tree/SkillSheet'
 import { useStartWorkout } from '@/features/workout/useStart'
+import { AssessPrompt } from '@/features/assess/AssessCards'
+import { TrainingNow } from '@/features/places/shared'
 import { dayDiff, dvar, initials, num, relativeDay, shortDate } from '@/lib/format'
 
 const greeting = () => {
@@ -118,6 +120,9 @@ export function Home() {
         </section>
 
         <div className="mt-8 space-y-8 lg:mt-4">
+          <div className="rise rise-3 empty:hidden"><AssessPrompt /></div>
+          <div className="rise rise-3 empty:hidden"><TrainingNow /></div>
+
           {/* ── Next session ── */}
           <section className="rise rise-3">
             <SectionTitle action={<TextLink onClick={() => navigate('/train')}>All training</TextLink>}>Up next</SectionTitle>

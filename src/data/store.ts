@@ -1,14 +1,17 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type {
-  Athlete, Course, Enrollment, Evidence, EvidenceTier, Feedback, LogEntry, WorkoutBlock, WorkoutLog, WorkoutSource,
+  AssessmentParticipant, AssessmentSession, Athlete, AthletePrivacy, Audience, Course, DisciplineId, Enrollment, Evidence, EvidenceTier, Feedback, LogEntry,
+  Place, ResultTier, Visit, WorkoutBlock, WorkoutLog, WorkoutSource,
 } from '@/domain/types'
+import { PRESENCE, isLive, liveVisit, mergePlaces, privacyOf } from '@/domain/places'
+import { PROTOCOL, resultsToEvidence, stationById, type HandIn, type Invite } from '@/domain/assessment'
 import { exerciseById, skillById, stepAt } from '@/domain/catalog'
 import { bestEvidence } from '@/domain/scoring/mastery'
 import { adaptTarget, skillStatuses } from '@/domain/scoring/skills'
 import { startOfWeek } from '@/domain/scoring/aura'
 import { courseFromTemplate, uid } from './courseTemplates'
-import { ME, buildWorld, isoDay } from './seed'
+import { ME, buildWorld, isoDay, sampleCommunity } from './seed'
 
 export interface ActiveWorkout {
   log: WorkoutLog
@@ -31,7 +34,25 @@ export interface Settings {
   theme: 'dark' | 'light'
   sound: boolean
   coachMode: boolean
+  /** Audience chosen at the last check-in, offered again next time. */
+  audience?: Audience
+  stayMinutes?: number
 }
+
+export interface NewPlace {
+  name: string
+  kind: Place['kind']
+  lat: number
+  lon: number
+  equipment: Place['equipment']
+  amenities: Place['amenities']
+  note?: string
+}
+
+export type PlacePatch = Partial<Pick<Place, 'name' | 'kind' | 'equipment' | 'amenities' | 'note'>>
+
+/** Places kept on the device beyond the ones the athlete has a tie to. */
+const PLACE_CACHE = 1500
 
 export interface OnboardingResult {
   name: string
@@ -42,6 +63,45 @@ export interface OnboardingResult {
   goals: string[]
   /** Self-assessment answers: exercise id -> conservative value. */
   estimates: Record<string, number>
+}
+
+export interface NewAssessment {
+  title: string
+  groupName: string
+  courseId?: string
+  stations: DisciplineId[]
+  kind: 'baseline' | 'retest'
+  baselineId?: string
+}
+
+export type ImportOutcome = 'added' | 'updated' | 'unknown-session' | 'wrong-protocol'
+
+export const shortId = () => {
+  const bytes = crypto.getRandomValues(new Uint8Array(8))
+  return Array.from(bytes, (b) => (b % 36).toString(36)).join('')
+}
+
+const slug = (name: string) => name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.|\.$/g, '') || 'athlete'
+
+/**
+ * Keep the evidence table in step with one participant's assessment results.
+ *
+ * Results become evidence in exactly two situations: the athlete has finished
+ * on their own device, or the coach has finalised the session on theirs.
+ * Until then they are assessment data only and move no rating.
+ */
+function syncEvidence(
+  s: { evidence: Evidence[]; assessments: AssessmentSession[]; participants: AssessmentParticipant[]; meId: string | null },
+  participantId: string,
+): Evidence[] {
+  const p = s.participants.find((x) => x.id === participantId)
+  const session = p && s.assessments.find((a) => a.id === p.sessionId)
+  if (!p || !session || !p.athleteId) return s.evidence
+  const own = p.athleteId === s.meId && !!p.submittedAt
+  const finalised = session.origin === 'local' && session.status === 'finalised'
+  const rest = s.evidence.filter((e) => !(e.assessmentId === session.id && e.athleteId === p.athleteId))
+  if (!own && !finalised) return rest
+  return [...rest, ...resultsToEvidence(p.results, p.athleteId, session.id, session.coachId ?? undefined)]
 }
 
 export interface Candidate {
@@ -61,6 +121,14 @@ interface State {
   /** Coach-supplied demonstration video per exercise. */
   media: Record<string, string>
   following: string[]
+  assessments: AssessmentSession[]
+  participants: AssessmentParticipant[]
+  /** Every place this device knows: fetched from OpenStreetMap, added here, or received in a link. */
+  places: Record<string, Place>
+  visits: Visit[]
+  /** Who each other athlete follows. Sample data until accounts exist. */
+  follows: Record<string, string[]>
+  mapView: { lat: number; lon: number; zoom: number } | null
   active: ActiveWorkout | null
   settings: Settings
   celebrations: Celebration[]
@@ -99,6 +167,44 @@ interface State {
   addFeedback: (logId: string, text: string) => void
   verifyEvidence: (evidenceId: string) => void
   setMedia: (exerciseId: string, url: string) => void
+
+  // Assessments
+  createAssessment: (input: NewAssessment) => string
+  startSoloAssessment: () => string
+  /** Join from a coach's invitation. Creates a minimal athlete when this device has none. */
+  acceptInvite: (invite: Invite, who: { name: string; sharing: 'coach' | 'group' }) => string
+  recordResult: (participantId: string, testId: string, value: number, opts?: { tier?: ResultTier; skipped?: boolean }) => void
+  clearResult: (participantId: string, testId: string) => void
+  patchParticipant: (participantId: string, patch: Partial<Pick<AssessmentParticipant, 'name' | 'sharing' | 'partner'>>) => void
+  toggleStationSkip: (participantId: string, station: DisciplineId) => void
+  toggleFlag: (participantId: string, station: DisciplineId) => void
+  submitAssessment: (participantId: string) => void
+  addParticipant: (sessionId: string, name: string, athleteId?: string) => string
+  removeParticipant: (participantId: string) => void
+  importHandIn: (handIn: HandIn) => ImportOutcome
+  setStationTier: (participantId: string, station: DisciplineId, tier: ResultTier) => void
+  patchAssessment: (sessionId: string, patch: Partial<Pick<AssessmentSession, 'title' | 'groupName' | 'stationMinutes' | 'rotationStartedAt' | 'stations'>>) => void
+  finaliseAssessment: (sessionId: string) => void
+  deleteAssessment: (sessionId: string) => void
+
+  // Places and presence
+  mergePlaces: (incoming: Place[]) => void
+  addPlace: (input: NewPlace) => string
+  editPlace: (placeId: string, patch: PlacePatch) => void
+  /** Only while checked in: the athlete vouches for the details as they stand. */
+  confirmPlace: (placeId: string) => void
+  removePlace: (placeId: string) => void
+  toggleFavourite: (placeId: string) => void
+  setHomePlace: (placeId: string | null) => void
+  setPrivacy: (patch: Partial<AthletePrivacy>) => void
+  /** Start a stay. Any stay still running ends first: nobody is in two places. */
+  checkIn: (placeId: string, opts: { minutes: number; audience: Audience; onSite: boolean }) => void
+  checkOut: () => void
+  extendStay: (minutes: number) => void
+  removeVisit: (visitId: string) => void
+  /** Forget every stay of this device's athlete, running or past. */
+  clearMyVisits: () => void
+  setMapView: (view: { lat: number; lon: number; zoom: number }) => void
 }
 
 const empty = {
@@ -111,6 +217,12 @@ const empty = {
   feedback: [] as Feedback[],
   media: {} as Record<string, string>,
   following: [] as string[],
+  assessments: [] as AssessmentSession[],
+  participants: [] as AssessmentParticipant[],
+  places: {} as Record<string, Place>,
+  visits: [] as Visit[],
+  follows: {} as Record<string, string[]>,
+  mapView: null as { lat: number; lon: number; zoom: number } | null,
   active: null as ActiveWorkout | null,
   celebrations: [] as Celebration[],
 }
@@ -156,6 +268,21 @@ export function candidatesIn(log: WorkoutLog, evidence: Evidence[]): Candidate[]
     if (value > previous) out.push({ exerciseId, value, previous })
   }
   return out
+}
+
+/**
+ * Bring a stored world up to date. Version 2 added places and presence: worlds
+ * saved before it get the sample community their sample athletes belong to;
+ * nothing of the owner's is changed.
+ */
+export function migrateStored(persisted: unknown, version: number) {
+  const s = persisted as State
+  if (version >= 2 || !s?.athletes) return s
+  const demo = s.meId === ME && s.athletes[ME]?.handle === 'alex'
+  const c = sampleCommunity(new Date(), demo)
+  const athletes = { ...s.athletes }
+  for (const [id, identity] of Object.entries(c.identities)) if (athletes[id]) athletes[id] = { ...identity, ...athletes[id] }
+  return { ...s, athletes, places: c.places, visits: c.visits.filter((v) => athletes[v.athleteId]), follows: c.follows, mapView: c.mapView }
 }
 
 export const useStore = create<State>()(
@@ -355,6 +482,7 @@ export const useStore = create<State>()(
         const log: WorkoutLog = {
           ...a.log,
           finishedAt: new Date().toISOString(),
+          placeId: liveVisit(s.visits, a.log.athleteId, Date.now())?.placeId,
           rpe,
           note: note?.trim() || undefined,
           // Keep only what was actually performed.
@@ -450,10 +578,340 @@ export const useStore = create<State>()(
           else delete media[exerciseId]
           return { media }
         }),
+
+      // ── Assessments ──────────────────────────────────────────────────
+
+      createAssessment: (input) => {
+        const s = get()
+        const me = s.meId ? s.athletes[s.meId] : null
+        const session: AssessmentSession = {
+          id: shortId(), protocol: PROTOCOL, title: input.title.trim() || 'Baseline', kind: input.kind, groupName: input.groupName.trim() || 'My group',
+          coachId: s.meId, coachName: me?.name ?? 'Coach', courseId: input.courseId, baselineId: input.baselineId, stations: input.stations,
+          status: 'open', origin: 'local', createdAt: new Date().toISOString(), stationMinutes: 6,
+        }
+        // A re-test starts with the people who took the baseline, so nobody has to rejoin.
+        const carried: AssessmentParticipant[] = input.baselineId
+          ? s.participants
+              .filter((p) => p.sessionId === input.baselineId)
+              .map((p) => ({ id: shortId(), sessionId: session.id, athleteId: p.athleteId, name: p.name, joinedAt: session.createdAt, via: 'coach', sharing: p.sharing, results: {}, skipped: [], flags: [] }))
+          : []
+        set({ assessments: [...s.assessments, session], participants: [...s.participants, ...carried] })
+        return session.id
+      },
+
+      startSoloAssessment: () => {
+        const s = get()
+        if (!s.meId) return ''
+        const mine = s.assessments.filter((a) => a.origin === 'solo')
+        const open = mine.find((a) => a.status === 'open')
+        if (open) return open.id
+        const previous = mine.filter((a) => a.status === 'finalised').sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+        const now = new Date().toISOString()
+        const session: AssessmentSession = {
+          id: shortId(), protocol: PROTOCOL, title: previous ? 'Re-test' : 'Baseline', kind: previous ? 'retest' : 'baseline', groupName: 'On my own',
+          coachId: null, coachName: '', baselineId: previous?.id, stations: ['mobility', 'push', 'pull', 'core', 'legs', 'handstand'],
+          status: 'open', origin: 'solo', createdAt: now, stationMinutes: 6,
+        }
+        const me: AssessmentParticipant = { id: shortId(), sessionId: session.id, athleteId: s.meId, name: s.athletes[s.meId].name, joinedAt: now, via: 'self', sharing: 'coach', results: {}, skipped: [], flags: [] }
+        set({ assessments: [...s.assessments, session], participants: [...s.participants, me] })
+        return session.id
+      },
+
+      acceptInvite: (invite, who) => {
+        let s = get()
+        const now = new Date().toISOString()
+        if (!s.meId) {
+          // Someone who scanned a code in class: enough of a profile to start, nothing more.
+          const name = who.name.trim() || 'Athlete'
+          const me: Athlete = { id: ME, name, handle: slug(name), bio: '', roles: ['athlete'], goals: [], joinedAt: now, weeklyTarget: 3, equipment: ['floor', 'wall', 'bar', 'box'] }
+          set({ ...empty, meId: ME, athletes: { [ME]: me }, settings: { ...s.settings, coachMode: false } })
+          s = get()
+        }
+        const meId = s.meId!
+        let assessments = s.assessments
+        if (!assessments.some((a) => a.id === invite.id)) {
+          assessments = [...assessments, {
+            id: invite.id, protocol: invite.protocol, title: invite.title, kind: invite.kind, groupName: invite.groupName, coachId: null,
+            coachName: invite.coachName, courseId: invite.courseId, stations: invite.stations, status: 'open', origin: 'invite', createdAt: now,
+            stationMinutes: invite.stationMinutes,
+          }]
+        }
+        let participants = s.participants
+        const existing = participants.find((p) => p.sessionId === invite.id && p.athleteId === meId)
+        if (existing) participants = participants.map((p) => (p.id === existing.id ? { ...p, sharing: who.sharing } : p))
+        else participants = [...participants, { id: shortId(), sessionId: invite.id, athleteId: meId, name: s.athletes[meId].name, joinedAt: now, via: 'self', sharing: who.sharing, results: {}, skipped: [], flags: [] }]
+        set({ assessments, participants })
+        return invite.id
+      },
+
+      recordResult: (participantId, testId, value, opts) =>
+        set((s) => {
+          const participants = s.participants.map((p) =>
+            p.id === participantId
+              ? { ...p, results: { ...p.results, [testId]: { value: Math.max(0, Math.round(value)), tier: opts?.tier ?? 'self', at: new Date().toISOString(), ...(opts?.skipped ? { skipped: true } : {}) } } }
+              : p,
+          )
+          return { participants, evidence: syncEvidence({ ...s, participants }, participantId) }
+        }),
+
+      clearResult: (participantId, testId) =>
+        set((s) => {
+          const participants = s.participants.map((p) => {
+            if (p.id !== participantId) return p
+            const results = { ...p.results }
+            delete results[testId]
+            return { ...p, results }
+          })
+          return { participants, evidence: syncEvidence({ ...s, participants }, participantId) }
+        }),
+
+      patchParticipant: (participantId, patch) =>
+        set((s) => ({ participants: s.participants.map((p) => (p.id === participantId ? { ...p, ...patch } : p)) })),
+
+      toggleStationSkip: (participantId, station) =>
+        set((s) => ({
+          participants: s.participants.map((p) =>
+            p.id === participantId ? { ...p, skipped: p.skipped.includes(station) ? p.skipped.filter((x) => x !== station) : [...p.skipped, station] } : p,
+          ),
+        })),
+
+      toggleFlag: (participantId, station) =>
+        set((s) => ({
+          participants: s.participants.map((p) =>
+            p.id === participantId ? { ...p, flags: p.flags.includes(station) ? p.flags.filter((x) => x !== station) : [...p.flags, station] } : p,
+          ),
+        })),
+
+      submitAssessment: (participantId) =>
+        set((s) => {
+          const now = new Date().toISOString()
+          const target = s.participants.find((p) => p.id === participantId)
+          if (!target) return s
+          const participants = s.participants.map((p) => (p.id === participantId ? { ...p, submittedAt: now } : p))
+          // A self-directed assessment has no coach to close it: finishing is finalising.
+          const assessments = s.assessments.map((a) => (a.id === target.sessionId && a.origin === 'solo' ? { ...a, status: 'finalised' as const, finalisedAt: now } : a))
+          return { participants, assessments, evidence: syncEvidence({ ...s, participants, assessments }, participantId) }
+        }),
+
+      addParticipant: (sessionId, name, athleteId) => {
+        const id = shortId()
+        set((s) => ({
+          participants: [...s.participants, { id, sessionId, athleteId, name: name.trim() || 'Participant', joinedAt: new Date().toISOString(), via: 'coach', sharing: 'coach', results: {}, skipped: [], flags: [] }],
+        }))
+        return id
+      },
+
+      removeParticipant: (participantId) =>
+        set((s) => {
+          const p = s.participants.find((x) => x.id === participantId)
+          if (!p) return s
+          return {
+            participants: s.participants.filter((x) => x.id !== participantId),
+            evidence: s.evidence.filter((e) => !(e.assessmentId === p.sessionId && e.athleteId === p.athleteId)),
+          }
+        }),
+
+      importHandIn: (h) => {
+        const s = get()
+        const session = s.assessments.find((a) => a.id === h.sessionId && a.origin === 'local')
+        if (!session) return 'unknown-session'
+        if (session.protocol !== h.protocol) return 'wrong-protocol'
+        const inSession = s.participants.filter((p) => p.sessionId === session.id)
+        // Same phone handing in again, or someone the coach had already added by name.
+        const match = inSession.find((p) => p.id === h.participantId) ?? inSession.find((p) => p.via === 'coach' && Object.keys(p.results).length === 0 && p.name.trim().toLowerCase() === h.name.trim().toLowerCase())
+        const merged = (existing: AssessmentParticipant | undefined) => {
+          const results = { ...h.results }
+          // Keep what the coach already observed or verified when the number has not changed.
+          for (const [testId, r] of Object.entries(existing?.results ?? {})) {
+            if (results[testId] && results[testId].value === r.value && !results[testId].skipped) results[testId] = r
+            else if (!results[testId] && r.tier !== 'self') results[testId] = r
+          }
+          return results
+        }
+        const next: AssessmentParticipant = {
+          id: h.participantId, sessionId: session.id, athleteId: match?.athleteId, name: h.name, joinedAt: match?.joinedAt ?? h.submittedAt, via: 'import',
+          sharing: h.sharing, partner: h.partner, results: merged(match), skipped: h.skipped, flags: h.flags, submittedAt: h.submittedAt,
+        }
+        const participants = match ? s.participants.map((p) => (p.id === match.id ? next : p)) : [...s.participants, next]
+        set({ participants, evidence: syncEvidence({ ...s, participants }, next.id) })
+        return match ? 'updated' : 'added'
+      },
+
+      setStationTier: (participantId, station, tier) =>
+        set((s) => {
+          const ids = new Set(stationById[station].tests.map((t) => t.id))
+          const participants = s.participants.map((p) =>
+            p.id === participantId
+              ? { ...p, results: Object.fromEntries(Object.entries(p.results).map(([k, r]) => [k, ids.has(k) && !r.skipped ? { ...r, tier } : r])) }
+              : p,
+          )
+          return { participants, evidence: syncEvidence({ ...s, participants }, participantId) }
+        }),
+
+      patchAssessment: (sessionId, patch) => set((s) => ({ assessments: s.assessments.map((a) => (a.id === sessionId ? { ...a, ...patch } : a)) })),
+
+      finaliseAssessment: (sessionId) => {
+        const s = get()
+        const session = s.assessments.find((a) => a.id === sessionId && a.origin === 'local')
+        if (!session) return
+        const now = new Date().toISOString()
+        const athletes = { ...s.athletes }
+        // Everyone who took part gets a place on this coach's roster.
+        const participants = s.participants.map((p) => {
+          if (p.sessionId !== sessionId || (p.athleteId && athletes[p.athleteId])) return p
+          const athleteId = `a-${p.id}`
+          athletes[athleteId] = { id: athleteId, name: p.name, handle: slug(p.name), bio: '', roles: ['athlete'], goals: [], joinedAt: p.joinedAt, weeklyTarget: 3, equipment: [] }
+          return { ...p, athleteId }
+        })
+        const course = session.courseId ? s.courses.find((c) => c.id === session.courseId) : undefined
+        const enrollments = [...s.enrollments]
+        if (course) {
+          for (const p of participants) {
+            if (p.sessionId !== sessionId || !p.athleteId || p.athleteId === course.coachId) continue
+            if (!enrollments.some((e) => e.courseId === course.id && e.athleteId === p.athleteId)) enrollments.push({ id: uid(), courseId: course.id, athleteId: p.athleteId, joinedAt: now, status: 'active' })
+          }
+        }
+        const assessments = s.assessments.map((a) => (a.id === sessionId ? { ...a, status: 'finalised' as const, finalisedAt: now } : a))
+        let evidence = s.evidence
+        for (const p of participants) if (p.sessionId === sessionId) evidence = syncEvidence({ evidence, assessments, participants, meId: s.meId }, p.id)
+        set({ athletes, participants, enrollments, assessments, evidence })
+      },
+
+      deleteAssessment: (sessionId) =>
+        set((s) => ({
+          assessments: s.assessments.filter((a) => a.id !== sessionId),
+          participants: s.participants.filter((p) => p.sessionId !== sessionId),
+          evidence: s.evidence.filter((e) => e.assessmentId !== sessionId),
+        })),
+
+      mergePlaces: (incoming) =>
+        set((s) => {
+          const places = mergePlaces(s.places, incoming)
+          const ids = Object.keys(places)
+          if (ids.length <= PLACE_CACHE) return { places }
+          // Over the cap: drop the stalest places nobody on this device has a tie to.
+          const tied = new Set<string>(s.visits.map((v) => v.placeId))
+          for (const a of Object.values(s.athletes)) {
+            if (a.homePlaceId) tied.add(a.homePlaceId)
+            for (const f of a.favouritePlaces ?? []) tied.add(f)
+          }
+          const fresh = new Set(incoming.map((p) => p.id))
+          const loose = ids
+            .filter((id) => !tied.has(id) && !fresh.has(id) && places[id].source === 'osm' && !places[id].editedAt)
+            .sort((a, b) => (places[a].fetchedAt ?? '').localeCompare(places[b].fetchedAt ?? ''))
+          for (const id of loose.slice(0, ids.length - PLACE_CACHE)) delete places[id]
+          return { places }
+        }),
+
+      addPlace: (input) => {
+        const s = get()
+        const id = `aura:${shortId()}`
+        const now = new Date().toISOString()
+        const place: Place = {
+          ...input, id, name: input.name.trim() || 'Unnamed spot', note: input.note?.trim() || undefined, source: 'athlete',
+          addedBy: s.meId ? s.athletes[s.meId]?.name : undefined, addedAt: now, access: input.kind === 'gym' || input.kind === 'studio' ? 'members' : 'free',
+        }
+        set({ places: { ...s.places, [id]: place } })
+        return id
+      },
+
+      editPlace: (placeId, patch) =>
+        set((s) => {
+          const p = s.places[placeId]
+          if (!p) return s
+          const next = { ...p, ...patch, editedAt: new Date().toISOString() }
+          if (patch.name !== undefined) next.name = patch.name.trim() || p.name
+          return { places: { ...s.places, [placeId]: next } }
+        }),
+
+      confirmPlace: (placeId) =>
+        set((s) => {
+          const p = s.places[placeId]
+          const live = s.meId ? liveVisit(s.visits, s.meId, Date.now()) : undefined
+          if (!p || live?.placeId !== placeId) return s
+          return { places: { ...s.places, [placeId]: { ...p, confirmedAt: new Date().toISOString() } } }
+        }),
+
+      removePlace: (placeId) =>
+        set((s) => {
+          if (s.places[placeId]?.source !== 'athlete') return s
+          const { [placeId]: _gone, ...places } = s.places
+          const athletes = Object.fromEntries(
+            Object.entries(s.athletes).map(([id, a]) => [
+              id,
+              a.homePlaceId === placeId || a.favouritePlaces?.includes(placeId)
+                ? { ...a, homePlaceId: a.homePlaceId === placeId ? undefined : a.homePlaceId, favouritePlaces: a.favouritePlaces?.filter((f) => f !== placeId) }
+                : a,
+            ]),
+          )
+          return { places, athletes, visits: s.visits.filter((v) => v.placeId !== placeId) }
+        }),
+
+      toggleFavourite: (placeId) =>
+        set((s) => {
+          if (!s.meId) return s
+          const me = s.athletes[s.meId]
+          const list = me.favouritePlaces ?? []
+          const favouritePlaces = list.includes(placeId) ? list.filter((f) => f !== placeId) : [...list, placeId]
+          return { athletes: { ...s.athletes, [me.id]: { ...me, favouritePlaces } } }
+        }),
+
+      setHomePlace: (placeId) =>
+        set((s) => {
+          if (!s.meId) return s
+          const me = s.athletes[s.meId]
+          // The home spot is its own thing; it does not also sit among the favourites.
+          const favouritePlaces = (me.favouritePlaces ?? []).filter((f) => f !== placeId)
+          return { athletes: { ...s.athletes, [me.id]: { ...me, homePlaceId: placeId ?? undefined, favouritePlaces } } }
+        }),
+
+      setPrivacy: (patch) =>
+        set((s) => {
+          if (!s.meId) return s
+          const me = s.athletes[s.meId]
+          return { athletes: { ...s.athletes, [me.id]: { ...me, privacy: { ...privacyOf(me), ...patch } } } }
+        }),
+
+      checkIn: (placeId, { minutes, audience, onSite }) =>
+        set((s) => {
+          if (!s.meId || !s.places[placeId]) return s
+          const now = Date.now()
+          const length = Math.max(15, Math.min(PRESENCE.maxMinutes, minutes))
+          const stamp = new Date(now).toISOString()
+          const visits = s.visits.map((v) => (v.athleteId === s.meId && isLive(v, now) ? { ...v, endsAt: stamp } : v))
+          visits.push({ id: uid(), athleteId: s.meId, placeId, startedAt: stamp, endsAt: new Date(now + length * 60000).toISOString(), audience, onSite })
+          return { visits, settings: { ...s.settings, audience, stayMinutes: length } }
+        }),
+
+      checkOut: () =>
+        set((s) => {
+          const now = Date.now()
+          const stamp = new Date(now).toISOString()
+          return { visits: s.visits.map((v) => (v.athleteId === s.meId && isLive(v, now) ? { ...v, endsAt: stamp } : v)) }
+        }),
+
+      extendStay: (minutes) =>
+        set((s) => {
+          const now = Date.now()
+          return {
+            visits: s.visits.map((v) => {
+              if (v.athleteId !== s.meId || !isLive(v, now)) return v
+              const cap = new Date(v.startedAt).getTime() + PRESENCE.maxMinutes * 60000
+              return { ...v, endsAt: new Date(Math.min(cap, new Date(v.endsAt).getTime() + minutes * 60000)).toISOString() }
+            }),
+          }
+        }),
+
+      removeVisit: (visitId) => set((s) => ({ visits: s.visits.filter((v) => !(v.id === visitId && v.athleteId === s.meId)) })),
+
+      clearMyVisits: () => set((s) => ({ visits: s.visits.filter((v) => v.athleteId !== s.meId) })),
+
+      setMapView: (mapView) => set({ mapView }),
     }),
     {
       name: 'aura:v1',
-      version: 1,
+      version: 2,
+      migrate: migrateStored,
       partialize: ({ celebrations: _c, ...rest }) =>
         Object.fromEntries(Object.entries(rest).filter(([, v]) => typeof v !== 'function')) as unknown as State,
     },

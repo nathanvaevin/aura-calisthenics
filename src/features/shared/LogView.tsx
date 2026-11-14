@@ -83,6 +83,7 @@ export function LogRow({ log, onClick, who }: { log: WorkoutLog; onClick: () => 
 export function LogSheet({ logId, onClose, coach }: { logId: string | null; onClose: () => void; coach?: boolean }) {
   const log = useStore((s) => s.logs.find((l) => l.id === logId))
   const athletes = useStore((s) => s.athletes)
+  const places = useStore((s) => s.places)
   const allFeedback = useStore((s) => s.feedback)
   const allEvidence = useStore((s) => s.evidence)
   const addFeedback = useStore((s) => s.addFeedback)
@@ -101,6 +102,8 @@ export function LogSheet({ logId, onClose, coach }: { logId: string | null; onCl
         <span><span className="num font-medium text-ink">{minutes}</span> min</span>
         <span><span className="num font-medium text-ink">{setCount(log)}</span> sets</span>
         {log.rpe && <span>effort <span className="num font-medium text-ink">{log.rpe}</span>/10</span>}
+        {/* Where a session was done is the athlete's own business, not their coach's. */}
+        {!coach && log.placeId && places[log.placeId] && <span>at <span className="font-medium text-ink">{places[log.placeId].name}</span></span>}
         {(up > 0 || down > 0) && <span>{up > 0 && `${up} harder`}{up > 0 && down > 0 && ', '}{down > 0 && `${down} easier`} than assigned</span>}
       </div>
       {log.note && <p className="mt-3 rounded-2xl bg-surface p-3.5 text-[13.5px] leading-relaxed text-ink-2">“{log.note}”</p>}

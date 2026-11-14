@@ -2,7 +2,9 @@
 
 A calisthenics and physical-mastery platform. Make human potential visible.
 
-This is the first working version: seven connected screens, a real exercise and skill catalog, a provisional scoring engine, and a coaching workflow, running locally in the browser with a Supabase schema ready behind it.
+A working local-first version: the core screens, a real exercise and skill catalog, a provisional scoring engine, a coaching workflow, group assessments joined by QR code, and a map of places to train with opt-in check-ins, with a Supabase schema ready behind it.
+
+**What works, what is simulated and what is still to be connected is tracked in [REGISTER.md](REGISTER.md).** That file is the source of truth for status; this one explains how the product is put together. **How scoring works, and how to change it safely, is in [SCORING.md](SCORING.md).**
 
 ## Run it
 
@@ -20,10 +22,11 @@ Other commands:
 
 | Command | What it does |
 | --- | --- |
-| `npm test` | 31 unit tests over the catalog and scoring engine |
+| `npm test` | 94 unit tests over the catalog, scoring engine and its invariants, assessment, places and presence |
 | `npm run build` | Type-check and production build |
 | `npm run db:seed` | Regenerate `supabase/seed.sql` from the catalog in `src/domain` |
-| `npm run db:check` | Apply schema + seed to an in-process Postgres and run 42 checks, including the access rules |
+| `npm run db:check` | Apply schema + seed to an in-process Postgres and run 111 checks, including the access rules |
+| `npm run scoring:audit` | Recompute every figure in SCORING.md from the code and check the catalog against the admission rules |
 
 ## The four systems
 
@@ -36,13 +39,13 @@ They are separate in the code, the data and the UI, and only connect through evi
 | **C. Aura** | Who am I as an athlete, overall? | `src/domain/scoring/aura.ts` |
 | **D. Skill tree** | What have I unlocked, and what is next? | `src/domain/catalog/skills.ts`, `scoring/skills.ts` |
 
-**Evidence** is the single input to B, C and D: one performance on one exercise (reps or seconds), with how it is known: `estimated` (onboarding answers), `self` (logged by the athlete), `coach` or `video` (verified). Raw evidence and workout logs are stored; every score is recomputed from them.
+**Evidence** is the single input to B, C and D: one performance on one exercise (reps or seconds), with how it is known: `estimated` (onboarding answers), `self` (logged by the athlete), `observed` (a coach watched it), `coach` or `video` (formally verified). Raw evidence and workout logs are stored; every score is recomputed from them.
 
 Completing a workout never changes a rating. At the end of a session the athlete sees any sets that beat their record and chooses which to put on record; those become self-reported evidence that a coach can verify.
 
 ### Scoring model: `provisional-0.1`
 
-All of this is in `src/domain/scoring/config.ts` and is meant to be recalibrated. Nothing here is a validated performance standard.
+A summary. The full reference, with the mathematics, worked examples, behaviour as the library grows and the rules for adding exercises, is [SCORING.md](SCORING.md). All of this is in `src/domain/scoring/config.ts` and is meant to be recalibrated. Nothing here is a validated performance standard.
 
 - **Calibration curves.** Each rated exercise has a few anchor points mapping performance to rating points (for example 1 / 5 / 10 / 20 strict pull-ups → 300 / 400 / 480 / 610). Linear between anchors, damped and capped beyond the last one, so ratings can pass 1000.
 - **Discipline rating** = the athlete's three strongest *different* benchmarks in that discipline, weighted 50 / 30 / 20. Empty slots count as zero, so a rating is marked *provisional* until three benchmarks exist. Repeating or adding weaker evidence never moves it.
@@ -62,9 +65,12 @@ One consequence to be aware of: someone with a single strong benchmark in a disc
 | Course | `/train/course/:id` | Weeks, objectives, sessions, milestones, coach feedback |
 | Workout | `/workout` | ← Easier · Level · Harder → on every laddered exercise, alternates at the same level, hold timer, rest timer, undo, summary with assigned vs performed |
 | Library | `/library` | 116 exercises, 20 ladders, search, equipment filter, browse by muscle |
-| Profile | `/profile` | Aura identity, Athlete DNA, ratings, records, skills, consistency, settings |
+| Places | `/places` | Map of calisthenics parks and outdoor gyms from OpenStreetMap; place details and what can be trained there; check in for a set time; who trains there (now, regulars, recently, favourites) |
+| Profile | `/profile` | Aura identity, Athlete DNA, ratings, records, skills, where you are from and train, privacy, consistency, settings |
 | Athletes | `/athletes`, `/athlete/:id` | The scouter: another athlete's Aura, readout against yours, DNA overlay, signature skills |
-| Coach Studio | `/coach` | Bests to verify, sessions to review, students and how they adjust your programming |
+| Assessment | `/assess/:id` | Six adaptive stations, one benchmark at a time; reveal; group view. Joined from a coach's QR code or taken alone |
+| Coach Studio | `/coach` | Bests to verify, sessions to review, students, assessments |
+| Group assessment | `/coach/assessment/:id` | Invitation QR, station timer, live board, observe / verify, group profile and level advice, finalise |
 | Course builder | `/coach/course/:id` | Weeks, sessions, blocks, assigned level and the range students may move in, students, per-session results board |
 
 ## Code map
@@ -77,6 +83,7 @@ src/
     scoring/           Curves, ratings, Aura, skill states, config
     training.ts        Session templates and goal sessions
     insights.ts        Goal progress, next steps
+    places.ts          Privacy, presence, OpenStreetMap conversion, spot links
     domain.test.ts     Catalog integrity and scoring tests
   data/              State and persistence
     store.ts           The single store and every mutation
@@ -86,33 +93,29 @@ src/
   ui/                AuraField, DnaSigil, MuscleMap, primitives
   features/          One folder per screen
 supabase/
-  migrations/        0001_core.sql (schema + access rules), 0002_storage.sql
+  migrations/        0001 core · 0002 storage · 0003–0004 assessments · 0005 places and presence
   seed.sql           Generated catalog seed
-scripts/             Seed generator and schema check
+scripts/             Seed generator, schema check, scoring audit
 ```
 
-## Data and Supabase: what is and is not wired
+## Assessments
 
-**Today the app is local-first.** State lives in the browser's local storage on one device. Other athletes, students and courses are sample data.
+`src/domain/assessment.ts` defines the protocol: one station per discipline, each opening with a benchmark everyone can attempt and branching on the result, so a beginner gets rows where a strong athlete gets chest-to-bar pull-ups. Results become evidence when the athlete finishes on their own device, or when the coach finalises the session, each at the tier it was given.
 
-**Ready but not yet connected:**
+Devices do not share a backend yet, so two links carry the data: the **invitation** (QR on the coach's screen, holds the whole invitation) and the **hand-in** (QR on the participant's final screen, holds their results). Both live in the URL fragment of the app's root address, so they work on any static host. Handed-in results always arrive as self-reported.
 
-- `supabase/migrations/0001_core.sql` – the full schema: profiles, catalog, scoring models and curves, courses, logs, evidence, snapshots, social. Row-level rules enforce that athletes cannot verify their own evidence, coaches only read data from athletes in their own courses, and scores cannot be written from the client. `npm run db:check` proves the SQL applies and those rules hold, against an in-process Postgres. It has not been run against a hosted Supabase project.
-- `supabase/seed.sql` – the catalog, generated from the same source the app uses.
-- `src/data/supabase.ts` – client and Google sign-in. With `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` set (copy `.env.example` to `.env.local`), the sign-in button appears and a session is established.
+## Places and presence
 
-**The missing piece** is reading and writing app data through Supabase instead of local storage. `src/data/store.ts` is the only place that mutates state, so that is the seam: each action there maps to one table in the schema.
+`src/domain/places.ts` holds the rules; `src/features/places/` the screens. Places come from OpenStreetMap on demand for the area on the map, plus any the athlete adds. A check-in records a place and a time window, never a position; it always ends, and who can see it is chosen each time. Four ties to a place are kept apart: training there now, a regular, there recently, a favourite.
 
-To stand up the backend: create a Supabase project, enable the Google provider, run the two migrations and `seed.sql`, then set the two environment variables.
+Other athletes shown at places are the seeded sample athletes. Until accounts are connected, the only way presence reaches another device is a link the athlete sends themselves ("I'm here until 18:30").
+
+The map and place search call three outside services from the browser (map tiles, OpenStreetMap place data, place-name search). None needs a key; none is guaranteed. Details and the production path are in REGISTER.md (I-07, I-15, I-16).
+
+## Data and Supabase
+
+The app is local-first: state lives in the browser's local storage on one device. The Supabase schema (`supabase/migrations`), seed and sign-in wiring exist but the app's data does not go through them yet. `src/data/store.ts` is the only place that mutates state, so it is the seam. Current status and the steps to connect it are in [REGISTER.md](REGISTER.md).
 
 ## Design language
 
 Dark-first with a warm light theme. Instrument Serif for numbers and titles, Geist for interface text, Geist Mono for labels. Six discipline colours are the only strong colour in the product, and they mean the same thing everywhere: the Aura field, the DNA shape, the tree, the muscle map. Tokens are in `src/styles/index.css`.
-
-## Not built yet
-
-- Cloud data sync (above), invitations, real multi-user coaching
-- Video upload and video verification (coaches can attach a video link per exercise today)
-- Demonstration media: the library ships with instructions and muscle maps, no footage
-- Rankings, challenges, activity badges, nearby-athlete discovery beyond a city filter
-- Coach-defined exercises and ladders in the UI (the schema supports them)

@@ -17,6 +17,7 @@ import { DisciplineDot, Eyebrow, SectionTitle, Segmented, Sheet, StatusTag, Step
 import { AuraSheet, LogEvidenceSheet, RatingList, RatingSheet } from '@/features/shared/Explainers'
 import { LogRow, LogSheet } from '@/features/shared/LogView'
 import { SkillSheet } from '@/features/tree/SkillSheet'
+import { IdentityFields, MyIdentity, PrivacyCard } from '@/features/places/Identity'
 import { cx, dvar, initials, num, relativeDay, shortDate } from '@/lib/format'
 
 export function Profile() {
@@ -130,6 +131,9 @@ export function Profile() {
             <SectionTitle>Mastery ratings</SectionTitle>
             <RatingList ratings={me.ratings} onSelect={setRatingOpen} />
           </section>
+
+          {/* Identity beyond ability */}
+          <MyIdentity athlete={me.athlete} onEdit={() => setEditOpen(true)} />
         </div>
 
         <div className="mt-8 space-y-8 lg:mt-0">
@@ -243,6 +247,8 @@ export function Profile() {
             )}
           </section>
 
+          <PrivacyCard athlete={me.athlete} />
+
           {/* Settings */}
           <section>
             <SectionTitle>Settings</SectionTitle>
@@ -343,9 +349,10 @@ function EditProfile({ open, onClose }: { open: boolean; onClose: () => void }) 
         <label className="block"><Eyebrow className="mb-2">Name</Eyebrow><input className="field" value={at.name} onChange={(e) => updateMe({ name: e.target.value })} /></label>
         <div className="grid grid-cols-2 gap-3">
           <label className="block"><Eyebrow className="mb-2">Handle</Eyebrow><input className="field" value={at.handle} onChange={(e) => updateMe({ handle: e.target.value.replace(/[^\w.]/g, '').toLowerCase() })} /></label>
-          <label className="block"><Eyebrow className="mb-2">City · optional</Eyebrow><input className="field" value={at.city ?? ''} placeholder="Not shared" onChange={(e) => updateMe({ city: e.target.value || undefined })} /></label>
+          <label className="block"><Eyebrow className="mb-2">Based in · optional</Eyebrow><input className="field" value={at.city ?? ''} placeholder="Your city" onChange={(e) => updateMe({ city: e.target.value || undefined })} /></label>
         </div>
-        <p className="-mt-2 text-[12px] text-ink-3">Your city is the only location other athletes ever see. Leave it empty to stay out of local discovery.</p>
+        <p className="-mt-2 text-[12px] text-ink-3">The city you are based in. Leave it empty to stay out of local discovery; who sees it is set under Privacy.</p>
+        <IdentityFields athlete={at} />
         <label className="block"><Eyebrow className="mb-2">Bio</Eyebrow><textarea className="field" rows={2} value={at.bio} onChange={(e) => updateMe({ bio: e.target.value })} /></label>
         <div className="flex items-center justify-between">
           <span><Eyebrow>Weekly target</Eyebrow><span className="mt-1 block text-[12.5px] text-ink-3">Sessions you intend to train each week</span></span>

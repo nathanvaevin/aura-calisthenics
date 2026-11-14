@@ -15,6 +15,15 @@ import { WorkoutPlayer } from '@/features/workout/WorkoutPlayer'
 import { CoachStudio } from '@/features/coach/CoachStudio'
 import { CourseEditor } from '@/features/coach/CourseEditor'
 import { Onboarding } from '@/features/onboarding/Onboarding'
+import { AssessHub, StationRunner } from '@/features/assess/Assess'
+import { Reveal } from '@/features/assess/Reveal'
+import { GroupPage } from '@/features/assess/Group'
+import { HandInImport, JoinInvite } from '@/features/assess/Join'
+import { readLink } from '@/features/assess/links'
+import { landing } from './landing'
+import { AssessmentSession } from '@/features/coach/AssessmentSession'
+import { Places } from '@/features/places/Places'
+import { SpotLanding } from '@/features/places/Spot'
 
 function ScrollReset() {
   const { pathname } = useLocation()
@@ -22,6 +31,15 @@ function ScrollReset() {
     window.scrollTo(0, 0)
   }, [pathname])
   return null
+}
+
+/** Leaving the welcome flow: to wherever it asked for, else a workout in progress, else Home. */
+function AfterWelcome() {
+  const to = landing.to ?? (useStore.getState().active ? '/workout' : '/')
+  useEffect(() => {
+    landing.to = null
+  }, [])
+  return <Navigate to={to} replace />
 }
 
 /** Everything behind the welcome flow needs an athlete to exist. */
@@ -39,13 +57,25 @@ export function App() {
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#08090b' : '#f3f0e9')
   }, [theme])
 
+  // An invitation or a hand-in arrives in the address fragment and takes over
+  // the screen, whoever is or is not signed in on this device.
+  const link = readLink(useLocation().hash)
+  if (link) {
+    if (link.kind === 'spot') return <SpotLanding data={link.data} />
+    return link.kind === 'join' ? <JoinInvite data={link.data} /> : <HandInImport data={link.data} />
+  }
+
   return (
     <>
       <ScrollReset />
       <Routes>
-        <Route path="/welcome" element={meId ? <Navigate to={useStore.getState().active ? '/workout' : '/'} replace /> : <Onboarding />} />
+        <Route path="/welcome" element={meId ? <AfterWelcome /> : <Onboarding />} />
         <Route element={<RequireAthlete />}>
           <Route path="/workout" element={<WorkoutPlayer />} />
+          <Route path="/assess/:sessionId" element={<AssessHub />} />
+          <Route path="/assess/:sessionId/station/:station" element={<StationRunner />} />
+          <Route path="/assess/:sessionId/reveal" element={<Reveal />} />
+          <Route path="/assess/:sessionId/group" element={<GroupPage />} />
           <Route element={<Shell />}>
             <Route index element={<Home />} />
             <Route path="tree" element={<SkillTree />} />
@@ -54,10 +84,12 @@ export function App() {
             <Route path="library" element={<Library />} />
             <Route path="library/:exerciseId" element={<ExerciseDetail />} />
             <Route path="profile" element={<Profile />} />
+            <Route path="places" element={<Places />} />
             <Route path="athletes" element={<Athletes />} />
             <Route path="athlete/:athleteId" element={<AthleteScan />} />
             <Route path="coach" element={<CoachStudio />} />
             <Route path="coach/course/:courseId" element={<CourseEditor />} />
+            <Route path="coach/assessment/:sessionId" element={<AssessmentSession />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

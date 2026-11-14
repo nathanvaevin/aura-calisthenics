@@ -1,7 +1,7 @@
 import { useEffect, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import { BadgeCheck, CircleDashed, Minus, Plus, User, Video, X } from 'lucide-react'
+import { BadgeCheck, CircleDashed, Eye, Minus, Plus, User, Video, X } from 'lucide-react'
 import type { DisciplineId, EvidenceTier } from '@/domain/types'
 import { TIER_LABEL } from '@/domain/scoring/config'
 import type { RatingStatus } from '@/domain/scoring/mastery'
@@ -45,7 +45,7 @@ export function TextLink({ children, onClick }: { children: ReactNode; onClick?:
   )
 }
 
-const TIER_ICON: Record<EvidenceTier, typeof User> = { estimated: CircleDashed, self: User, coach: BadgeCheck, video: Video }
+const TIER_ICON: Record<EvidenceTier, typeof User> = { estimated: CircleDashed, self: User, observed: Eye, coach: BadgeCheck, video: Video }
 
 /** How we know. Estimated and self-reported evidence is never dressed up as verified. */
 export function TierTag({ tier, compact }: { tier: EvidenceTier; compact?: boolean }) {
@@ -57,7 +57,7 @@ export function TierTag({ tier, compact }: { tier: EvidenceTier; compact?: boole
       className={cx(
         'inline-flex items-center gap-1 rounded-full font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] whitespace-nowrap',
         compact ? 'h-5 w-5 justify-center' : 'h-[22px] px-2',
-        verified ? 'bg-good/15 text-good' : tier === 'estimated' ? 'border border-dashed border-line-strong text-ink-3' : 'border border-line text-ink-2',
+        verified ? 'bg-good/15 text-good' : tier === 'observed' ? 'border border-good/40 text-good' : tier === 'estimated' ? 'border border-dashed border-line-strong text-ink-3' : 'border border-line text-ink-2',
       )}
     >
       <Icon size={11} strokeWidth={2.2} />
@@ -70,17 +70,18 @@ const STATUS_COPY: Record<RatingStatus, string> = {
   unrated: 'Unrated',
   estimated: 'Estimated',
   self: 'Self-reported',
+  observed: 'Coach-observed',
   verified: 'Verified',
 }
 
 export function StatusTag({ status, provisional }: { status: RatingStatus; provisional?: boolean }) {
-  const tier: EvidenceTier | null = status === 'verified' ? 'coach' : status === 'self' ? 'self' : status === 'estimated' ? 'estimated' : null
+  const tier: EvidenceTier | null = status === 'verified' ? 'coach' : status === 'observed' ? 'observed' : status === 'self' ? 'self' : status === 'estimated' ? 'estimated' : null
   const Icon = tier ? TIER_ICON[tier] : CircleDashed
   return (
     <span
       className={cx(
         'inline-flex h-[22px] items-center gap-1 rounded-full px-2 font-mono text-[9.5px] font-medium uppercase tracking-[0.1em] whitespace-nowrap',
-        status === 'verified' ? 'bg-good/15 text-good' : status === 'self' ? 'border border-line text-ink-2' : 'border border-dashed border-line-strong text-ink-3',
+        status === 'verified' ? 'bg-good/15 text-good' : status === 'observed' ? 'border border-good/40 text-good' : status === 'self' ? 'border border-line text-ink-2' : 'border border-dashed border-line-strong text-ink-3',
       )}
     >
       <Icon size={11} strokeWidth={2.2} />

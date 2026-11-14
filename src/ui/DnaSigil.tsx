@@ -2,7 +2,7 @@ import { useId } from 'react'
 import type { DisciplineId } from '@/domain/types'
 import { disciplineById } from '@/domain/catalog'
 import { dvar } from '@/lib/format'
-import { WHEEL } from './AuraField'
+import { WHEEL as ALL } from './AuraField'
 
 interface Props {
   ratings: Record<DisciplineId, number>
@@ -11,14 +11,11 @@ interface Props {
   /** A second athlete drawn as an outline for comparison. */
   ghost?: Record<DisciplineId, number>
   onSelect?: (d: DisciplineId) => void
+  /** Draw only these disciplines, for an assessment that covered some of the six. Needs at least three. */
+  axes?: DisciplineId[]
 }
 
 const C = 150
-
-const point = (i: number, radius: number): [number, number] => {
-  const a = ((i * 60 - 90) * Math.PI) / 180
-  return [C + Math.cos(a) * radius, C + Math.sin(a) * radius]
-}
 
 /** Closed Catmull-Rom spline through the points, as cubic Béziers. */
 function smoothPath(pts: [number, number][], tension = 0.42) {
@@ -41,8 +38,14 @@ function smoothPath(pts: [number, number][], tension = 0.42) {
  * the form is filled with the same colours that light their Aura, so two
  * athletes with the same score still look nothing alike.
  */
-export function DnaSigil({ ratings, size = 300, labels = true, ghost, onSelect }: Props) {
+export function DnaSigil({ ratings, size = 300, labels = true, ghost, onSelect, axes }: Props) {
   const id = useId().replace(/:/g, '')
+  const WHEEL = axes && axes.length >= 3 ? ALL.filter((d) => axes.includes(d)) : ALL
+  const step = 360 / WHEEL.length
+  const point = (i: number, radius: number): [number, number] => {
+    const a = ((i * step - 90) * Math.PI) / 180
+    return [C + Math.cos(a) * radius, C + Math.sin(a) * radius]
+  }
   const values = WHEEL.map((d) => ratings[d] ?? 0)
   const ghostValues = ghost ? WHEEL.map((d) => ghost[d] ?? 0) : []
   const top = Math.max(...values, ...ghostValues, 1)
@@ -113,7 +116,7 @@ export function DnaSigil({ ratings, size = 300, labels = true, ghost, onSelect }
           const [x, y] = pts[i]
           const [lx, ly] = point(i, R + 24)
           const anchor = Math.abs(lx - C) < 8 ? 'middle' : lx > C ? 'start' : 'end'
-          const dy = i === 0 ? -8 : i === 3 ? 12 : 2
+          const dy = ly < C - R ? -8 : ly > C + R ? 12 : 2
           return (
             <g key={d} onClick={onSelect ? () => onSelect(d) : undefined} style={onSelect ? { cursor: 'pointer' } : undefined}>
               <circle cx={x} cy={y} r="3.2" fill="var(--bg)" stroke={dvar(d)} strokeWidth="1.6" />

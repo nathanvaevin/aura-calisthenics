@@ -10,6 +10,9 @@ import { AuraDot, AuraField } from '@/ui/AuraField'
 import { CountUp } from '@/ui/CountUp'
 import { DnaSigil } from '@/ui/DnaSigil'
 import { Bar, DisciplineDot, Empty, Eyebrow, PageHeader, SectionTitle, Segmented, StatusTag, TierTag } from '@/ui/primitives'
+import { identityFor } from '@/domain/places'
+import { IdentityOf } from '@/features/places/Identity'
+import { useViewer } from '@/features/places/shared'
 import { cx, dvar, initials, num } from '@/lib/format'
 
 type Filter = 'all' | 'following' | 'level' | 'city'
@@ -22,6 +25,9 @@ export function Athletes() {
   const evidence = useStore((s) => s.evidence)
   const following = useStore((s) => s.following)
   const [filter, setFilter] = useState<Filter>('all')
+  const viewer = useViewer()
+  /** The city an athlete lets this viewer see, if any. */
+  const cityOf = (a: Athlete) => identityFor(a, viewer.relationTo(a)).city
 
   const ranked = useMemo(
     () =>
@@ -34,7 +40,7 @@ export function Athletes() {
     if (athlete.id === me.athlete.id) return filter === 'all' || filter === 'level'
     if (filter === 'following') return following.includes(athlete.id)
     if (filter === 'level') return Math.abs(aura.aura - me.aura.aura) <= Math.max(800, me.aura.aura * 0.25)
-    if (filter === 'city') return !!me.athlete.city && athlete.city === me.athlete.city
+    if (filter === 'city') return !!me.athlete.city && cityOf(athlete) === me.athlete.city
     return true
   })
 
@@ -72,7 +78,7 @@ export function Athletes() {
                       {isMe && <span className="rounded-full bg-ink px-1.5 py-px font-mono text-[9px] tracking-[0.1em] text-bg uppercase">You</span>}
                       {following.includes(athlete.id) && <Check size={12} className="text-ink-3" />}
                     </span>
-                    <span className="block truncate text-[12px] text-ink-3">{aura.title}{athlete.city ? ` · ${athlete.city}` : ''}</span>
+                    <span className="block truncate text-[12px] text-ink-3">{aura.title}{cityOf(athlete) ? ` · ${cityOf(athlete)}` : ''}</span>
                   </span>
                   <span className="display num text-[28px]">{num(aura.aura)}</span>
                 </button>
@@ -82,7 +88,7 @@ export function Athletes() {
         )}
         <p className="mt-3 flex items-start gap-2 text-[12px] leading-relaxed text-ink-3">
           <MapPin size={13} className="mt-0.5 shrink-0" />
-          Location is opt-in and limited to a city name. Sample athletes are shown here until accounts are connected.
+          A city appears only when its athlete shares it with you. Sample athletes are shown here until accounts are connected.
         </p>
       </div>
     </div>
@@ -133,7 +139,7 @@ export function AthleteScan() {
 
           <div className="rise rise-2 mt-1 flex flex-col items-center text-center">
             <h1 className="display text-[36px]">{them.athlete.name}</h1>
-            <div className="mt-1 text-[13px] text-ink-3">@{them.athlete.handle}{them.athlete.city ? ` · ${them.athlete.city}` : ''}</div>
+            <div className="mt-1 text-[13px] text-ink-3">@{them.athlete.handle}</div>
             {them.athlete.bio && <p className="mt-2.5 max-w-xs text-[14px] leading-relaxed text-ink-2">{them.athlete.bio}</p>}
             <div className="mt-4 flex items-center gap-2.5">
               <button className={cx('btn btn-sm', isFollowing ? 'btn-quiet' : 'btn-primary')} onClick={() => toggleFollow(them.athlete.id)}>
@@ -145,6 +151,8 @@ export function AthleteScan() {
         </section>
 
         <div className="mt-8 space-y-8 lg:mt-6">
+          <IdentityOf athlete={them.athlete} />
+
           {/* Readout */}
           <section className="rise rise-3">
             <SectionTitle>Mastery readout</SectionTitle>

@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
-import { Navigate, useNavigate } from 'react-router'
-import { ArrowRight, BadgeCheck, Plus } from 'lucide-react'
+import { Navigate, useNavigate, useSearchParams } from 'react-router'
+import { ArrowRight, BadgeCheck, Plus, QrCode as QrIcon } from 'lucide-react'
+import type { DisciplineId } from '@/domain/types'
+import { STATIONS, estimateMinutes, overallProgress } from '@/domain/assessment'
 import type { Course, WorkoutLog } from '@/domain/types'
 import { DISCIPLINE_IDS, disciplineById, exerciseById, formatValue } from '@/domain/catalog'
 import { auraFor } from '@/domain/scoring/aura'
@@ -12,7 +14,7 @@ import { Bar, DisciplineDot, Empty, Eyebrow, PageHeader, SectionTitle, Segmented
 import { LogRow, LogSheet, levelShifts } from '@/features/shared/LogView'
 import { cx, dvar, initials, num, relativeDay } from '@/lib/format'
 
-type Tab = 'review' | 'courses' | 'students'
+type Tab = 'review' | 'courses' | 'students' | 'assess'
 
 const STATUS: Record<Course['status'], string> = { draft: 'Draft', active: 'Active', archived: 'Archived' }
 
@@ -52,7 +54,12 @@ export function CoachStudio() {
   const verify = useStore((s) => s.verifyEvidence)
   const createCourse = useStore((s) => s.createCourse)
 
-  const [tab, setTab] = useState<Tab>('review')
+  const [params, setParams] = useSearchParams()
+  const tab = (params.get('tab') as Tab) || 'review'
+  const setTab = (t: Tab) => setParams({ tab: t }, { replace: true })
+  const assessments = useStore((s) => s.assessments)
+  const participants = useStore((s) => s.participants)
+  const [assessOpen, setAssessOpen] = useState(false)
   const [logOpen, setLogOpen] = useState<string | null>(null)
   const [studentOpen, setStudentOpen] = useState<string | null>(null)
   const [newOpen, setNewOpen] = useState(false)
@@ -68,6 +75,8 @@ export function CoachStudio() {
   const pending = evidence.filter((e) => e.logId && logIds.has(e.logId) && e.tier === 'self')
   const unreviewed = courseLogs.filter((l) => !reviewed.has(l.id))
   const studentIds = [...new Set(enrollments.filter((e) => myIds.has(e.courseId)).map((e) => e.athleteId))]
+
+  const myAssessments = assessments.filter((a) => a.origin === 'local' && a.coachId === meId).sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 
   if (!coach) return <Navigate to="/profile" replace />
 
@@ -93,9 +102,44 @@ export function CoachStudio() {
         ))}
       </div>
 
-      <div className="rise rise-2 mt-5">
-        <Segmented<Tab> value={tab} onChange={setTab} options={[{ value: 'review', label: 'Review' }, { value: 'courses', label: 'Courses' }, { value: 'students', label: 'Students' }]} />
+      <div className="rise rise-2 no-scrollbar -mx-5 mt-5 overflow-x-auto px-5 lg:mx-0 lg:px-0">
+        <Segmented<Tab> value={tab} onChange={setTab} options={[{ value: 'review', label: 'Review' }, { value: 'courses', label: 'Courses' }, { value: 'students', label: 'Students' }, { value: 'assess', label: 'Assessments' }]} />
       </div>
+
+      {tab === 'assess' && (
+        <div className="mt-6 max-w-3xl">
+          <button className="pressable card relative flex w-full items-center gap-4 overflow-hidden p-5 text-left hover:bg-surface-2" onClick={() => setAssessOpen(true)}>
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-ink text-bg"><QrIcon size={20} /></span>
+            <span>
+              <span className="display block text-[24px]">New group assessment</span>
+              <span className="block text-[13px] text-ink-2">One code on the wall. Everyone scans, tests at stations, and leaves with a starting profile.</span>
+            </span>
+          </button>
+          {myAssessments.length > 0 && <Eyebrow className="mt-7 mb-3">Your assessments</Eyebrow>}
+          <div className="space-y-2.5">
+            {myAssessments.map((a) => {
+              const people = participants.filter((p) => p.sessionId === a.id)
+              const finished = people.filter((p) => p.submittedAt || overallProgress(a.stations, p.results, p.skipped).complete).length
+              return (
+                <button key={a.id} onClick={() => navigate(`/coach/assessment/${a.id}`)} className="pressable card block w-full p-4 text-left hover:bg-surface-2">
+                  <div className="flex items-center justify-between">
+                    <Eyebrow>{a.kind === 'retest' ? 'Re-test' : 'Baseline'} · {relativeDay(a.createdAt)}</Eyebrow>
+                    <span className={cx('rounded-full px-2 py-0.5 font-mono text-[9.5px] tracking-[0.1em] uppercase', a.status === 'open' ? 'bg-good/15 text-good' : 'border border-line text-ink-3')}>{a.status === 'open' ? 'Open' : 'Finalised'}</span>
+                  </div>
+                  <div className="mt-1.5 flex items-end justify-between gap-3">
+                    <span className="display text-[24px]">{a.groupName}</span>
+                    <ArrowRight size={16} className="mb-1.5 shrink-0 text-ink-3" />
+                  </div>
+                  <div className="mt-2 flex items-center gap-3">
+                    <span className="flex gap-1">{a.stations.map((d) => <span key={d} className="h-2 w-2 rounded-full" style={{ background: dvar(d) }} />)}</span>
+                    <span className="num text-[12px] text-ink-3">{people.length} joined · {finished} finished{a.sample ? ' · sample data' : ''}</span>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {tab === 'review' && (
         <div className="mt-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-10">
@@ -220,6 +264,7 @@ export function CoachStudio() {
         </div>
       )}
 
+      <NewAssessmentSheet open={assessOpen} onClose={() => setAssessOpen(false)} />
       <LogSheet logId={logOpen} onClose={() => setLogOpen(null)} coach />
       <StudentSheet athleteId={studentOpen} onClose={() => setStudentOpen(null)} logs={courseLogs} onOpenLog={(id) => { setStudentOpen(null); setLogOpen(id) }} />
 
@@ -302,6 +347,83 @@ function StudentSheet({ athleteId, onClose, logs, onOpenLog }: { athleteId: stri
         </>
       )}
       <button className="btn btn-outline mt-5 w-full" onClick={() => navigate(`/athlete/${model.athlete.id}`)}>Open full athlete profile</button>
+    </Sheet>
+  )
+}
+
+function NewAssessmentSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const navigate = useNavigate()
+  const meId = useStore((s) => s.meId)
+  const courses = useStore((s) => s.courses)
+  const assessments = useStore((s) => s.assessments)
+  const create = useStore((s) => s.createAssessment)
+  const mine = courses.filter((c) => c.coachId === meId && c.status !== 'archived')
+  const earlier = assessments.filter((a) => a.origin === 'local' && a.coachId === meId && a.status === 'finalised')
+
+  const [courseId, setCourseId] = useState('')
+  const [group, setGroup] = useState('')
+  const [baselineId, setBaselineId] = useState('')
+  const [stations, setStations] = useState<DisciplineId[]>(STATIONS.map((s) => s.id))
+
+  const course = mine.find((c) => c.id === courseId)
+  const baseline = earlier.find((a) => a.id === baselineId)
+  const groupName = group.trim() || baseline?.groupName || course?.title || ''
+  const ordered = STATIONS.map((s) => s.id).filter((id) => stations.includes(id))
+
+  return (
+    <Sheet open={open} onClose={onClose} eyebrow="Assessments" title="New group assessment">
+      <div className="space-y-5">
+        {earlier.length > 0 && (
+          <label className="block">
+            <Eyebrow className="mb-2">Purpose</Eyebrow>
+            <select
+              className="field" value={baselineId}
+              onChange={(e) => {
+                const b = earlier.find((a) => a.id === e.target.value)
+                setBaselineId(e.target.value)
+                if (b) { setStations(b.stations); setCourseId(b.courseId ?? '') }
+              }}
+            >
+              <option value="">A first baseline for a group</option>
+              {earlier.map((a) => <option key={a.id} value={a.id}>Re-test of {a.groupName} · {a.title}</option>)}
+            </select>
+            {baseline && <span className="mt-1.5 block text-[12px] leading-snug text-ink-3">Same stations and the same people, already on the board, so every result can be compared with {baseline.title.toLowerCase()}.</span>}
+          </label>
+        )}
+
+        <label className="block">
+          <Eyebrow className="mb-2">Course</Eyebrow>
+          <select className="field" value={courseId} onChange={(e) => setCourseId(e.target.value)} disabled={!!baseline}>
+            <option value="">No course. Just a training group</option>
+            {mine.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+          </select>
+          <span className="mt-1.5 block text-[12px] leading-snug text-ink-3">Linking a course enrols everyone in it when you finalise, and tailors the level advice to its exercises.</span>
+        </label>
+
+        <label className="block">
+          <Eyebrow className="mb-2">Group name</Eyebrow>
+          <input className="field" placeholder={course?.title ?? 'Tuesday beginners'} value={group || baseline?.groupName || ''} onChange={(e) => setGroup(e.target.value)} disabled={!!baseline} />
+          <span className="mt-1.5 block text-[12px] leading-snug text-ink-3">What participants see when they scan. Run a separate assessment for each group; each gets its own code.</span>
+        </label>
+
+        <div>
+          <div className="mb-2 flex items-center justify-between"><Eyebrow>Stations</Eyebrow><span className="num text-[12px] text-ink-3">about {estimateMinutes(ordered)} min</span></div>
+          <div className="flex flex-wrap gap-2">
+            {STATIONS.map((s) => (
+              <button key={s.id} className="chip" data-on={stations.includes(s.id)} disabled={!!baseline} onClick={() => setStations(stations.includes(s.id) ? stations.filter((x) => x !== s.id) : [...stations, s.id])}>
+                {!stations.includes(s.id) && <DisciplineDot id={s.id} size={6} />}{disciplineById[s.id].short}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button
+          className="btn btn-primary btn-lg w-full" disabled={ordered.length === 0 || !groupName}
+          onClick={() => navigate(`/coach/assessment/${create({ title: baseline ? 'Re-test' : 'Baseline', groupName, courseId: courseId || undefined, stations: ordered, kind: baseline ? 'retest' : 'baseline', baselineId: baselineId || undefined })}?tab=invite`)}
+        >
+          Create and show the code
+        </button>
+      </div>
     </Sheet>
   )
 }

@@ -29,6 +29,8 @@ export const SCORING = {
   auraExponent: 3,
   auraScale: 10,
 
+  /** Share that must be at least coach-observed to call a rating observed. */
+  observedShare: 0.6,
   /** Share of a rating that must come from verified evidence to call it verified. */
   verifiedShare: 0.6,
   /** Share from estimates above which a rating is labelled estimated. */
@@ -56,11 +58,12 @@ export const bandOf = (rating: number) => {
   return band
 }
 
-export const TIER_RANK: Record<EvidenceTier, number> = { estimated: 0, self: 1, coach: 2, video: 3 }
+export const TIER_RANK: Record<EvidenceTier, number> = { estimated: 0, self: 1, observed: 2, coach: 3, video: 4 }
 
 export const TIER_LABEL: Record<EvidenceTier, string> = {
   estimated: 'Estimated',
   self: 'Self-reported',
+  observed: 'Coach-observed',
   coach: 'Coach-verified',
   video: 'Video-verified',
 }

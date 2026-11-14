@@ -1,7 +1,8 @@
 import { NavLink, Outlet, useNavigate } from 'react-router'
-import { BookOpen, ClipboardCheck, House, Play, ScanLine, User, Waypoints, Zap } from 'lucide-react'
+import { BookOpen, ClipboardCheck, House, MapPin, Play, ScanLine, User, Waypoints, Zap } from 'lucide-react'
 import { useStore } from '@/data/store'
-import { useIsCoach, useMe } from '@/data/hooks'
+import { useClock, useIsCoach, useMe } from '@/data/hooks'
+import { liveVisit } from '@/domain/places'
 import { exerciseById } from '@/domain/catalog'
 import { AuraDot } from '@/ui/AuraField'
 import { cx, initials, num } from '@/lib/format'
@@ -10,6 +11,7 @@ const TABS = [
   { to: '/', label: 'Home', icon: House, end: true },
   { to: '/tree', label: 'Skills', icon: Waypoints },
   { to: '/train', label: 'Train', icon: Zap },
+  { to: '/places', label: 'Places', icon: MapPin },
   { to: '/library', label: 'Library', icon: BookOpen },
   { to: '/profile', label: 'Profile', icon: User },
 ]
@@ -49,6 +51,32 @@ function ResumeBar() {
         <Play size={12} fill="currentColor" /> Resume
       </span>
     </button>
+  )
+}
+
+/** A check-in is always in sight while it runs, with its end time, and one tap from ending it. */
+function PresenceBar() {
+  const meId = useStore((s) => s.meId)
+  const visits = useStore((s) => s.visits)
+  const places = useStore((s) => s.places)
+  const checkOut = useStore((s) => s.checkOut)
+  const navigate = useNavigate()
+  const now = useClock()
+  const live = meId ? liveVisit(visits, meId, now) : undefined
+  const place = live && places[live.placeId]
+  if (!live || !place) return null
+  const until = new Date(live.endsAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+  return (
+    <div className="glass flex w-full items-center gap-2 rounded-full border border-line-strong py-1.5 pr-1.5 pl-4 shadow-(--shadow-pop)">
+      <button onClick={() => navigate(`/places?place=${encodeURIComponent(place.id)}`)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+        <MapPin size={14} className="shrink-0 text-accent" />
+        <span className="min-w-0">
+          <span className="block truncate text-[13px] font-medium">At {place.name}</span>
+          <span className="block truncate text-[11px] text-ink-3">Until {until} · {live.audience === 'me' ? 'only you can see' : live.audience === 'following' ? 'people you follow can see' : 'everyone can see'}</span>
+        </span>
+      </button>
+      <button onClick={checkOut} className="flex h-8 shrink-0 items-center rounded-full bg-surface-3 px-3 text-[12px] font-medium">Leave</button>
+    </div>
   )
 }
 
@@ -97,6 +125,7 @@ export function Shell() {
           )}
         </nav>
         <div className="mt-auto space-y-3">
+          <PresenceBar />
           <ResumeBar />
           <button onClick={() => navigate('/profile')} className="flex w-full items-center gap-3 rounded-2xl border border-line bg-surface p-2.5 text-left hover:bg-surface-2">
             <AuraDot mix={me.aura.mix} size={38}>{initials(me.athlete.name)}</AuraDot>
@@ -117,7 +146,8 @@ export function Shell() {
       {/* Mobile tab bar */}
       <div className="safe-bottom fixed inset-x-0 bottom-0 z-40 lg:hidden">
         <div className="mx-auto max-w-[560px] px-4 pb-2">
-          <div className="mb-2">
+          <div className="mb-2 space-y-2">
+            <PresenceBar />
             <ResumeBar />
           </div>
         </div>

@@ -46,11 +46,13 @@ export function computeAura(ratings: Ratings): AuraResult {
   ) as Record<DisciplineId, number>
 
   let estimated = 0
+  let observed = 0
   let verified = 0
   if (sum > 0) {
     for (const d of DISCIPLINE_IDS) {
       const r = ratings[d]
       estimated += (r.rating / sum) * r.share.estimated
+      observed += (r.rating / sum) * r.share.observed
       verified += (r.rating / sum) * (r.share.coach + r.share.video)
     }
   }
@@ -59,9 +61,11 @@ export function computeAura(ratings: Ratings): AuraResult {
       ? 'unrated'
       : verified >= SCORING.verifiedShare
         ? 'verified'
-        : estimated >= SCORING.estimatedShare
-          ? 'estimated'
-          : 'self'
+        : observed + verified >= SCORING.observedShare
+          ? 'observed'
+          : estimated >= SCORING.estimatedShare
+            ? 'estimated'
+            : 'self'
 
   const cls = auraClassOf(aura)
   const archetype = !peakId

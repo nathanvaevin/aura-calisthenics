@@ -55,6 +55,16 @@ export function useNow(intervalMs = 250, enabled = true) {
   return now
 }
 
+/**
+ * The time as of this render, refreshed on an interval. Unlike `useNow`, a
+ * re-render caused by anything else (a check-in, a check-out) also sees the
+ * current time, so "is this stay running" is never answered with a stale clock.
+ */
+export function useClock(intervalMs = 20000) {
+  useNow(intervalMs)
+  return Date.now()
+}
+
 // ── Course helpers ─────────────────────────────────────────────────────
 
 export function courseClock(course: Course, now = new Date()) {

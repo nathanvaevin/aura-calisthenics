@@ -1,6 +1,9 @@
 import type {
-  Athlete, Course, CourseSession, Enrollment, Evidence, EvidenceTier, Feedback, LogEntry, WorkoutBlock, WorkoutLog,
+  AssessmentParticipant, AssessmentSession, Athlete, Audience, Course, CourseSession, DisciplineId, Enrollment, Evidence, EvidenceTier, Feedback, LogEntry,
+  Place, Visit, WorkoutBlock, WorkoutLog,
 } from '@/domain/types'
+import { LISBON_SNAPSHOT } from './lisbonSnapshot'
+import { PROTOCOL, nextTest, stationById, type Results } from '@/domain/assessment'
 import { exerciseById, progressionById, stepAt } from '@/domain/catalog'
 import { startOfWeek } from '@/domain/scoring/aura'
 import { adaptTarget } from '@/domain/scoring/skills'
@@ -284,6 +287,30 @@ function courseLogs(course: Course, athleteId: string, persona: Persona, now: Da
   return logs
 }
 
+/** Answer the assessment the way this athlete plausibly would have, from what they have on record. */
+function simulateResults(rows: Ev[], stations: DisciplineId[], at: string, factor: number, r: () => number): Results {
+  const best = new Map<string, number>()
+  for (const [id, v] of rows) best.set(id, Math.max(best.get(id) ?? 0, v))
+  const floor: Record<string, number> = { 'dead-hang': 30, pushup: 8, plank: 45, squat: 20, 'wall-walk': 2, 'deep-squat-hold': 45, 'crow-pose': 5 }
+  const choice = (id: string) =>
+    id === 'fold' ? (best.has('seated-pike') ? 3 : best.has('palms-floor-fold') ? 2 : best.has('toe-touch') ? 1 : 0)
+    : id === 'overhead' ? ((best.get('overhead-wall-reach') ?? 10) >= 30 ? 2 : 1)
+    : id === 'straddle' ? (best.has('pancake') ? 2 : best.has('pancake-elbows') ? 1 : 0)
+    : 0
+  const results: Results = {}
+  for (const station of stations) {
+    // A coach tends to watch a whole station at a time, so the tier is drawn once per station.
+    const roll = r()
+    for (let guard = 0; guard < 12; guard++) {
+      const t = nextTest(stationById[station], results)
+      if (!t) break
+      const value = t.kind === 'choice' ? choice(t.id) : Math.min(t.cap ?? 999, Math.round((best.get(t.exerciseId) ?? floor[t.id] ?? 0) * factor))
+      results[t.id] = { value, tier: roll < 0.12 ? 'coach' : roll < 0.5 ? 'observed' : 'self', at }
+    }
+  }
+  return results
+}
+
 export interface World {
   athletes: Record<string, Athlete>
   evidence: Evidence[]
@@ -292,6 +319,77 @@ export interface World {
   enrollments: Enrollment[]
   feedback: Feedback[]
   following: string[]
+  assessments: AssessmentSession[]
+  participants: AssessmentParticipant[]
+  places: Record<string, Place>
+  visits: Visit[]
+  follows: Record<string, string[]>
+  mapView: { lat: number; lon: number; zoom: number } | null
+}
+
+// Places in the Lisbon snapshot that the sample athletes use.
+const CALHAU = 'osm:n4919127270'
+const NORTH_PARK = 'osm:n10831779151'
+const RINGS_PARK = 'osm:w741783517'
+
+/** Identity, places and privacy choices of the sample athletes. `me` applies to the demo athlete only. */
+const IDENTITIES: Record<string, Partial<Athlete>> = {
+  [ME]: {
+    from: 'Porto, Portugal', environments: ['outdoor', 'studio'], homePlaceId: CALHAU, favouritePlaces: [NORTH_PARK], openToTrain: true,
+    privacy: { origin: 'everyone', base: 'everyone', places: 'following', visits: 'following' },
+  },
+  elena: { from: 'Valencia, Spain', environments: ['studio'] },
+  maya: { from: 'Lagos, Nigeria', environments: ['studio', 'outdoor'], openToTrain: true },
+  jonas: { from: 'Hamburg, Germany', environments: ['outdoor'] },
+  lina: {
+    from: 'Seoul, South Korea', environments: ['outdoor'], homePlaceId: NORTH_PARK, favouritePlaces: [CALHAU], openToTrain: true,
+    privacy: { origin: 'everyone', base: 'everyone', places: 'everyone', visits: 'everyone' },
+  },
+  ines: { from: 'Marseille, France', environments: ['studio', 'home'] },
+  priya: {
+    from: 'Kochi, India', environments: ['gym', 'outdoor'], homePlaceId: RINGS_PARK, openToTrain: true,
+    privacy: { origin: 'everyone', base: 'everyone', places: 'following', visits: 'following' },
+  },
+  // Saved a place he has not been to: a favourite is not attendance.
+  tomas: { from: 'Braga, Portugal', environments: ['outdoor'], favouritePlaces: [CALHAU], privacy: { origin: 'everyone', base: 'everyone', places: 'everyone', visits: 'me' } },
+  // Trains at Calhau every week and shows it to nobody.
+  ben: { from: 'Leeds, England', environments: ['outdoor', 'home'], homePlaceId: CALHAU, privacy: { origin: 'following', base: 'everyone', places: 'me', visits: 'me' } },
+}
+
+/** Who the sample athletes follow: the circle their "people I follow" setting opens to. */
+const FOLLOWS: Record<string, string[]> = { lina: [ME, 'priya', 'maya'], priya: [ME, 'lina'], maya: ['elena'], tomas: [ME], ben: [] }
+
+/**
+ * The sample community around the Lisbon snapshot. Stays are dated relative to
+ * `now`; the two live ones run out like any real check-in would.
+ */
+export function sampleCommunity(now: Date, demoMe: boolean) {
+  const t = now.getTime()
+  const visits: Visit[] = []
+  const stay = (athleteId: string, placeId: string, startMs: number, minutes: number, audience: Audience, onSite: boolean) =>
+    visits.push({ id: uid(), athleteId, placeId, startedAt: iso(startMs), endsAt: iso(startMs + minutes * 60000), audience, onSite, sample: true })
+  const weekly = (athleteId: string, placeId: string, weeks: number, days: number[], audience: Audience) => {
+    for (let w = weeks; w >= 1; w--) for (const d of days) stay(athleteId, placeId, t - (w * 7 - d) * DAY - 3 * 3600000, 80, audience, true)
+  }
+  weekly('lina', NORTH_PARK, 7, [1, 4], 'everyone')
+  weekly('priya', RINGS_PARK, 6, [2], 'everyone')
+  weekly('ben', CALHAU, 8, [3], 'me')
+  stay('priya', CALHAU, t - 9 * DAY, 70, 'everyone', true)
+  stay('priya', CALHAU, t - 3 * DAY, 60, 'everyone', false)
+  // Live as the demo opens.
+  stay('lina', NORTH_PARK, t - 35 * 60000, 90, 'everyone', true)
+  stay('priya', CALHAU, t - 10 * 60000, 90, 'following', false)
+  if (demoMe) weekly(ME, CALHAU, 6, [0, 5], 'following')
+  visits.sort((a, b) => a.startedAt.localeCompare(b.startedAt))
+
+  const identities = Object.fromEntries(Object.entries(IDENTITIES).filter(([id]) => demoMe || id !== ME))
+  return {
+    places: Object.fromEntries(LISBON_SNAPSHOT.map((p) => [p.id, p])) as Record<string, Place>,
+    visits,
+    follows: FOLLOWS,
+    identities,
+    mapView: demoMe ? { lat: 38.7405, lon: -9.158, zoom: 12.4 } : null,
+  }
 }
 
 /**
@@ -311,6 +409,8 @@ export function buildWorld(now: Date, demoMe: boolean): World {
   const athletes: Record<string, Athlete> = Object.fromEntries(
     personas.map((p) => [p.athlete.id, { ...p.athlete, joinedAt: iso(t - 320 * DAY) }]),
   )
+  const community = sampleCommunity(now, demoMe)
+  for (const [id, identity] of Object.entries(community.identities)) if (athletes[id]) athletes[id] = { ...athletes[id], ...identity }
   const evidence = personas.flatMap((p) => toEvidence(p.athlete.id, p.evidence, t))
 
   const handstand = courseFromTemplate('handstand-foundations', 'elena', mondayOffset(-2), { status: 'active' })
@@ -391,5 +491,32 @@ export function buildWorld(now: Date, demoMe: boolean): World {
     })
   }
 
-  return { athletes, evidence, logs, courses, enrollments, feedback, following: demoMe ? ['maya', 'jonas', 'lina'] : [] }
+  // Each demo course opened with a group baseline, already finalised.
+  const assessments: AssessmentSession[] = []
+  const participants: AssessmentParticipant[] = []
+  if (demoMe) {
+    const baseline = (course: Course, stations: DisciplineId[], daysAgo: number, ids: string[]) => {
+      const at = iso(t - daysAgo * DAY)
+      const session: AssessmentSession = {
+        id: uid().slice(0, 8), protocol: PROTOCOL, title: 'Baseline', kind: 'baseline', groupName: course.title, coachId: course.coachId,
+        coachName: athletes[course.coachId]?.name ?? 'Coach', courseId: course.id, stations, status: 'finalised', origin: 'local', createdAt: at,
+        finalisedAt: at, stationMinutes: 6, sample: true,
+      }
+      assessments.push(session)
+      for (const id of ids) {
+        const r = rng(`${id}:${course.title}:baseline`)
+        participants.push({
+          id: uid().slice(0, 8), sessionId: session.id, athleteId: id, name: athletes[id].name, joinedAt: at, via: id === ME ? 'self' : 'sample',
+          sharing: id === ME || r() < 0.65 ? 'group' : 'coach', results: simulateResults(byId[id].evidence, stations, at, 0.9, r), skipped: [], flags: [], submittedAt: at,
+        })
+      }
+    }
+    baseline(handstand, ['mobility', 'handstand', 'push', 'core'], 13, [ME, 'ines', 'priya', 'lina', 'tomas'])
+    baseline(fundamentals, ['mobility', 'push', 'pull', 'core', 'legs', 'handstand'], 6, ['tomas', 'ben', 'priya', 'ines'])
+  }
+
+  return {
+    athletes, evidence, logs, courses, enrollments, feedback, following: demoMe ? ['maya', 'jonas', 'lina'] : [], assessments, participants,
+    places: community.places, visits: community.visits, follows: community.follows, mapView: community.mapView,
+  }
 }

@@ -9,6 +9,7 @@ import { useStore } from '@/data/store'
 import { Bar, DisciplineDot, Empty, Eyebrow, PageHeader, SectionTitle, Sheet } from '@/ui/primitives'
 import { BlockList, LogRow, LogSheet } from '@/features/shared/LogView'
 import { useStartWorkout } from '@/features/workout/useStart'
+import { AssessHistory, AssessPrompt, useMyAssessments } from '@/features/assess/AssessCards'
 import { dayDiff, dvar, relativeDay } from '@/lib/format'
 
 interface Preview {
@@ -42,6 +43,7 @@ export function Train() {
     .map((g) => ({ goal: skillById[g], workout: buildGoalWorkout(g, me.evidence, me.statuses) }))
     .filter((x) => x.goal && x.workout)
   const history = [...me.logs].filter((l) => l.finishedAt).sort((a, b) => b.finishedAt!.localeCompare(a.finishedAt!))
+  const assessed = useMyAssessments().some((x) => x.participant.submittedAt)
   const thisWeek = me.dedication.weeks[me.dedication.weeks.length - 1]?.sessions ?? 0
 
   return (
@@ -53,6 +55,8 @@ export function Train() {
 
       <div className="lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-start lg:gap-12">
         <div className="space-y-8">
+          <div className="rise rise-1 empty:hidden"><AssessPrompt /></div>
+
           {/* Courses */}
           <section className="rise rise-1">
             <SectionTitle>My courses</SectionTitle>
@@ -172,6 +176,13 @@ export function Train() {
                   </div>
                 ))}
               </div>
+            </section>
+          )}
+
+          {assessed && (
+            <section className="rise rise-4">
+              <SectionTitle>Assessments</SectionTitle>
+              <AssessHistory />
             </section>
           )}
 

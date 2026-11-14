@@ -31,7 +31,7 @@ export interface RatingSlot {
   date: string
 }
 
-export type RatingStatus = 'unrated' | 'estimated' | 'self' | 'verified'
+export type RatingStatus = 'unrated' | 'estimated' | 'self' | 'observed' | 'verified'
 
 export interface DisciplineRating {
   discipline: DisciplineId
@@ -71,12 +71,13 @@ export function disciplineRating(discipline: DisciplineId, evidence: Evidence[])
   const { slots, total } = blend(discipline, bestEvidence(evidence))
   const verified = blend(discipline, bestEvidence(evidence, (e) => isVerified(e.tier))).total
 
-  const share: Record<EvidenceTier, number> = { estimated: 0, self: 0, coach: 0, video: 0 }
+  const share: Record<EvidenceTier, number> = { estimated: 0, self: 0, observed: 0, coach: 0, video: 0 }
   if (total > 0) for (const s of slots) share[s.tier] += (s.score * s.weight) / total
 
   let status: RatingStatus = 'unrated'
   if (total > 0) {
     if (share.coach + share.video >= SCORING.verifiedShare) status = 'verified'
+    else if (share.observed + share.coach + share.video >= SCORING.observedShare) status = 'observed'
     else if (share.estimated >= SCORING.estimatedShare) status = 'estimated'
     else status = 'self'
   }
