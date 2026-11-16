@@ -274,9 +274,9 @@ export function Onboarding() {
               <AuraField mix={EVEN} aura={7200} size={300}>
                 <Wordmark size={54} />
               </AuraField>
-              <h1 className="display mt-6 text-[44px] leading-[1.02] sm:text-[52px]">Discover what your body is <span className="italic">truly capable of.</span></h1>
+              <h1 className="display mt-6 text-[44px] leading-[1.02] sm:text-[52px]">Discover the limitless potential <span className="italic">of your body.</span></h1>
               <p className="mt-5 max-w-sm text-[15.5px] leading-relaxed text-ink-2">
-                See where you stand today, and the path to where you’ve always dreamed of going.
+                Aura shows you exactly where you are today, and every step to where you’ve always dreamed of going.
               </p>
               <div className="mt-9 flex w-full max-w-sm flex-col gap-2.5">
                 {configured
