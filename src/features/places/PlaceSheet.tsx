@@ -156,7 +156,7 @@ function View({ place, now, setMode, onClose }: { place: Place; now: number; set
           </div>
         )}
         <p className="mt-3 text-[11.5px] leading-snug text-ink-3">
-          The athletes shown are sample people on this device. Seeing real athletes at a place needs accounts, which are not connected yet.
+          Anyone shown here besides you is a sample person from the demo. Check-ins stay on the device they were made on; seeing other real athletes at a place is not built yet.
         </p>
       </section>
 
@@ -317,7 +317,7 @@ function CheckIn({ place, now, done }: { place: Place; now: number; done: () => 
       </div>
 
       <div className="rounded-2xl bg-surface-2 p-3.5 text-[12.5px] leading-relaxed text-ink-2">
-        <span className="font-medium text-ink">For now this stays on your device.</span> Other athletes cannot see check-ins until accounts are connected. To tell someone today, use “Tell someone” after checking in: it makes a link you send yourself.
+        <span className="font-medium text-ink">For now this stays on your device.</span> Other athletes cannot see check-ins inside Aura yet. To tell someone today, use “Tell someone” after checking in: it makes a link you send yourself.
       </div>
 
       <div className="grid grid-cols-[auto_1fr] gap-2">
@@ -417,7 +417,7 @@ function Share({ place, now, done }: { place: Place; now: number; done: () => vo
         {canShare && <button className="btn btn-primary" onClick={() => navigator.share({ title: place.name, text, url }).catch(() => {})}><Share2 size={14} /> Send</button>}
       </div>
       <p className="text-[12px] leading-snug text-ink-3">
-        You choose who gets the link; whoever has it can open it. This is how presence travels between phones until accounts are connected. Who can see you inside Aura: {here ? AUDIENCES[here.audience].short.toLowerCase() : 'not checked in'}.
+        You choose who gets the link; whoever has it can open it. For now, this is how presence travels between phones. Who can see you inside Aura: {here ? AUDIENCES[here.audience].short.toLowerCase() : 'not checked in'}.
       </p>
       <button className="btn btn-quiet w-full" onClick={done}>Back</button>
     </div>

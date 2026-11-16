@@ -8,6 +8,8 @@ import { TIER_LABEL } from '@/domain/scoring/config'
 import { skillStatuses } from '@/domain/scoring/skills'
 import { useMe } from '@/data/hooks'
 import { useStore } from '@/data/store'
+import { useLive } from '@/data/cloud'
+import { KeepProfile, SyncLine } from '@/features/account/Account'
 import { AuraField } from '@/ui/AuraField'
 import { CountUp } from '@/ui/CountUp'
 import { DnaSigil } from '@/ui/DnaSigil'
@@ -28,6 +30,9 @@ export function Reveal() {
   const allParticipants = useStore((s) => s.participants)
   const toggleGoal = useStore((s) => s.toggleGoal)
   const [copied, setCopied] = useState(false)
+  const cloud = useStore((s) => !!s.cloudUid)
+  // What the coach observes or verifies afterwards shows up here by itself.
+  useLive('assess', 10000)
 
   const view = useMemo(() => {
     if (!session || !mine) return null
@@ -50,7 +55,9 @@ export function Reveal() {
   const progress = overallProgress(session.stations, mine.results, mine.skipped)
   const solo = session.origin === 'solo'
   const coach = session.coachName.split(' ')[0]
-  const link = session.origin === 'invite' ? handInUrl(mine, session) : null
+  // Without accounts, a code carries the results to the coach. With them, they are already there.
+  const link = session.origin === 'invite' && !cloud ? handInUrl(mine, session) : null
+  const closed = session.origin === 'invite' && session.status === 'finalised'
   const others = participants.length - 1
 
   // One goal worth chasing in each of: the weakest dimension, the strongest, and anything else close.
@@ -100,6 +107,14 @@ export function Reveal() {
         </div>
         {change && <p className="mt-2 text-center text-[13px] text-ink-2">Aura <span className={cx('num font-medium', change.aura > 0 && 'text-good')}>{change.aura > 0 ? '+' : ''}{num(change.aura)}</span> since your baseline.</p>}
 
+        {cloud && !solo && (
+          <p className="mt-3 flex flex-col items-center gap-1 text-center text-[12.5px] text-ink-2">
+            <span>{closed ? `${coach} has finalised this assessment. These results are on your profile.` : `${coach} has these results on the session board.`}</span>
+            <SyncLine saved="All of it is saved" />
+          </p>
+        )}
+        <KeepProfile className="mt-6" />
+
         <section className="rise rise-4 mt-7">
           <Eyebrow className="mb-3">Your shape</Eyebrow>
           <div className="card flex flex-col items-center px-2 pt-3 pb-4">
@@ -137,7 +152,7 @@ export function Reveal() {
             {solo
               ? 'You recorded these yourself, so they are shown as self-reported everywhere. A coach can observe or verify them later.'
               : `Results you recorded are self-reported. ${coach} can mark what they watched as observed, and verify what met the written standard. The three are never mixed up.`}
-            {!progress.complete && ' Stations you have not done yet can still be added from the overview.'}
+            {!progress.complete && !closed && ' Stations you have not done yet can still be added from the overview.'}
           </p>
         </section>
 
@@ -184,7 +199,7 @@ export function Reveal() {
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-2"><Users size={18} /></span>
             <span className="min-w-0 flex-1">
               <span className="block text-[15px] font-medium">Meet your group</span>
-              <span className="block text-[12.5px] text-ink-3">{session.origin === 'invite' ? `Shown on ${coach}’s device for now` : `${others} ${others === 1 ? 'other' : 'others'} in ${session.groupName}`}</span>
+              <span className="block text-[12.5px] text-ink-3">{session.origin === 'invite' ? `Shown on ${coach}’s screen for now` : `${others} ${others === 1 ? 'other' : 'others'} in ${session.groupName}`}</span>
             </span>
             <ArrowRight size={16} className="text-ink-3" />
           </button>
@@ -192,7 +207,7 @@ export function Reveal() {
 
         <div className="mt-7 space-y-2.5">
           <button className="btn btn-primary btn-lg w-full" onClick={() => navigate('/profile')}>Go to my profile</button>
-          {!progress.complete && <button className="btn btn-outline w-full" onClick={() => navigate(`/assess/${session.id}`)}>Back to the remaining stations</button>}
+          {!progress.complete && !closed && <button className="btn btn-outline w-full" onClick={() => navigate(`/assess/${session.id}`)}>Back to the remaining stations</button>}
         </div>
       </div>
     </div>

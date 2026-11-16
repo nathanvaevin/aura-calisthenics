@@ -10,6 +10,8 @@ import { disciplineById, exerciseById } from '@/domain/catalog'
 import { TIER_LABEL } from '@/domain/scoring/config'
 import { useIsCoach, useNow } from '@/data/hooks'
 import { useStore } from '@/data/store'
+import { useLive, useOnServer } from '@/data/cloud'
+import { SyncLine } from '@/features/account/Account'
 import { QrCode } from '@/ui/QrCode'
 import { DisciplineDot, Empty, Eyebrow, SectionTitle, Segmented, Sheet, Stepper, TierTag } from '@/ui/primitives'
 import { resultLabel } from '@/features/assess/Assess'
@@ -40,6 +42,9 @@ export function AssessmentSession() {
   const remove = useStore((s) => s.deleteAssessment)
   const course = useStore((s) => s.courses.find((c) => c.id === session?.courseId))
   const [confirm, setConfirm] = useState(false)
+  // With accounts, the board follows everyone's phones. Live updates arrive by themselves; this is the net under them.
+  const cloud = useStore((s) => !!s.cloudUid)
+  useLive('assess', 4000)
 
   const participants = useMemo(() => all.filter((p) => p.sessionId === sessionId), [all, sessionId])
   if (!coach || !session || session.origin !== 'local' || session.coachId !== meId) return <Navigate to="/coach" replace />
@@ -81,7 +86,7 @@ export function AssessmentSession() {
         <button
           className="flex items-center gap-2 text-[13.5px] text-ink-3 hover:text-ink"
           onClick={() => {
-            if (window.confirm(`Delete “${session.title}” for ${session.groupName}? Its results, and any evidence it wrote to profiles on this device, are removed.`)) {
+            if (window.confirm(`Delete “${session.title}” for ${session.groupName}? Its results are removed${cloud ? ' for everyone who took part' : ', with any evidence it wrote to profiles on this device'}.`)) {
               remove(session.id)
               navigate('/coach?tab=assess')
             }
@@ -95,9 +100,13 @@ export function AssessmentSession() {
         <p className="text-[14px] leading-relaxed text-ink-2">Finalising closes the session and turns its results into each participant’s starting profile.</p>
         <ul className="mt-4 space-y-2.5 text-[13.5px] leading-snug">
           <li className="flex gap-2.5"><Check size={15} className="mt-0.5 shrink-0 text-good" />{assessed(participants).length} participants’ results become evidence on their profiles, each kept at the tier you gave it: self-reported, observed or verified.</li>
-          <li className="flex gap-2.5"><Check size={15} className="mt-0.5 shrink-0 text-good" />Everyone is added to your roster{course ? ` and enrolled in ${course.title}` : ''}.</li>
+          {cloud
+            ? <li className="flex gap-2.5"><Check size={15} className="mt-0.5 shrink-0 text-good" />Everyone who joined on their own phone sees it on their profile{course ? `, and is enrolled in ${course.title}` : ''}. Nobody can join or change their own results after this.</li>
+            : <li className="flex gap-2.5"><Check size={15} className="mt-0.5 shrink-0 text-good" />Everyone is added to your roster{course ? ` and enrolled in ${course.title}` : ''}.</li>}
           <li className="flex gap-2.5"><Check size={15} className="mt-0.5 shrink-0 text-good" />You can still mark results as observed or verified afterwards.</li>
-          <li className="flex gap-2.5"><AlertTriangle size={15} className="mt-0.5 shrink-0 text-warn" />This happens on your device. Participants’ own phones keep what they recorded as self-reported until Aura syncs between devices.</li>
+          {cloud
+            ? <li className="flex gap-2.5"><AlertTriangle size={15} className="mt-0.5 shrink-0 text-warn" />People you added by name have no profile to receive results. Theirs stay on this session.</li>
+            : <li className="flex gap-2.5"><AlertTriangle size={15} className="mt-0.5 shrink-0 text-warn" />This happens on your device. Participants’ own phones keep what they recorded as self-reported until Aura syncs between devices.</li>}
         </ul>
         <button className="btn btn-primary btn-lg mt-6 w-full" onClick={() => { finalise(session.id); setConfirm(false); setParams({ tab: 'group' }, { replace: true }) }}>Finalise for {assessed(participants).length} participants</button>
       </Sheet>
@@ -115,6 +124,11 @@ function Invite({ session, participants }: { session: Session; participants: Ass
   const [copied, setCopied] = useState(false)
   const [present, setPresent] = useState(false)
   const url = inviteUrl(session)
+  // A code for a session the server does not have yet would lead nowhere.
+  const cloud = !!session.inviteToken
+  const onServer = useOnServer('assessment_sessions', session.id)
+  const ready = !cloud || onServer
+  const closed = cloud && session.status === 'finalised'
   const running = !!session.rotationStartedAt
   const now = useNow(500, running)
   const elapsed = running ? Math.max(0, (now - new Date(session.rotationStartedAt!).getTime()) / 1000) : 0
@@ -127,12 +141,22 @@ function Invite({ session, participants }: { session: Session; participants: Ass
     <div className="lg:grid lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:items-start lg:gap-10">
       <section>
         <div className="card flex flex-col items-center p-6 text-center">
-          <QrCode value={url} size={280} />
+          {closed ? (
+            <div className="flex h-[280px] w-[280px] max-w-full flex-col items-center justify-center rounded-[20px] border border-dashed border-line-strong px-6">
+              <Lock size={22} className="text-ink-3" />
+              <p className="mt-3 text-[13.5px] leading-relaxed text-ink-2">This assessment is finalised, so its code no longer lets anyone in. Start a re-test to invite the group again.</p>
+            </div>
+          ) : ready ? <QrCode value={url} size={280} /> : (
+            <div className="flex h-[280px] w-[280px] max-w-full flex-col items-center justify-center rounded-[20px] border border-dashed border-line-strong px-6">
+              <p className="text-[13.5px] leading-relaxed text-ink-2">Saving the session. The code appears as soon as it is on the server.</p>
+              <SyncLine className="mt-3" />
+            </div>
+          )}
           <div className="display mt-4 text-[26px]">Scan to join {session.groupName}</div>
           <p className="mt-1 text-[13px] text-ink-2">Phone camera, no app to install. It opens straight into this assessment.</p>
           <div className="mt-4 flex w-full gap-2.5">
-            <button className="btn btn-quiet flex-1" onClick={async () => { setCopied(await copyText(url)); window.setTimeout(() => setCopied(false), 1800) }}>{copied ? <><Check size={15} /> Copied</> : <><Copy size={15} /> Copy link</>}</button>
-            <button className="btn btn-quiet flex-1" onClick={() => setPresent(true)}>Show full screen</button>
+            <button className="btn btn-quiet flex-1" disabled={!ready || closed} onClick={async () => { setCopied(await copyText(url)); window.setTimeout(() => setCopied(false), 1800) }}>{copied ? <><Check size={15} /> Copied</> : <><Copy size={15} /> Copy link</>}</button>
+            <button className="btn btn-quiet flex-1" disabled={!ready || closed} onClick={() => setPresent(true)}>Show full screen</button>
           </div>
         </div>
         {isLocalOnly() && (
@@ -150,16 +174,32 @@ function Invite({ session, participants }: { session: Session; participants: Ass
 
       <div className="mt-8 space-y-7 lg:mt-0">
         <section>
-          <SectionTitle>How results reach you today</SectionTitle>
-          <div className="card divide-y divide-line text-[13.5px] leading-snug">
-            <div className="flex gap-3 p-4"><span className="num font-mono text-[11px] text-ink-3">1</span><span><span className="font-medium">They scan and record on their own phone.</span> The code carries the whole invitation, so it works without an account or a connection to you.</span></div>
-            <div className="flex gap-3 p-4"><span className="num font-mono text-[11px] text-ink-3">2</span><span><span className="font-medium">They hand in.</span> Their final screen shows a code. Scan it with your phone camera, or have them send the link, and their results land on your board as self-reported.</span></div>
-            <div className="flex gap-3 p-4"><span className="num font-mono text-[11px] text-ink-3">3</span><span><span className="font-medium">Or you record for them.</span> Add anyone on the board and enter what you watch. That counts as coach-observed straight away.</span></div>
-          </div>
-          <p className="mt-2 flex items-start gap-2 text-[12px] leading-relaxed text-ink-3">
-            <Lock size={12} className="mt-0.5 shrink-0" />
-            Live updates as people record need Aura’s cloud backend, which is not connected yet. Until then the board shows what has been handed in or entered here. Anyone holding the link can join, so treat it like a class handout.
-          </p>
+          <SectionTitle>{cloud ? 'How results reach you' : 'How results reach you today'}</SectionTitle>
+          {cloud ? (
+            <>
+              <div className="card divide-y divide-line text-[13.5px] leading-snug">
+                <div className="flex gap-3 p-4"><span className="num font-mono text-[11px] text-ink-3">1</span><span><span className="font-medium">They scan and join.</span> With their Google account, or as a guest with just a name. They appear on your board as they join{session.courseId ? ', and in the course this assessment belongs to' : ''}.</span></div>
+                <div className="flex gap-3 p-4"><span className="num font-mono text-[11px] text-ink-3">2</span><span><span className="font-medium">They record on their own phone.</span> Each result reaches your board within a few seconds, as self-reported.</span></div>
+                <div className="flex gap-3 p-4"><span className="num font-mono text-[11px] text-ink-3">3</span><span><span className="font-medium">Or you record for them.</span> Add anyone on the board and enter what you watch. That counts as coach-observed straight away.</span></div>
+              </div>
+              <p className="mt-2 flex items-start gap-2 text-[12px] leading-relaxed text-ink-3">
+                <Lock size={12} className="mt-0.5 shrink-0" />
+                Anyone holding the code can join while the session is open, so treat it like a class handout. Finalising closes the door. A guest keeps their results by adding a Google sign-in on their own phone afterwards.
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="card divide-y divide-line text-[13.5px] leading-snug">
+                <div className="flex gap-3 p-4"><span className="num font-mono text-[11px] text-ink-3">1</span><span><span className="font-medium">They scan and record on their own phone.</span> The code carries the whole invitation, so it works without an account or a connection to you.</span></div>
+                <div className="flex gap-3 p-4"><span className="num font-mono text-[11px] text-ink-3">2</span><span><span className="font-medium">They hand in.</span> Their final screen shows a code. Scan it with your phone camera, or have them send the link, and their results land on your board as self-reported.</span></div>
+                <div className="flex gap-3 p-4"><span className="num font-mono text-[11px] text-ink-3">3</span><span><span className="font-medium">Or you record for them.</span> Add anyone on the board and enter what you watch. That counts as coach-observed straight away.</span></div>
+              </div>
+              <p className="mt-2 flex items-start gap-2 text-[12px] leading-relaxed text-ink-3">
+                <Lock size={12} className="mt-0.5 shrink-0" />
+                Live updates as people record need accounts, which this copy of Aura runs without. The board shows what has been handed in or entered here. Anyone holding the link can join, so treat it like a class handout.
+              </p>
+            </>
+          )}
         </section>
 
         <section>
@@ -346,7 +386,7 @@ function Board({ session, participants }: { session: Session; participants: Asse
           )}
         </section>
 
-        <section>
+        {!session.inviteToken && <section>
           <Eyebrow className="mb-2.5">Paste a hand-in link</Eyebrow>
           <div className="flex gap-2">
             <input className="field !h-11 text-[13px]" placeholder="https://…#handin=…" value={link} onChange={(e) => { setLink(e.target.value); setNote(null) }} />
@@ -354,7 +394,7 @@ function Board({ session, participants }: { session: Session; participants: Asse
           </div>
           {note && <p className="mt-2 text-[12.5px] text-ink-2">{note}</p>}
           <p className="mt-2 text-[12px] leading-relaxed text-ink-3">Scanning a participant’s code with your phone camera does the same thing in one step.</p>
-        </section>
+        </section>}
       </aside>
 
       <CellSheet session={session} participant={active} station={cell?.station} onClose={() => setCell(null)} />

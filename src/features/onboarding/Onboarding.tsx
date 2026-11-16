@@ -9,7 +9,9 @@ import { allRatings } from '@/domain/scoring/mastery'
 import { pathTo, skillStatuses } from '@/domain/scoring/skills'
 import { buildWorkout, templateById } from '@/domain/training'
 import { useStore } from '@/data/store'
-import { isCloudConfigured, signInWithGoogle } from '@/data/supabase'
+import { handleFree, signInWithGoogle, signOut, useCloud } from '@/data/cloud'
+import { GoogleButton, Notice } from '@/features/account/Account'
+import { requestCoach } from '@/features/account/CoachAccess'
 import { AuraField } from '@/ui/AuraField'
 import { CountUp } from '@/ui/CountUp'
 import { DisciplineDot, Eyebrow, StatusTag, Stepper, Toggle } from '@/ui/primitives'
@@ -133,9 +135,20 @@ export function Onboarding() {
   const startWorkout = useStore((s) => s.startWorkout)
   const startSolo = useStore((s) => s.startSoloAssessment)
 
-  const [step, setStep] = useState(0)
-  const [name, setName] = useState('')
+  // With accounts, the questions come after signing in: the profile already exists and has a name.
+  const configured = useCloud((s) => s.configured)
+  const account = useCloud((s) => (s.auth === 'in' ? s.user : null))
+  const existing = useStore((s) => (s.meId && s.meId === s.cloudUid ? s.athletes[s.meId] : null))
+  const first = account ? 1 : 0
+
+  const [stepAt, setStep] = useState(first)
+  // With accounts, "Get started" first asks for one; the questions come after signing in.
+  const [accountStep, setAccountStep] = useState(false)
+  const step = Math.max(stepAt, first)
+  const [name, setName] = useState(existing?.name && existing.name !== 'Athlete' ? existing.name : '')
   const [handle, setHandle] = useState<string | null>(null)
+  const [handleNote, setHandleNote] = useState<string | null>(null)
+  const [checking, setChecking] = useState(false)
   const [coach, setCoach] = useState(false)
   const [level, setLevel] = useState<Level>(0)
   const [weekly, setWeekly] = useState(3)
@@ -172,9 +185,14 @@ export function Onboarding() {
     }
   }, [estimates, goals])
 
-  const result = () => ({ name, handle: handle ?? slug(name), coach, weeklyTarget: weekly, equipment, goals: goals.filter((g) => !preview.already.includes(g)), estimates })
-  const finish = (train: boolean) => {
+  const result = () => ({ name, handle: chosen, coach, weeklyTarget: weekly, equipment, goals: goals.filter((g) => !preview.already.includes(g)), estimates })
+  const submit = () => {
     complete(result())
+    // With an account, coaching is asked for, not switched on. The answer shows in Profile.
+    if (account && coach && !account.guest) void requestCoach('Asked during sign-up').catch(() => undefined)
+  }
+  const finish = (train: boolean) => {
+    submit()
     if (train) {
       const t = templateById['full-body']
       startWorkout({ type: 'library', workoutId: t.id }, t.title, buildWorkout(t, preview.evidence).blocks)
@@ -182,8 +200,22 @@ export function Onboarding() {
     navigate(train ? '/workout' : '/', { replace: true })
   }
 
-  const canContinue = step === 1 ? name.trim().length > 0 : true
+  const chosen = handle ?? slug(name)
+  const canContinue = step === 1 ? name.trim().length > 0 && !checking : true
   const last = 5
+
+  const next = async () => {
+    if (step === 1 && account) {
+      // The handle is how other people find this profile, so it has to be valid and nobody else's.
+      if (!/^[a-z0-9_.]{2,30}$/.test(chosen)) return setHandleNote('Use 2 to 30 letters, numbers, dots or underscores.')
+      setChecking(true)
+      const free = await handleFree(chosen)
+      setChecking(false)
+      if (!free) return setHandleNote('That handle is taken. Try another.')
+    }
+    setHandleNote(null)
+    setStep(step + 1)
+  }
 
   return (
     <div className="relative mx-auto flex min-h-dvh w-full max-w-[520px] flex-col px-6">
@@ -191,7 +223,9 @@ export function Onboarding() {
 
       {step > 0 && (
         <header className="safe-top relative z-10 flex h-16 shrink-0 items-center justify-between">
-          <button onClick={() => setStep(step - 1)} aria-label="Back" className="pressable -ml-2 flex h-10 w-10 items-center justify-center rounded-full text-ink-2 hover:text-ink"><ArrowLeft size={19} /></button>
+          {step > first
+            ? <button onClick={() => setStep(step - 1)} aria-label="Back" className="pressable -ml-2 flex h-10 w-10 items-center justify-center rounded-full text-ink-2 hover:text-ink"><ArrowLeft size={19} /></button>
+            : <button onClick={() => void signOut()} className="pressable -ml-1 h-10 rounded-full px-1 text-[12.5px] text-ink-3 hover:text-ink">Sign out</button>}
           <div className="flex gap-1.5">
             {Array.from({ length: last }, (_, i) => <span key={i} className={cx('h-1 rounded-full transition-all duration-500', i + 1 === step ? 'w-6 bg-ink' : i + 1 < step ? 'w-2.5 bg-ink-2' : 'w-2.5 bg-surface-3')} />)}
           </div>
@@ -201,27 +235,70 @@ export function Onboarding() {
 
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
-          key={step}
+          key={step === 0 && accountStep ? 'account' : step}
           className="relative z-10 flex min-h-0 flex-1 flex-col"
           initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
         >
+          {/* 0b · Create an account (with accounts only) */}
+          {step === 0 && accountStep && (
+            <div className="flex flex-1 flex-col pb-6">
+              <header className="safe-top flex h-16 shrink-0 items-center">
+                <button onClick={() => setAccountStep(false)} aria-label="Back" className="pressable -ml-2 flex h-10 w-10 items-center justify-center rounded-full text-ink-2 hover:text-ink"><ArrowLeft size={19} /></button>
+              </header>
+              <div className="flex flex-1 flex-col justify-center">
+                <Eyebrow>Your account</Eyebrow>
+                <h1 className="display mt-2 text-[40px] leading-[1.04]">Create your account</h1>
+                <p className="mt-3 text-[15px] leading-relaxed text-ink-2">Your profile, training and results are saved and open on any device. Your coach sees what you choose to share.</p>
+                <ul className="mt-6 space-y-2.5 text-[14px] text-ink-2">
+                  {['Pick up on your phone where you left off on your laptop', 'Join your coach’s courses and assessments', 'Your progress, kept for as long as you train'].map((t) => (
+                    <li key={t} className="flex gap-2.5"><Check size={16} strokeWidth={2.4} className="mt-0.5 shrink-0 text-good" />{t}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="mt-8 flex flex-col gap-3">
+                <GoogleButton />
+                <Notice />
+                <p className="text-center text-[12px] leading-relaxed text-ink-3">
+                  By continuing you agree to the{' '}
+                  <a className="underline decoration-line-strong underline-offset-4 hover:text-ink" href={`${import.meta.env.BASE_URL}terms.html`}>Terms</a> and the{' '}
+                  <a className="underline decoration-line-strong underline-offset-4 hover:text-ink" href={`${import.meta.env.BASE_URL}privacy.html`}>Privacy policy</a>.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* 0 · Welcome */}
-          {step === 0 && (
+          {step === 0 && !accountStep && (
             <div className="flex flex-1 flex-col items-center justify-center pt-8 pb-6 text-center">
               <AuraField mix={EVEN} aura={7200} size={300}>
                 <Wordmark size={54} />
               </AuraField>
-              <h1 className="display mt-6 text-[44px] leading-[1.02] sm:text-[52px]">Make human potential <span className="italic">visible.</span></h1>
+              <h1 className="display mt-6 text-[44px] leading-[1.02] sm:text-[52px]">Discover what your body is <span className="italic">truly capable of.</span></h1>
               <p className="mt-5 max-w-sm text-[15.5px] leading-relaxed text-ink-2">
-                See what you can do today, what you could become, and the exact steps between the two. Progress here is earned by what you demonstrate, never by what you log.
+                See where you stand today, and the path to where you’ve always dreamed of going.
               </p>
               <div className="mt-9 flex w-full max-w-sm flex-col gap-2.5">
-                <button className="btn btn-primary btn-lg" onClick={() => setStep(1)}>Begin <ArrowRight size={17} /></button>
+                {configured
+                  ? <button className="btn btn-primary btn-lg" onClick={() => setAccountStep(true)}>Get started <ArrowRight size={17} /></button>
+                  : <button className="btn btn-primary btn-lg" onClick={() => setStep(1)}>Begin <ArrowRight size={17} /></button>}
                 <button className="btn btn-outline" onClick={startDemo}>Explore the demo</button>
-                {isCloudConfigured && <button className="btn btn-quiet" onClick={() => signInWithGoogle()}>Continue with Google</button>}
+                {configured && (
+                  <p className="mt-1.5 text-[13.5px] text-ink-2">
+                    Already have an account?{' '}
+                    <button className="font-medium text-ink underline decoration-line-strong underline-offset-4" onClick={() => void signInWithGoogle()}>Sign in</button>
+                  </p>
+                )}
+                <Notice />
               </div>
-              <p className="mt-4 max-w-xs text-[12px] text-ink-3">The demo opens a sample athlete with history, two courses and Coach Studio, so you can see everything working.</p>
+              <p className="mt-4 max-w-xs text-[12px] text-ink-3">
+                The demo opens a sample athlete with history, two courses and Coach Studio, so you can see everything working{configured && '; nothing in it is saved'}.
+              </p>
+              <p className="mt-3 text-[12px] text-ink-3">
+                <a className="underline decoration-line-strong underline-offset-4 hover:text-ink" href={`${import.meta.env.BASE_URL}privacy.html`}>Privacy</a>
+                {' · '}
+                <a className="underline decoration-line-strong underline-offset-4 hover:text-ink" href={`${import.meta.env.BASE_URL}terms.html`}>Terms</a>
+              </p>
             </div>
           )}
 
@@ -233,11 +310,12 @@ export function Onboarding() {
                 <Eyebrow className="mb-2">Handle</Eyebrow>
                 <div className="relative">
                   <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-ink-3">@</span>
-                  <input className="field pl-8" placeholder="handle" value={handle ?? slug(name)} onChange={(e) => setHandle(e.target.value.replace(/[^\w.]/g, '').toLowerCase())} />
+                  <input className="field pl-8" placeholder="handle" value={chosen} onChange={(e) => { setHandle(e.target.value.replace(/[^\w.]/g, '').toLowerCase()); setHandleNote(null) }} />
                 </div>
+                {handleNote && <p className="mt-2 text-[12.5px] text-warn">{handleNote}</p>}
               </label>
               <div className="card mt-5 flex items-center justify-between gap-4 p-4">
-                <span className="text-[14.5px] font-medium">I also coach<span className="mt-0.5 block text-[12.5px] font-normal text-ink-3">Adds Coach Studio for building courses and reviewing students.</span></span>
+                <span className="text-[14.5px] font-medium">I also coach<span className="mt-0.5 block text-[12.5px] font-normal text-ink-3">{account ? 'Asks for coach access: Coach Studio, for building courses and running assessments, opens once it is approved.' : 'Adds Coach Studio for building courses and reviewing students.'}</span></span>
                 <Toggle on={coach} onChange={setCoach} label="I also coach" />
               </div>
             </Step>
@@ -356,7 +434,7 @@ export function Onboarding() {
 
               <div className="mt-6 flex w-full flex-col gap-2.5">
                 <button className="btn btn-primary btn-lg" onClick={() => finish(true)}>Start my first session</button>
-                <button className="btn btn-outline" onClick={() => { complete(result()); landing.to = `/assess/${startSolo()}` }}>Test it properly: take the physical assessment</button>
+                <button className="btn btn-outline" onClick={() => { submit(); landing.to = `/assess/${startSolo()}` }}>Test it properly: take the physical assessment</button>
                 <button className="btn btn-quiet" onClick={() => finish(false)}>Go to my profile</button>
               </div>
             </div>
@@ -366,7 +444,7 @@ export function Onboarding() {
 
       {step > 0 && step < last && (
         <footer className="safe-bottom sticky bottom-0 z-10 shrink-0 bg-gradient-to-t from-bg via-bg to-transparent pt-6 pb-5">
-          <button className="btn btn-primary btn-lg w-full" disabled={!canContinue} onClick={() => setStep(step + 1)}>
+          <button className="btn btn-primary btn-lg w-full" disabled={!canContinue} onClick={() => void next()}>
             {step === 4 ? 'See my profile' : 'Continue'} <ArrowRight size={17} />
           </button>
           {step === 3 && goals.length === 0 && <p className="mt-2 text-center text-[12px] text-ink-3">You can skip this and choose goals later.</p>}

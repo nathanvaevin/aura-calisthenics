@@ -187,7 +187,7 @@ export function GroupPage() {
           <div className="rounded-[22px] border border-dashed border-line-strong p-6">
             <div className="display text-[24px]">Not on this phone yet</div>
             <p className="mt-2 text-[13.5px] leading-relaxed text-ink-2">
-              The group profile is built from everyone’s results, and for now those only come together on {first(session.coachName)}’s device. Ask to see it there. It will appear here once Aura syncs between phones.
+              The group profile is built from everyone’s results, and for now those only come together on {first(session.coachName)}’s screen. Ask to see it there. Showing it on each participant’s phone is not built yet.
             </p>
           </div>
         ) : (

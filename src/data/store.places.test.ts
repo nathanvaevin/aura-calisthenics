@@ -144,6 +144,9 @@ describe('stored worlds from before places existed', () => {
     expect(Object.keys(next.places).length).toBeGreaterThan(5)
     expect(next.visits.length).toBeGreaterThan(10)
     expect(next.evidence).toBe(world.evidence)
-    expect(migrate(next, 2)).toBe(next)
+    // Version 3 added accounts: a stored world learns whether it is the sample one, and that nothing is synced.
+    expect(next).toMatchObject({ demo: true, cloudUid: null, cloudShadow: {} })
+    expect(migrate(next, 2)).toMatchObject({ demo: true, cloudUid: null })
+    expect(migrate(next, 3)).toBe(next)
   })
 })

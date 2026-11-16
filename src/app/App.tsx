@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router'
+import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router'
 import { useStore } from '@/data/store'
 import { Shell } from './Shell'
 import { Celebrations } from '@/ui/Celebration'
@@ -18,7 +18,9 @@ import { Onboarding } from '@/features/onboarding/Onboarding'
 import { AssessHub, StationRunner } from '@/features/assess/Assess'
 import { Reveal } from '@/features/assess/Reveal'
 import { GroupPage } from '@/features/assess/Group'
-import { HandInImport, JoinInvite } from '@/features/assess/Join'
+import { CloudJoin, HandInImport, JoinInvite } from '@/features/assess/Join'
+import { Splash } from '@/features/account/Account'
+import { arrived, useCloud } from '@/data/cloud'
 import { readLink } from '@/features/assess/links'
 import { landing } from './landing'
 import { AssessmentSession } from '@/features/coach/AssessmentSession'
@@ -42,10 +44,23 @@ function AfterWelcome() {
   return <Navigate to={to} replace />
 }
 
+/**
+ * Signed in with an account whose profile was never filled in: the welcome
+ * questions come first. A guest who joined from an invitation is not asked;
+ * they have a real assessment instead.
+ */
+function useNeedsProfile() {
+  const handle = useStore((s) => (s.meId ? s.athletes[s.meId]?.handle : undefined))
+  const mine = useStore((s) => !!s.cloudUid && s.meId === s.cloudUid)
+  const guest = useCloud((s) => !!s.user?.guest)
+  return mine && !handle && !guest
+}
+
 /** Everything behind the welcome flow needs an athlete to exist. */
 function RequireAthlete() {
   const meId = useStore((s) => s.meId)
-  return meId ? <Outlet /> : <Navigate to="/welcome" replace />
+  const needsProfile = useNeedsProfile()
+  return meId && !needsProfile ? <Outlet /> : <Navigate to="/welcome" replace />
 }
 
 export function App() {
@@ -57,19 +72,42 @@ export function App() {
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#08090b' : '#f3f0e9')
   }, [theme])
 
+  const cloudUid = useStore((s) => s.cloudUid)
+  const auth = useCloud((s) => s.auth)
+  const user = useCloud((s) => s.user)
+  const waiting = useCloud((s) => s.sync.phase === 'waiting')
+  const joining = useCloud((s) => s.joining)
+  const goto = useCloud((s) => s.goto)
+  const needsProfile = useNeedsProfile()
+  const navigate = useNavigate()
+
+  // A join that began before signing in has finished: go to the assessment.
+  useEffect(() => {
+    if (!goto) return
+    arrived()
+    navigate(goto, { replace: true })
+  }, [goto, navigate])
+
   // An invitation or a hand-in arrives in the address fragment and takes over
   // the screen, whoever is or is not signed in on this device.
   const link = readLink(useLocation().hash)
   if (link) {
     if (link.kind === 'spot') return <SpotLanding data={link.data} />
+    if (link.kind === 'j') return <CloudJoin token={link.data} />
     return link.kind === 'join' ? <JoinInvite data={link.data} /> : <HandInImport data={link.data} />
   }
+
+  // With accounts: wait for the browser to say who is signed in, then for
+  // their data. A device that already holds it opens straight away, online or not.
+  if (auth === 'loading' && !cloudUid) return <Splash />
+  if (auth === 'in' && user && meId !== user.id) return <Splash>{waiting ? 'Can’t reach Aura right now. Check your connection. Trying again…' : 'Loading your profile…'}</Splash>
+  if (auth === 'in' && joining) return <Splash>Joining the assessment…</Splash>
 
   return (
     <>
       <ScrollReset />
       <Routes>
-        <Route path="/welcome" element={meId ? <AfterWelcome /> : <Onboarding />} />
+        <Route path="/welcome" element={meId && !needsProfile ? <AfterWelcome /> : <Onboarding />} />
         <Route element={<RequireAthlete />}>
           <Route path="/workout" element={<WorkoutPlayer />} />
           <Route path="/assess/:sessionId" element={<AssessHub />} />

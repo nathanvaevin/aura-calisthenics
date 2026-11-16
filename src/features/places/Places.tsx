@@ -315,7 +315,7 @@ export function Places() {
 
           <p className="mt-4 text-[11.5px] leading-relaxed text-ink-3">
             Places © OpenStreetMap contributors, loaded only when you search an area. {here ? 'Distances are from your location, read once and not stored.' : 'Listed nearest the centre of the map first; use your location to see distances.'}{' '}
-            Athletes shown at places are sample people until accounts are connected.
+            Check-ins stay on this device for now; any other athletes shown at places are sample people from the demo.
           </p>
         </div>
       </div>
@@ -351,7 +351,7 @@ function NewPlaceSheet({ open, onClose, onSave }: {
       <div className="space-y-5">
         <PlaceFields value={v} onChange={setV} />
         <p className="text-[12px] leading-snug text-ink-3">
-          The place is saved on this device with your name as the person who added it, and you can send it to anyone as a link. It becomes visible to every athlete, and open to confirmation by others, once Aura’s backend is connected.
+          The place is saved on this device with your name as the person who added it, and you can send it to anyone as a link. It becomes visible to every athlete, and open to confirmation by others, once places are shared between accounts, which is not built yet.
         </p>
         <div className="grid grid-cols-[auto_1fr] gap-2">
           <button className="btn btn-quiet" onClick={onClose}>Cancel</button>

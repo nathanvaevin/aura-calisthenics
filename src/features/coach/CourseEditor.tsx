@@ -426,7 +426,7 @@ function Students({ course }: { course: Course }) {
           })}
         </div>
       )}
-      <p className="mt-3 text-[12px] leading-relaxed text-ink-3">Invitations by link or email arrive with accounts. For now, students are chosen from athletes already on this device.</p>
+      <p className="mt-3 text-[12px] leading-relaxed text-ink-3">The quickest way to fill a course is an assessment: create one for this course in Coach Studio, show its code, and everyone who joins is enrolled. Athletes can also join an Active course themselves from their Train tab.</p>
 
       <Sheet open={addOpen} onClose={() => setAddOpen(false)} eyebrow={course.title} title="Add a student">
         {others.length === 0 ? (

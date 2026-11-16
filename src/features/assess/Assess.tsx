@@ -11,6 +11,8 @@ import { bandOf } from '@/domain/scoring/config'
 import { curveRating } from '@/domain/scoring/curve'
 import { useNow } from '@/data/hooks'
 import { useStore } from '@/data/store'
+import { useLive } from '@/data/cloud'
+import { SyncLine } from '@/features/account/Account'
 import { DisciplineDot, Eyebrow, Ring, TierTag } from '@/ui/primitives'
 import { tick } from '@/lib/sound'
 import { cx, dvar } from '@/lib/format'
@@ -24,7 +26,9 @@ export function useAssessment(sessionId: string | undefined, participantId?: str
   const mine = participants.find((p) => p.athleteId === meId)
   const target = participantId ? participants.find((p) => p.id === participantId) : mine
   const coaching = !!session && session.origin === 'local' && session.coachId === meId
-  return { session, participants, mine, target, coaching, meId }
+  // A coach's session that has been finalised: a participant can read their results, not change them.
+  const closed = !!session && session.origin === 'invite' && session.status === 'finalised'
+  return { session, participants, mine, target, coaching, closed, meId }
 }
 
 const unitOf = (t: AssessmentTest) => {
@@ -54,10 +58,12 @@ const STATE_COPY = { todo: 'To do', active: 'In progress', done: 'Done', skipped
 export function AssessHub() {
   const { sessionId } = useParams()
   const navigate = useNavigate()
-  const { session, mine, coaching } = useAssessment(sessionId)
+  const { session, mine, coaching, closed } = useAssessment(sessionId)
   const patchParticipant = useStore((s) => s.patchParticipant)
   const toggleStationSkip = useStore((s) => s.toggleStationSkip)
   const submit = useStore((s) => s.submitAssessment)
+  const cloud = useStore((s) => !!s.cloudUid)
+  useLive('assess', 10000)
 
   if (!session) return <Navigate to="/train" replace />
   if (!mine) return <Navigate to={coaching ? `/coach/assessment/${session.id}` : '/train'} replace />
@@ -95,7 +101,13 @@ export function AssessHub() {
             : `${session.stations.length} stations, about ${estimateMinutes(session.stations)} minutes. Take them in any order; each one adapts to your last result.`}
         </p>
 
-        {!solo && (
+        {closed && (
+          <p className="rise rise-1 mt-4 rounded-[20px] border border-line-strong bg-surface px-4 py-3 text-[13.5px] leading-relaxed text-ink-2">
+            <span className="font-medium text-ink">{session.coachName.split(' ')[0]} has closed this assessment.</span> Your results are final and on your profile.
+          </p>
+        )}
+
+        {!solo && !closed && (
           <label className="rise rise-1 mt-4 flex items-center gap-3 rounded-[20px] border border-line px-4 py-3">
             <span className="shrink-0 text-[13px] text-ink-2">Partner counting for you</span>
             <input className="min-w-0 flex-1 bg-transparent text-right text-[14px] outline-none placeholder:text-ink-3" placeholder="Optional" value={mine.partner ?? ''} onChange={(e) => patchParticipant(mine.id, { partner: e.target.value || undefined })} />
@@ -110,7 +122,7 @@ export function AssessHub() {
             const here = id === suggested
             return (
               <div key={id} className={cx('card overflow-hidden', here && 'border-line-strong')}>
-                <button className="flex w-full items-center gap-3.5 p-4 text-left" onClick={() => navigate(`/assess/${session.id}/station/${id}`)} disabled={p.state === 'skipped'}>
+                <button className="flex w-full items-center gap-3.5 p-4 text-left" onClick={() => navigate(`/assess/${session.id}/station/${id}`)} disabled={p.state === 'skipped' || closed}>
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full" style={{ background: p.state === 'done' ? dvar(id) : `color-mix(in oklab, ${dvar(id)} 16%, transparent)`, color: p.state === 'done' ? 'var(--bg)' : dvar(id) }}>
                     {p.state === 'done' ? <Check size={18} strokeWidth={2.8} /> : <span className="num font-mono text-[11px] font-medium">{p.done}/{p.total}</span>}
                   </span>
@@ -125,7 +137,7 @@ export function AssessHub() {
                   </span>
                   <span className="shrink-0 text-right font-mono text-[9.5px] tracking-[0.1em] text-ink-3 uppercase">{p.state === 'todo' ? `${station.minutes} min` : STATE_COPY[p.state]}</span>
                 </button>
-                {(p.state === 'todo' || p.state === 'skipped') && (
+                {!closed && (p.state === 'todo' || p.state === 'skipped') && (
                   <button className="w-full border-t border-line px-4 py-2 text-left text-[12px] text-ink-3 hover:text-ink" onClick={() => toggleStationSkip(mine.id, id)}>
                     {p.state === 'skipped' ? 'Skipped. Tap to bring it back' : 'Skip this station today (injury, no equipment)'}
                   </button>
@@ -136,22 +148,23 @@ export function AssessHub() {
         </div>
 
         <p className="mt-4 text-[12px] leading-relaxed text-ink-3">
-          What you record here is self-reported{solo ? '.' : ` until ${session.coachName.split(' ')[0]} observes or verifies it.`} Your progress is saved on this phone as you go.
+          What you record here is self-reported{solo ? '.' : ` until ${session.coachName.split(' ')[0]} observes or verifies it.`} {cloud ? (solo ? 'It is saved to your account as you go.' : `It is saved as you go, and ${session.coachName.split(' ')[0]} sees it on the session board.`) : 'Your progress is saved on this phone as you go.'}
         </p>
+        {cloud && <SyncLine className="mt-2" saved="Everything so far is saved" />}
       </div>
 
       <div className="safe-bottom glass fixed inset-x-0 bottom-0 z-20 border-t border-line">
         <div className="mx-auto max-w-[560px] px-5 pt-3 pb-4">
-          {suggested && !progress.complete && (
+          {suggested && !progress.complete && !closed && (
             <button className="btn btn-primary btn-lg w-full" onClick={() => navigate(`/assess/${session.id}/station/${suggested}`)}>
               {progress.started ? 'Continue' : 'Begin'} · {disciplineById[suggested].short} <ArrowRight size={17} />
             </button>
           )}
           <button
-            className={cx('btn w-full', progress.complete ? 'btn-primary btn-lg' : 'btn-outline mt-2.5')}
+            className={cx('btn w-full', progress.complete || closed ? 'btn-primary btn-lg' : 'btn-outline mt-2.5')}
             disabled={recorded === 0}
             onClick={() => {
-              submit(mine.id)
+              if (!closed || !mine.submittedAt) submit(mine.id)
               navigate(`/assess/${session.id}/reveal`)
             }}
           >
@@ -169,7 +182,8 @@ export function StationRunner() {
   const { sessionId, station } = useParams()
   const [params, setParams] = useSearchParams()
   const navigate = useNavigate()
-  const { session, target, coaching, meId } = useAssessment(sessionId, params.get('p'))
+  const { session, target, coaching, closed, meId } = useAssessment(sessionId, params.get('p'))
+  useLive('assess', 10000)
   const recordResult = useStore((s) => s.recordResult)
   const toggleFlag = useStore((s) => s.toggleFlag)
   const sound = useStore((s) => s.settings.sound)
@@ -179,7 +193,7 @@ export function StationRunner() {
 
   // The coach recording on behalf of someone they are watching.
   const forOther = target.athleteId !== meId
-  if (forOther && !coaching) return <Navigate to={`/assess/${session.id}`} replace />
+  if ((forOther && !coaching) || closed) return <Navigate to={`/assess/${session.id}`} replace />
   const exit = forOther ? `/coach/assessment/${session.id}?tab=board` : `/assess/${session.id}`
   const editing = params.get('t')
   const current = (editing && testById[editing]) || nextTest(st, target.results)

@@ -2,7 +2,7 @@
 
 A calisthenics and physical-mastery platform. Make human potential visible.
 
-A working local-first version: the core screens, a real exercise and skill catalog, a provisional scoring engine, a coaching workflow, group assessments joined by QR code, and a map of places to train with opt-in check-ins, with a Supabase schema ready behind it.
+A working local-first version with accounts and a shared database behind it: the core screens, a real exercise and skill catalog, a provisional scoring engine, a coaching workflow, group assessments joined by QR code, and a map of places to train with opt-in check-ins, with a Supabase schema ready behind it.
 
 **What works, what is simulated and what is still to be connected is tracked in [REGISTER.md](REGISTER.md).** That file is the source of truth for status; this one explains how the product is put together. **How scoring works, and how to change it safely, is in [SCORING.md](SCORING.md).**
 
@@ -16,16 +16,17 @@ npm run dev        # http://localhost:5173
 On the welcome screen choose one of:
 
 - **Explore the demo** – a sample athlete (Alex) with twelve weeks of history, enrolled in a handstand course and coaching a fundamentals course with four students. Everything is populated.
-- **Begin** – the real onboarding: identity, experience, goals, self-assessment, provisional profile.
+- **Begin** – the real onboarding: identity, experience, goals, self-assessment, provisional profile. With a Supabase project in `.env.local` this is **Continue with Google** instead, and everything is saved to the account (see `supabase/README.md`).
 
 Other commands:
 
 | Command | What it does |
 | --- | --- |
-| `npm test` | 94 unit tests over the catalog, scoring engine and its invariants, assessment, places and presence |
+| `npm test` | 113 unit tests over the catalog, scoring engine and its invariants, assessment, places and presence, and the sync engine |
 | `npm run build` | Type-check and production build |
 | `npm run db:seed` | Regenerate `supabase/seed.sql` from the catalog in `src/domain` |
-| `npm run db:check` | Apply schema + seed to an in-process Postgres and run 111 checks, including the access rules |
+| `npm run db:check` | Apply schema + seed to an in-process Postgres and run 149 checks, including the access rules |
+| `npm run deploy` | Test, build for the public address and publish to the `gh-pages` branch |
 | `npm run scoring:audit` | Recompute every figure in SCORING.md from the code and check the catalog against the admission rules |
 
 ## The four systems

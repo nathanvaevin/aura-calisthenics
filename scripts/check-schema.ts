@@ -11,7 +11,9 @@ import { PGlite } from '@electric-sql/pglite'
 
 const read = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8')
 
-// The parts of Supabase the migration relies on.
+// The parts of Supabase the migrations rely on: the auth schema and the
+// storage schema, stubbed closely enough to run the real migrations and their
+// policies. On a real project these are provided by Supabase.
 const PRELUDE = `
   create role anon nologin;
   create role authenticated nologin;
@@ -20,7 +22,27 @@ const PRELUDE = `
   create function auth.uid() returns uuid language sql stable as $$
     select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
   $$;
+  -- Real Supabase: the claims of the caller's token. Guests carry is_anonymous.
+  create function auth.jwt() returns jsonb language sql stable as $$
+    select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb
+  $$;
   grant usage on schema auth to anon, authenticated;
+
+  create schema storage;
+  create table storage.buckets (id text primary key, name text not null, public boolean not null default false);
+  create table storage.objects (
+    id uuid primary key default gen_random_uuid(),
+    bucket_id text references storage.buckets (id),
+    name text not null,
+    owner uuid
+  );
+  -- Real Supabase: the folder names of an object path (everything but the file).
+  create function storage.foldername(name text) returns text[] language sql immutable as $$
+    select (string_to_array(name, '/'))[1:greatest(array_length(string_to_array(name, '/'), 1) - 1, 0)]
+  $$;
+  alter table storage.objects enable row level security;
+  grant usage on schema storage to anon, authenticated;
+  grant select, insert, update, delete on storage.objects to anon, authenticated;
 `
 
 const db = new PGlite()
@@ -30,12 +52,16 @@ let failed = 0
 const ok = (label: string) => { passed++; console.log(`  ✓ ${label}`) }
 const bad = (label: string, why: string) => { failed++; console.log(`  ✗ ${label}\n      ${why}`) }
 
+/** Accounts signed in as guests, for the checks that tell them apart. */
+const guests = new Set<string>()
+
 async function as<T>(user: string | null, role: 'authenticated' | 'anon', fn: () => Promise<T>): Promise<T> {
-  await db.exec(`select set_config('request.jwt.claim.sub', '${user ?? ''}', false); set role ${role};`)
+  const claims = user ? JSON.stringify({ sub: user, is_anonymous: guests.has(user) }) : ''
+  await db.exec(`select set_config('request.jwt.claim.sub', '${user ?? ''}', false); select set_config('request.jwt.claims', '${claims}', false); set role ${role};`)
   try {
     return await fn()
   } finally {
-    await db.exec(`reset role; select set_config('request.jwt.claim.sub', '', false);`)
+    await db.exec(`reset role; select set_config('request.jwt.claim.sub', '', false); select set_config('request.jwt.claims', '', false);`)
   }
 }
 
@@ -70,7 +96,7 @@ async function expectDenied(label: string, user: string | null, sql: string, rol
 
 console.log('Applying schema')
 await db.exec(PRELUDE)
-for (const file of ['0001_core.sql', '0003_evidence_observed.sql', '0004_assessments.sql', '0005_places.sql']) {
+for (const file of ['0001_core.sql', '0002_storage.sql', '0003_evidence_observed.sql', '0004_assessments.sql', '0005_places.sql', '0006_live.sql', '0007_coach_access.sql']) {
   await db.exec(read(`../supabase/migrations/${file}`))
   ok(`${file} applies cleanly`)
 }
@@ -254,6 +280,99 @@ await expectCount('my favourites follow the same audience', D, `select 1 from pu
 await expectCount('…and are visible to someone I follow', B, `select 1 from public.place_favourites where athlete_id = '${A}'`, 1)
 await expectOk('I can forget my own visits', A, `delete from public.visits where athlete_id = '${A}';`)
 ;(await count(`select 1 from public.visits where athlete_id = '${A}'`)) === 0 ? ok('forgotten visits are gone') : bad('visits', 'delete did not remove them')
+
+// ── Media storage (0002) ─────────────────────────────────────────────────
+console.log('\nMedia storage')
+;(await count(`select 1 from storage.buckets where id = 'demonstrations' and public`)) === 1
+  ? ok('the demonstrations bucket exists and is public')
+  : bad('storage', 'demonstrations bucket missing')
+await expectCount('anyone can read a demonstration', null, `select 1 from storage.objects`, 0, 'anon')
+await expectOk('a coach uploads into their own folder', C, `insert into storage.objects (bucket_id, name, owner) values ('demonstrations', '${C}/clip.mp4', '${C}');`)
+await expectDenied('a non-coach cannot upload a demonstration', A, `insert into storage.objects (bucket_id, name) values ('demonstrations', '${A}/clip.mp4');`)
+await expectDenied('a coach cannot upload into someone else’s folder', C, `insert into storage.objects (bucket_id, name) values ('demonstrations', '${A}/clip.mp4');`)
+await as(A, 'authenticated', () => db.exec(`delete from storage.objects where name = '${C}/clip.mp4';`)).catch(() => undefined)
+;(await count(`select 1 from storage.objects where name = '${C}/clip.mp4'`)) === 1
+  ? ok('nobody can delete someone else’s demonstration')
+  : bad('storage', 'an athlete deleted a coach’s demonstration')
+
+// ── Going live (0006) ────────────────────────────────────────────────────
+console.log('\nGoing live')
+const sess2 = '80000000-0000-0000-0000-000000000002'
+const G = '00000000-0000-0000-0000-00000000000f'
+const H = '00000000-0000-0000-0000-000000000010'
+guests.add(G)
+await db.exec(`insert into auth.users (id, raw_user_meta_data) values ('${G}', '{}'), ('${H}', '{"name":"Hal"}');`)
+await as(C, 'authenticated', () => db.exec(`insert into public.assessment_sessions (id, owner_id, protocol, title, group_name, course_id, stations, invite_token) values ('${sess2}', '${C}', 'baseline-1', 'Re-test', 'Tuesday group', '${course}', '{pull,push}', 'tok-456');`))
+const peek = async (token: string, role: 'authenticated' | 'anon' = 'anon') => as(role === 'anon' ? null : H, role, () => db.query<{ session_id: string; coach_name: string; course_title: string; group_name: string }>(`select * from public.peek_invite('${token}')`))
+const open = (await peek('tok-456')).rows
+open.length === 1 && open[0].session_id === sess2 && open[0].coach_name === 'Coach C' && open[0].course_title === 'Handstand' && open[0].group_name === 'Tuesday group'
+  ? ok('an invitation can be read before signing in: who, what, which course') : bad('peek_invite', JSON.stringify(open))
+;(await peek('nope')).rows.length === 0 ? ok('a wrong code reveals nothing') : bad('peek_invite', 'a wrong token returned a session')
+;(await peek('tok-123')).rows.length === 0 ? ok('a finalised session’s code reveals nothing') : bad('peek_invite', 'a closed session was readable')
+await expectDenied('nobody joins without an account', null, `select public.join_assessment('tok-456');`, 'anon')
+await db.exec(`update public.profiles set name = 'Guest Gia' where id = '${G}';`)
+await expectOk('a guest joins with the code', G, `select public.join_assessment('tok-456', 'coach');`)
+;(await count(`select 1 from public.assessment_participants where session_id = '${sess2}' and athlete_id = '${G}' and display_name = 'Guest Gia'`)) === 1 ? ok('…under the name on their profile') : bad('join', 'guest participant missing or misnamed')
+;(await count(`select 1 from public.course_enrollments where course_id = '${course}' and athlete_id = '${G}'`)) === 1 ? ok('joining puts them in the course at once, before anything is finalised') : bad('join', 'guest not enrolled on joining')
+await expectCount('…so the course is theirs to open', G, `select 1 from public.courses where id = '${course}'`, 1)
+await expectOk('the coach joining their own session is not enrolled as a student', C, `select public.join_assessment('tok-456');`)
+;(await count(`select 1 from public.course_enrollments where course_id = '${course}' and athlete_id = '${C}'`)) === 0 ? ok('…and is not') : bad('join', 'coach enrolled in own course')
+const pg = (await db.query<{ id: string }>(`select id from public.assessment_participants where session_id = '${sess2}' and athlete_id = '${G}'`)).rows[0].id
+await expectOk('the guest records a result', G, `insert into public.assessment_results (participant_id, test_id, value, demonstrates) values ('${pg}', 'pushup', 12, '[["pushup", 12]]');`)
+await expectOk('the coach raises it to observed by writing the row', C, `insert into public.assessment_results (participant_id, test_id, value, tier, demonstrates, recorded_by) values ('${pg}', 'pushup', 12, 'observed', '[["pushup", 12]]', '${C}') on conflict (participant_id, test_id) do update set tier = excluded.tier, recorded_by = excluded.recorded_by;`)
+await expectOk('the guest also logs a best of their own', G, `insert into public.evidence (athlete_id, exercise_id, value, source) values ('${G}', 'squat', 20, 'manual');`)
+await expectOk('the coach finalises the second session', C, `select public.finalise_assessment('${sess2}');`)
+;(await count(`select 1 from public.evidence where athlete_id = '${G}' and assessment_id = '${sess2}' and tier = 'observed'`)) === 1 ? ok('the guest’s result is evidence on the guest profile') : bad('finalise', 'guest evidence missing')
+
+await expectDenied('an account that is not a guest cannot ask for a hand-over code', H, `select public.start_claim();`)
+const code = (await as(G, 'authenticated', () => db.query<{ c: string }>(`select public.start_claim() as c`))).rows[0].c
+code.length >= 32 ? ok('a guest gets a hand-over code') : bad('start_claim', 'no code')
+await expectDenied('the code table cannot be read directly', H, `select 1 from public.guest_claims;`)
+await expectDenied('a guest cannot hand over to itself or another guest', G, `select public.finish_claim('${code}');`)
+await expectDenied('a wrong code moves nothing', H, `select public.finish_claim('nope');`)
+await expectOk('the athlete’s own account takes the code', H, `select public.finish_claim('${code}');`)
+;(await count(`select 1 from public.assessment_participants where session_id = '${sess2}' and athlete_id = '${H}'`)) === 1 ? ok('the guest’s place in the session is now the account’s') : bad('finish_claim', 'participant not moved')
+;(await count(`select 1 from public.evidence where athlete_id = '${H}'`)) === 2 && (await count(`select 1 from public.evidence where athlete_id = '${G}'`)) === 0 ? ok('…with the evidence, assessed and self-logged') : bad('finish_claim', 'evidence not moved')
+;(await count(`select 1 from public.course_enrollments where course_id = '${course}' and athlete_id = '${H}'`)) === 1 && (await count(`select 1 from public.course_enrollments where athlete_id = '${G}'`)) === 0 ? ok('…and the place in the course') : bad('finish_claim', 'enrolment not moved')
+await expectCount('the coach can now read that athlete’s evidence', C, `select 1 from public.evidence where athlete_id = '${H}'`, 2)
+await expectDenied('a code works once', H, `select public.finish_claim('${code}');`)
+
+await expectOk('the coach removes a participant after finalising', C, `delete from public.assessment_participants where session_id = '${sess2}' and athlete_id = '${H}';`)
+;(await count(`select 1 from public.evidence where athlete_id = '${H}' and assessment_id = '${sess2}'`)) === 0 && (await count(`select 1 from public.evidence where athlete_id = '${H}'`)) === 1 ? ok('their evidence from that assessment goes with them; the rest stays') : bad('participant delete', 'assessment evidence left behind')
+const before = await count(`select 1 from public.evidence where assessment_id = '${sess}'`)
+await expectOk('the coach deletes a finalised assessment', C, `delete from public.assessment_sessions where id = '${sess}';`)
+before > 0 && (await count(`select 1 from public.evidence where assessment_id = '${sess}'`)) === 0 && (await count(`select 1 from public.evidence where assessment_id is null and source = 'assessment'`)) === 0 ? ok('the evidence it wrote is removed with it') : bad('session delete', 'evidence outlived its assessment')
+
+// ── Coaching by approval (0007) ──────────────────────────────────────────
+console.log('\nCoaching by approval')
+const K = '00000000-0000-0000-0000-000000000011'
+const ADM = '00000000-0000-0000-0000-000000000012'
+await db.exec(`insert into auth.users (id, raw_user_meta_data) values ('${K}', '{"name":"Kai"}'), ('${ADM}', '{"name":"Owner"}');`)
+await db.exec(`update public.profiles set roles = '{athlete,coach,admin}' where id = '${ADM}';`)
+ok('the owner is made admin and coach from the SQL editor')
+await expectDenied('an athlete cannot make themselves a coach', K, `update public.profiles set roles = '{athlete,coach}' where id = '${K}';`)
+await expectDenied('…not even by sending their whole profile again', K, `insert into public.profiles (id, name, roles) values ('${K}', 'Kai', '{athlete,coach}') on conflict (id) do update set roles = excluded.roles;`)
+await expectOk('an existing coach can still save their whole profile', C, `insert into public.profiles (id, name, roles) values ('${C}', 'Coach C', '{athlete,coach}') on conflict (id) do update set name = excluded.name, roles = excluded.roles;`)
+await expectDenied('a coach cannot make themselves admin', C, `update public.profiles set roles = '{athlete,coach,admin}' where id = '${C}';`)
+await expectDenied('…so cannot open a course either', K, `insert into public.courses (coach_id, title, start_date) values ('${K}', 'Mine', '2026-12-07');`)
+await expectDenied('a guest cannot ask for coach access', G, `select public.request_coach('hi');`)
+await expectOk('an athlete asks for coach access', K, `select public.request_coach('I teach handstands on Tuesdays');`)
+await expectCount('they see their own request', K, `select 1 from public.coach_requests where status = 'pending'`, 1)
+await expectCount('another athlete does not', A, `select 1 from public.coach_requests`, 0)
+await expectDenied('nobody edits a request directly', K, `update public.coach_requests set status = 'approved' where athlete_id = '${K}';`)
+await expectDenied('a coach cannot approve anyone', C, `select public.decide_coach('${K}', true);`)
+await expectCount('the admin sees every request', ADM, `select 1 from public.coach_requests`, 1)
+await expectOk('the admin declines', ADM, `select public.decide_coach('${K}', false);`)
+;(await count(`select 1 from public.profiles where id = '${K}' and 'coach' = any (roles)`)) === 0 ? ok('a declined athlete stays an athlete') : bad('decide_coach', 'declined but became coach')
+await expectOk('they may ask again', K, `select public.request_coach('Second try');`)
+await expectCount('…and the request is pending again', K, `select 1 from public.coach_requests where status = 'pending' and note = 'Second try'`, 1)
+await expectOk('the admin approves', ADM, `select public.decide_coach('${K}', true);`)
+;(await count(`select 1 from public.profiles where id = '${K}' and 'coach' = any (roles)`)) === 1 ? ok('an approved athlete is a coach') : bad('decide_coach', 'approved but no coach role')
+await expectOk('…and can now open a course', K, `insert into public.courses (coach_id, title, start_date) values ('${K}', 'Mine', '2026-12-07');`)
+await expectOk('…and save their profile with the role in it', K, `update public.profiles set bio = 'Coach now', roles = '{athlete,coach}' where id = '${K}';`)
+await expectDenied('only an admin revokes', C, `select public.revoke_coach('${K}');`)
+await expectOk('the admin revokes coaching', ADM, `select public.revoke_coach('${K}');`)
+;(await count(`select 1 from public.profiles where id = '${K}' and 'coach' = any (roles)`)) === 0 && (await count(`select 1 from public.courses where coach_id = '${K}'`)) === 1 ? ok('the role goes; their course stays') : bad('revoke_coach', 'role or course wrong')
 
 console.log(`\n${passed} passed, ${failed} failed`)
 await db.close()

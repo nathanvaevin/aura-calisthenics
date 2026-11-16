@@ -26,15 +26,20 @@ export function Athletes() {
   const following = useStore((s) => s.following)
   const [filter, setFilter] = useState<Filter>('all')
   const viewer = useViewer()
+  // With accounts, an athlete's results are private to them and their coach. Listing someone
+  // whose results cannot be read would show them as unrated, which would be untrue.
+  const account = useStore((s) => !!s.cloudUid)
   /** The city an athlete lets this viewer see, if any. */
   const cityOf = (a: Athlete) => identityFor(a, viewer.relationTo(a)).city
 
   const ranked = useMemo(
     () =>
       Object.values(athletes)
-        .map((athlete: Athlete) => ({ athlete, aura: auraFor(evidence.filter((e) => e.athleteId === athlete.id)) }))
+        .map((athlete: Athlete) => ({ athlete, own: evidence.filter((e) => e.athleteId === athlete.id) }))
+        .filter(({ athlete, own }) => !account || athlete.id === me.athlete.id || own.length > 0)
+        .map(({ athlete, own }) => ({ athlete, aura: auraFor(own) }))
         .sort((a, b) => b.aura.aura - a.aura.aura),
-    [athletes, evidence],
+    [athletes, evidence, account, me.athlete.id],
   )
   const shown = ranked.filter(({ athlete, aura }) => {
     if (athlete.id === me.athlete.id) return filter === 'all' || filter === 'level'
@@ -88,7 +93,7 @@ export function Athletes() {
         )}
         <p className="mt-3 flex items-start gap-2 text-[12px] leading-relaxed text-ink-3">
           <MapPin size={13} className="mt-0.5 shrink-0" />
-          A city appears only when its athlete shares it with you. Sample athletes are shown here until accounts are connected.
+          {account ? 'You see the athletes whose results are shared with you: yourself and, when you coach, the students in your courses. A wider directory is not built yet.' : 'A city appears only when its athlete shares it with you. The athletes shown here are sample people.'}
         </p>
       </div>
     </div>

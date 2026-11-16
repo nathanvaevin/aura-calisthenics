@@ -81,6 +81,9 @@ export const shortId = () => {
   return Array.from(bytes, (b) => (b % 36).toString(36)).join('')
 }
 
+/** Ids the database will accept once there is an account; the short form keeps local links small. */
+const freshId = (s: { cloudUid: string | null }) => (s.cloudUid ? uid() : shortId())
+
 const slug = (name: string) => name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.|\.$/g, '') || 'athlete'
 
 /**
@@ -132,6 +135,12 @@ interface State {
   active: ActiveWorkout | null
   settings: Settings
   celebrations: Celebration[]
+  /** The sample world is loaded. Nothing in it is anyone's real data. */
+  demo: boolean
+  /** The signed-in account this device's data belongs to; null when everything is local. */
+  cloudUid: string | null
+  /** What the server is known to hold, row by row. Owned by the sync engine (src/data/cloud). */
+  cloudShadow: Record<string, string>
 
   startDemo: () => void
   completeOnboarding: (r: OnboardingResult) => void
@@ -225,7 +234,16 @@ const empty = {
   mapView: null as { lat: number; lon: number; zoom: number } | null,
   active: null as ActiveWorkout | null,
   celebrations: [] as Celebration[],
+  demo: false,
+  cloudUid: null as string | null,
+  cloudShadow: {} as Record<string, string>,
 }
+
+/** A fresh, empty world. Used when an account signs in or out. */
+export const emptyWorld = () => structuredClone(empty)
+
+/** What an invitation link carries when the session lives in the database: unguessable, and nothing else. */
+export const inviteToken = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('')
 
 const entryFromBlock = (b: WorkoutBlock): LogEntry => ({
   blockId: b.id,
@@ -276,9 +294,12 @@ export function candidatesIn(log: WorkoutLog, evidence: Evidence[]): Candidate[]
  * nothing of the owner's is changed.
  */
 export function migrateStored(persisted: unknown, version: number) {
-  const s = persisted as State
-  if (version >= 2 || !s?.athletes) return s
-  const demo = s.meId === ME && s.athletes[ME]?.handle === 'alex'
+  let s = persisted as State
+  if (!s?.athletes) return s
+  // Version 3 added accounts: say whether a stored world is the sample one, and that nothing is synced yet.
+  if (version < 3) s = { ...s, demo: s.meId === ME && s.athletes[ME]?.handle === 'alex', cloudUid: null, cloudShadow: {} }
+  if (version >= 2) return s
+  const demo = s.demo
   const c = sampleCommunity(new Date(), demo)
   const athletes = { ...s.athletes }
   for (const [id, identity] of Object.entries(c.identities)) if (athletes[id]) athletes[id] = { ...identity, ...athletes[id] }
@@ -293,11 +314,28 @@ export const useStore = create<State>()(
 
       startDemo: () => {
         const world = buildWorld(new Date(), true)
-        set({ ...empty, ...world, meId: ME, settings: { ...get().settings, coachMode: true } })
+        set({ ...empty, ...world, meId: ME, demo: true, settings: { ...get().settings, coachMode: true } })
       },
 
       completeOnboarding: (r) => {
         const now = new Date()
+        const account = get().cloudUid
+        if (account) {
+          // Signed in: the profile already exists in the database. Fill it in; there is no sample world.
+          const s = get()
+          const was = s.athletes[account]
+          // Roles beyond athlete are granted on the server (coach access by request); never set here.
+          const roles = new Set<Athlete['roles'][number]>(was?.roles ?? ['athlete'])
+          const me: Athlete = {
+            ...was, id: account, name: r.name.trim() || was?.name || 'Athlete', handle: r.handle.trim(), bio: was?.bio ?? '', roles: [...roles],
+            goals: r.goals, joinedAt: was?.joinedAt ?? now.toISOString(), weeklyTarget: r.weeklyTarget, equipment: r.equipment,
+          }
+          const estimates: Evidence[] = Object.entries(r.estimates)
+            .filter(([, v]) => v > 0)
+            .map(([exerciseId, value]) => ({ id: uid(), athleteId: account, exerciseId, value, tier: 'estimated', source: 'onboarding', date: now.toISOString() }))
+          set({ athletes: { ...s.athletes, [account]: me }, evidence: [...s.evidence, ...estimates], meId: account, settings: { ...s.settings, coachMode: r.coach } })
+          return
+        }
         const world = buildWorld(now, false)
         const me: Athlete = {
           id: ME,
@@ -585,7 +623,7 @@ export const useStore = create<State>()(
         const s = get()
         const me = s.meId ? s.athletes[s.meId] : null
         const session: AssessmentSession = {
-          id: shortId(), protocol: PROTOCOL, title: input.title.trim() || 'Baseline', kind: input.kind, groupName: input.groupName.trim() || 'My group',
+          id: freshId(s), ...(s.cloudUid ? { inviteToken: inviteToken() } : {}), protocol: PROTOCOL, title: input.title.trim() || 'Baseline', kind: input.kind, groupName: input.groupName.trim() || 'My group',
           coachId: s.meId, coachName: me?.name ?? 'Coach', courseId: input.courseId, baselineId: input.baselineId, stations: input.stations,
           status: 'open', origin: 'local', createdAt: new Date().toISOString(), stationMinutes: 6,
         }
@@ -593,7 +631,7 @@ export const useStore = create<State>()(
         const carried: AssessmentParticipant[] = input.baselineId
           ? s.participants
               .filter((p) => p.sessionId === input.baselineId)
-              .map((p) => ({ id: shortId(), sessionId: session.id, athleteId: p.athleteId, name: p.name, joinedAt: session.createdAt, via: 'coach', sharing: p.sharing, results: {}, skipped: [], flags: [] }))
+              .map((p) => ({ id: freshId(s), sessionId: session.id, athleteId: p.athleteId, name: p.name, joinedAt: session.createdAt, via: 'coach', sharing: p.sharing, results: {}, skipped: [], flags: [] }))
           : []
         set({ assessments: [...s.assessments, session], participants: [...s.participants, ...carried] })
         return session.id
@@ -608,11 +646,11 @@ export const useStore = create<State>()(
         const previous = mine.filter((a) => a.status === 'finalised').sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
         const now = new Date().toISOString()
         const session: AssessmentSession = {
-          id: shortId(), protocol: PROTOCOL, title: previous ? 'Re-test' : 'Baseline', kind: previous ? 'retest' : 'baseline', groupName: 'On my own',
+          id: freshId(s), protocol: PROTOCOL, title: previous ? 'Re-test' : 'Baseline', kind: previous ? 'retest' : 'baseline', groupName: 'On my own',
           coachId: null, coachName: '', baselineId: previous?.id, stations: ['mobility', 'push', 'pull', 'core', 'legs', 'handstand'],
           status: 'open', origin: 'solo', createdAt: now, stationMinutes: 6,
         }
-        const me: AssessmentParticipant = { id: shortId(), sessionId: session.id, athleteId: s.meId, name: s.athletes[s.meId].name, joinedAt: now, via: 'self', sharing: 'coach', results: {}, skipped: [], flags: [] }
+        const me: AssessmentParticipant = { id: freshId(s), sessionId: session.id, athleteId: s.meId, name: s.athletes[s.meId].name, joinedAt: now, via: 'self', sharing: 'coach', results: {}, skipped: [], flags: [] }
         set({ assessments: [...s.assessments, session], participants: [...s.participants, me] })
         return session.id
       },
@@ -639,7 +677,7 @@ export const useStore = create<State>()(
         let participants = s.participants
         const existing = participants.find((p) => p.sessionId === invite.id && p.athleteId === meId)
         if (existing) participants = participants.map((p) => (p.id === existing.id ? { ...p, sharing: who.sharing } : p))
-        else participants = [...participants, { id: shortId(), sessionId: invite.id, athleteId: meId, name: s.athletes[meId].name, joinedAt: now, via: 'self', sharing: who.sharing, results: {}, skipped: [], flags: [] }]
+        else participants = [...participants, { id: freshId(s), sessionId: invite.id, athleteId: meId, name: s.athletes[meId].name, joinedAt: now, via: 'self', sharing: who.sharing, results: {}, skipped: [], flags: [] }]
         set({ assessments, participants })
         return invite.id
       },
@@ -694,7 +732,7 @@ export const useStore = create<State>()(
         }),
 
       addParticipant: (sessionId, name, athleteId) => {
-        const id = shortId()
+        const id = freshId(get())
         set((s) => ({
           participants: [...s.participants, { id, sessionId, athleteId, name: name.trim() || 'Participant', joinedAt: new Date().toISOString(), via: 'coach', sharing: 'coach', results: {}, skipped: [], flags: [] }],
         }))
@@ -756,9 +794,10 @@ export const useStore = create<State>()(
         if (!session) return
         const now = new Date().toISOString()
         const athletes = { ...s.athletes }
-        // Everyone who took part gets a place on this coach's roster.
+        // Everyone who took part gets a place on this coach's roster. With accounts, only people
+        // who have one can: someone added by name stays a name on the session.
         const participants = s.participants.map((p) => {
-          if (p.sessionId !== sessionId || (p.athleteId && athletes[p.athleteId])) return p
+          if (s.cloudUid || p.sessionId !== sessionId || (p.athleteId && athletes[p.athleteId])) return p
           const athleteId = `a-${p.id}`
           athletes[athleteId] = { id: athleteId, name: p.name, handle: slug(p.name), bio: '', roles: ['athlete'], goals: [], joinedAt: p.joinedAt, weeklyTarget: 3, equipment: [] }
           return { ...p, athleteId }
@@ -910,7 +949,7 @@ export const useStore = create<State>()(
     }),
     {
       name: 'aura:v1',
-      version: 2,
+      version: 3,
       migrate: migrateStored,
       partialize: ({ celebrations: _c, ...rest }) =>
         Object.fromEntries(Object.entries(rest).filter(([, v]) => typeof v !== 'function')) as unknown as State,

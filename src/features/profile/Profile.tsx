@@ -9,7 +9,9 @@ import { bestEvidence } from '@/domain/scoring/mastery'
 import { recentUnlocks } from '@/domain/insights'
 import { useIsCoach, useMe } from '@/data/hooks'
 import { useStore } from '@/data/store'
-import { isCloudConfigured, signInWithGoogle, signOut, useSession } from '@/data/supabase'
+import { signInWithGoogle, signOut, useCloud } from '@/data/cloud'
+import { KeepProfile, Notice, SyncLine } from '@/features/account/Account'
+import { CoachAccessRow, CoachRequests } from '@/features/account/CoachAccess'
 import { AuraDot, AuraField } from '@/ui/AuraField'
 import { CountUp } from '@/ui/CountUp'
 import { DnaSigil } from '@/ui/DnaSigil'
@@ -30,7 +32,9 @@ export function Profile() {
   const toggleGoal = useStore((s) => s.toggleGoal)
   const removeEvidence = useStore((s) => s.removeEvidence)
   const reset = useStore((s) => s.reset)
-  const session = useSession()
+  const cloud = useCloud()
+  const demo = useStore((s) => s.demo)
+  const account = cloud.auth === 'in' ? cloud.user : null
 
   const [auraOpen, setAuraOpen] = useState(false)
   const [ratingOpen, setRatingOpen] = useState<DisciplineId | null>(null)
@@ -249,6 +253,10 @@ export function Profile() {
 
           <PrivacyCard athlete={me.athlete} />
 
+          <KeepProfile />
+
+          <CoachRequests />
+
           {/* Settings */}
           <section>
             <SectionTitle>Settings</SectionTitle>
@@ -265,39 +273,67 @@ export function Profile() {
                 <span className="text-[14px]">Sounds<span className="block text-[12px] text-ink-3">Rest timer and skill unlocks</span></span>
                 <Toggle on={settings.sound} onChange={(sound) => setSettings({ sound })} label="Sounds" />
               </div>
-              <div className="flex items-center justify-between px-4 py-3.5">
-                <span className="text-[14px]">Coach mode<span className="block text-[12px] text-ink-3">Shows Coach Studio for building courses and reviewing students</span></span>
-                <Toggle
-                  on={coach}
-                  onChange={(on) => {
-                    if (on && !me.athlete.roles.includes('coach')) updateMe({ roles: [...me.athlete.roles, 'coach'] })
-                    setSettings({ coachMode: on })
-                  }}
-                  label="Coach mode"
-                />
-              </div>
+              {account && !me.athlete.roles.includes('coach') ? (
+                <CoachAccessRow />
+              ) : (
+                <div className="flex items-center justify-between px-4 py-3.5">
+                  <span className="text-[14px]">Coach mode<span className="block text-[12px] text-ink-3">Shows Coach Studio for building courses and reviewing students</span></span>
+                  <Toggle
+                    on={coach}
+                    onChange={(on) => {
+                      // With an account the role is granted by an admin; locally it is the athlete's own choice.
+                      if (on && !account && !me.athlete.roles.includes('coach')) updateMe({ roles: [...me.athlete.roles, 'coach'] })
+                      setSettings({ coachMode: on })
+                    }}
+                    label="Coach mode"
+                  />
+                </div>
+              )}
               <div className="px-4 py-3.5">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-[14px]">
+                  <span className="min-w-0 text-[14px]">
                     Account
-                    <span className="block text-[12px] text-ink-3">
-                      {session ? `Signed in as ${session.user.email}` : isCloudConfigured ? 'Not signed in. Data is on this device.' : 'Local mode. Data is saved on this device only.'}
+                    <span className="block truncate text-[12px] text-ink-3">
+                      {account
+                        ? account.guest ? 'Guest profile. Only this browser can open it.' : `Signed in as ${account.email ?? account.name ?? 'your account'}`
+                        : !cloud.configured ? 'Local mode. Data is saved on this device only.'
+                        : demo ? 'Not signed in. This is the sample world; nothing in it is saved.'
+                        : 'Not signed in. Your data is on this device only.'}
                     </span>
+                    {account && <SyncLine className="mt-1" />}
                   </span>
-                  {isCloudConfigured && (session ? <button className="btn btn-quiet btn-sm" onClick={() => signOut()}>Sign out</button> : <button className="btn btn-quiet btn-sm" onClick={() => signInWithGoogle()}>Sign in with Google</button>)}
+                  {cloud.configured && (account ? (
+                    <button
+                      className="btn btn-quiet btn-sm shrink-0"
+                      onClick={() => {
+                        const warning = account.guest
+                          ? 'You joined as a guest. After signing out, this profile and its results cannot be opened again. Sign out anyway?'
+                          : cloud.sync.pending > 0 ? 'Some changes have not reached your account yet and would be lost. Sign out anyway?' : null
+                        if (!warning || window.confirm(warning)) void signOut()
+                      }}
+                    >
+                      Sign out
+                    </button>
+                  ) : (
+                    <button className="btn btn-quiet btn-sm shrink-0" onClick={() => void signInWithGoogle()}>Sign in with Google</button>
+                  ))}
                 </div>
+                {!account && cloud.configured && !demo && <p className="mt-2 text-[12px] leading-relaxed text-ink-3">Signing in moves what you have built on this device into your account.</p>}
+                {!account && <Notice className="mt-3" />}
               </div>
-              <button
-                className="flex w-full items-center gap-2 px-4 py-3.5 text-left text-[14px] text-ink-2 last:rounded-b-[22px] hover:bg-surface-2"
-                onClick={() => {
-                  if (window.confirm('Erase everything on this device and start again from the welcome screen?')) {
-                    reset()
-                    navigate('/welcome')
-                  }
-                }}
-              >
-                <Trash2 size={14} /> Start over
-              </button>
+              {!account && (
+                <button
+                  className="flex w-full items-center gap-2 px-4 py-3.5 text-left text-[14px] text-ink-2 last:rounded-b-[22px] hover:bg-surface-2"
+                  onClick={() => {
+                    if (window.confirm('Erase everything on this device and start again from the welcome screen?')) {
+                      reset()
+                      navigate('/welcome')
+                    }
+                  }}
+                >
+                  <Trash2 size={14} /> Start over
+                </button>
+              )}
             </div>
           </section>
         </div>

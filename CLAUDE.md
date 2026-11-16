@@ -37,12 +37,16 @@ Never present simulated or sample behaviour as real. If something cannot work wi
 
 - `npm run dev` · `npm test` · `npm run build`
 - `npm run db:seed` regenerates `supabase/seed.sql` from `src/domain`
-- `npm run db:check` applies migrations and seed to an in-process Postgres and checks the access rules
+- `npm run db:check` applies all six migrations + seed to an in-process Postgres and checks the access rules
+- `npm run db:bundle` regenerates `supabase/apply.sql` (the one-paste setup) from the migrations and seed — run it after changing either
+- `npm run deploy` tests, builds for the public address and replaces the `gh-pages` branch. Publishing is outward-facing: run it only when the owner says so
 - `npm run scoring:audit` recomputes every figure in SCORING.md; `-- --write` regenerates its tables, `-- --check` verifies them
 
 ## Orientation
 
 - `src/domain/` holds the rules, pure TypeScript: catalog, scoring, `assessment.ts`, `places.ts` (privacy, presence, OpenStreetMap conversion).
-- `src/data/store.ts` is the only place state changes. It is the seam for the future Supabase data layer.
+- `src/data/store.ts` is the only place state changes. Screens read and write it and never wait for the network.
+- `src/data/cloud/` keeps that store and Supabase in step while someone is signed in: `rows.ts` (tables and who may write a row), `mappers.ts` (state ↔ rows), `engine.ts` (push, fetch, merge), `remote.ts` (Supabase). A new synced table is added in `rows.ts` and `mappers.ts`; the engine does not change. `cloud.test.ts` runs two simulated devices against a pretend server.
+- A schema change is a new numbered migration, added to `scripts/check-schema.ts` and `scripts/build-bundle.ts`, and the owner has to run it on the live project: say so. After a catalogue change the live database needs the new `seed.sql` too.
 - Scoring is provisional and versioned (`src/domain/scoring/config.ts`). The assessment protocol is versioned too (`PROTOCOL` in `assessment.ts`); bump it when tests change.
 - Evidence tiers (estimated, self, observed, coach, video) must stay distinct everywhere they are shown.

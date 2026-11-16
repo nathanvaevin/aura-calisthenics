@@ -404,6 +404,8 @@ export interface AssessmentSession {
   /** Minutes per station for the rotation timer. */
   stationMinutes: number
   rotationStartedAt?: string
+  /** What the invitation link carries when the session lives in the database. */
+  inviteToken?: string
   /** Seeded demonstration data. */
   sample?: boolean
 }
