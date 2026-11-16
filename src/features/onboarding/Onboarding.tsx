@@ -11,7 +11,7 @@ import { buildWorkout, templateById } from '@/domain/training'
 import { useStore } from '@/data/store'
 import { handleFree, signInWithGoogle, signOut, useCloud } from '@/data/cloud'
 import { GoogleButton, Notice } from '@/features/account/Account'
-import { requestCoach } from '@/features/account/CoachAccess'
+import { CoachContact, requestCoach } from '@/features/account/CoachAccess'
 import { AuraField } from '@/ui/AuraField'
 import { CountUp } from '@/ui/CountUp'
 import { DisciplineDot, Eyebrow, StatusTag, Stepper, Toggle } from '@/ui/primitives'
@@ -431,6 +431,15 @@ export function Onboarding() {
                   <div className="px-4 py-3 text-[13px] text-ink-2">Already within reach of your answers: {preview.already.map((g) => skillById[g].name).join(', ')}. Pick a bigger goal from the tree.</div>
                 )}
               </div>
+
+              {account && !account.guest && coach && (
+                <div className="card mt-3 w-full p-4 text-left">
+                  <Eyebrow>Coach access</Eyebrow>
+                  <div className="mt-1.5 text-[15px] font-medium">Your request has been sent.</div>
+                  <p className="mt-1 text-[13px] leading-relaxed text-ink-2">Coach Studio opens in your app as soon as it is approved. Until then you can train, test and explore as an athlete. You will find the request under Profile → Settings.</p>
+                  <CoachContact className="mt-2" />
+                </div>
+              )}
 
               <div className="mt-6 flex w-full flex-col gap-2.5">
                 <button className="btn btn-primary btn-lg" onClick={() => finish(true)}>Start my first session</button>

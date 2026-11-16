@@ -5,6 +5,7 @@ import { flush, useCloud } from '@/data/cloud'
 import { useStore } from '@/data/store'
 import { Eyebrow, SectionTitle } from '@/ui/primitives'
 import { cx, relativeDay } from '@/lib/format'
+import { CONTACT } from '@/app/contact'
 
 /**
  * Coaching is granted by an admin, never chosen. These are the two sides of
@@ -36,6 +37,16 @@ function useMyRequest() {
   }, [uid])
   useEffect(() => { void load() }, [load])
   return { request, reload: load, signedIn: !!uid }
+}
+
+/** Who to message about a coach request, with a one-tap WhatsApp link. */
+export function CoachContact({ className }: { className?: string }) {
+  return (
+    <p className={cx('text-[12.5px] leading-relaxed text-ink-2', className)}>
+      Questions, or want it sooner? Message{' '}
+      <a className="font-medium text-ink underline decoration-line-strong underline-offset-4" href={CONTACT.whatsapp} target="_blank" rel="noreferrer">{CONTACT.phone} on WhatsApp</a>.
+    </p>
+  )
 }
 
 /** In Profile settings, for someone who is not a coach yet. */
@@ -76,7 +87,7 @@ export function CoachAccessRow() {
           <span className="block text-[12px] text-ink-3">
             {guest ? 'Keep your profile with Google first; coach access belongs to an account.'
               : !signedIn ? 'Sign in to ask for coach access.'
-              : pending ? `Requested ${relativeDay(request.created_at)}. You will see Coach Studio once it is approved.`
+              : pending ? `Coach request pending, sent ${relativeDay(request.created_at).toLowerCase()}. Coach Studio opens here once it is approved.`
               : declined ? 'Your last request was not approved. You can ask again.'
               : 'Build courses, run group assessments and review students. Coach access is given on request.'}
           </span>
@@ -87,6 +98,7 @@ export function CoachAccessRow() {
             : !open && <button className="btn btn-quiet btn-sm shrink-0" onClick={() => setOpen(true)}>Ask for access</button>
         )}
       </div>
+      {pending && <CoachContact className="mt-2" />}
       {open && (
         <div className="mt-3">
           <textarea className="field" rows={3} maxLength={500} placeholder="Optional: where and what you coach" value={note} onChange={(e) => setNote(e.target.value)} />
@@ -115,9 +127,10 @@ export function CoachRequests() {
     if (e) return setError(e.message)
     const rows = (data ?? []) as CoachRequest[]
     const ids = rows.map((r) => r.athlete_id)
-    const { data: people } = ids.length ? await supabase.from('profiles').select('id, name, handle').in('id', ids) : { data: [] }
-    const byId = new Map((people ?? []).map((p: { id: string; name: string; handle: string | null }) => [p.id, p]))
-    setList(rows.map((r) => ({ ...r, name: byId.get(r.athlete_id)?.name ?? 'Athlete', handle: byId.get(r.athlete_id)?.handle ?? null })))
+    const { data: people } = ids.length ? await supabase.from('profiles').select('id, name, handle, roles').in('id', ids) : { data: [] }
+    const byId = new Map((people ?? []).map((p: { id: string; name: string; handle: string | null; roles: string[] }) => [p.id, p]))
+    // Someone made coach another way (by hand in the database) has nothing left to decide.
+    setList(rows.filter((r) => !byId.get(r.athlete_id)?.roles?.includes('coach')).map((r) => ({ ...r, name: byId.get(r.athlete_id)?.name ?? 'Athlete', handle: byId.get(r.athlete_id)?.handle ?? null })))
   }, [])
   useEffect(() => { if (isAdmin) void load() }, [isAdmin, load])
 

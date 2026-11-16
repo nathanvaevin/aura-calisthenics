@@ -267,6 +267,10 @@ A feature is only "Working" when its user journey has actually been run. An inte
 
 ## F · Change log
 
+**2026-11-16 · Coach request: confirmation and contact**
+- After sign-up with "I also coach": a card says the request has been sent, where to find it, and offers WhatsApp (+31 6 45 44 49 51, `src/app/contact.ts`). Profile shows the request as pending, with the same contact. The admin list hides requests from people who are already coaches.
+- Typechecked and built; the two screens need an account and were not walked in a browser.
+
 **2026-11-16 · Published**
 - The accounts build is live on the public address (I-13). Actions 2 and 3 done. Next: you sign in with Google, make your account owner (README §8), and run the two-account test.
 - `deploy.sh`: the secret-key check now ignores comments in `.env.local`.
