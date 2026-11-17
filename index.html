@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#08090B" />
+    <meta name="description" content="Aura — make human potential visible. Calisthenics mastery, skill trees and coaching." />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Aura</title>
+    <script>
+      try {
+        var s = JSON.parse(localStorage.getItem('aura:v1') || '{}');
+        var t = s && s.state && s.state.settings && s.state.settings.theme;
+        if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
