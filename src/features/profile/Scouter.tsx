@@ -13,6 +13,10 @@ import { Bar, DisciplineDot, Empty, Eyebrow, PageHeader, SectionTitle, Segmented
 import { identityFor } from '@/domain/places'
 import { IdentityOf } from '@/features/places/Identity'
 import { useViewer } from '@/features/places/shared'
+import { canSee, privacyOf } from '@/domain/places'
+import { isVerified } from '@/domain/scoring/config'
+import { personalOf, wearing } from '@/theme/personal'
+import { THEMES } from '@/theme/themes'
 import { cx, dvar, initials, num } from '@/lib/format'
 
 type Filter = 'all' | 'following' | 'level' | 'city'
@@ -73,7 +77,7 @@ export function Athletes() {
                 <button
                   key={athlete.id}
                   onClick={() => navigate(isMe ? '/profile' : `/athlete/${athlete.id}`)}
-                  className={cx('flex w-full items-center gap-3.5 px-4 py-3.5 text-left transition-colors first:rounded-t-[22px] last:rounded-b-[22px] hover:bg-surface-2', isMe && 'bg-surface-2')}
+                  className={cx('flex w-full items-center gap-3.5 px-4 py-3.5 text-left transition-colors first:rounded-t-card last:rounded-b-card hover:bg-surface-2', isMe && 'bg-surface-2')}
                 >
                   <span className="num w-5 text-center font-mono text-[11px] text-ink-3">{ranked.findIndex((r) => r.athlete.id === athlete.id) + 1}</span>
                   <AuraDot mix={aura.mix} size={44}>{initials(athlete.name)}</AuraDot>
@@ -157,6 +161,7 @@ export function AthleteScan() {
 
         <div className="mt-8 space-y-8 lg:mt-6">
           <IdentityOf athlete={them.athlete} />
+          <TheirLook model={them} />
 
           {/* Readout */}
           <section className="rise rise-3">
@@ -238,5 +243,29 @@ export function AthleteScan() {
         </div>
       </div>
     </div>
+  )
+}
+
+/** The character and form another athlete chose, when they share it. */
+function TheirLook({ model }: { model: NonNullable<ReturnType<typeof useAthleteModel>> }) {
+  const viewer = useViewer()
+  const released = useStore((s) => s.auraSettings.universes)
+  const athlete = model.athlete
+  if (!athlete.style?.steps.character || !canSee(privacyOf(athlete).style, viewer.relationTo(athlete))) return null
+  const mastered = SKILLS.filter((s) => model.statuses[s.id].state === 'mastered')
+  const verified = mastered.filter((s) => !model.statuses[s.id].implied && model.statuses[s.id].tier && isVerified(model.statuses[s.id].tier!)).length
+  const look = wearing(personalOf(athlete), { aura: model.aura.aura, skills: mastered.length, verified }, released)
+  return (
+    <section className="rise rise-2 card flex items-center gap-4 overflow-hidden p-2.5">
+      <img src={`${import.meta.env.BASE_URL}themes/${look.universe}-${look.character}.jpg`} alt="" loading="lazy" className="h-[92px] w-[68px] shrink-0 rounded-[calc(var(--r-card)*0.6)] bg-(--stage) object-cover object-top" onError={(e) => { e.currentTarget.style.visibility = 'hidden' }} />
+      <span className="min-w-0">
+        <Eyebrow>{THEMES[look.theme].name}</Eyebrow>
+        <span className="mt-1 flex items-center gap-2">
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: look.form.colour, boxShadow: `0 0 12px ${look.form.colour}` }} />
+          <span className="display truncate text-[24px] leading-tight">{look.form.name}</span>
+        </span>
+        <span className="mt-1 block text-[12px] leading-snug text-ink-3">{look.form.line}</span>
+      </span>
+    </section>
   )
 }

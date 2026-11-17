@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { DemoSlot } from '@/features/library/DemoSlot'
 import { useNavigate } from 'react-router'
 import { ArrowUpRight, Check, Lock, Play, Sparkles, Target } from 'lucide-react'
 import type { Skill } from '@/domain/types'
@@ -32,7 +33,7 @@ function StateMark({ status, color }: { status: SkillStatus; color: string }) {
 export function SkillRow({ skill, status, onClick, note }: { skill: Skill; status: SkillStatus; onClick?: () => void; note?: string }) {
   const ex = exerciseById[skill.exerciseId]
   return (
-    <button onClick={onClick} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors first:rounded-t-[22px] last:rounded-b-[22px] hover:bg-surface-2">
+    <button onClick={onClick} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors first:rounded-t-card last:rounded-b-card hover:bg-surface-2">
       <StateMark status={status} color={dvar(skill.discipline)} />
       <span className="min-w-0 flex-1">
         <span className={cx('block truncate text-[14px] font-medium', status.state === 'locked' && 'text-ink-2')}>{skill.name}</span>
@@ -168,7 +169,7 @@ export function SkillSheet({ skillId, onClose, onOpenSkill }: { skillId: string 
               {picks.map((p) => {
                 const e = exerciseById[p.exerciseId]
                 return (
-                  <button key={p.exerciseId} onClick={() => navigate(`/library/${e.id}`)} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors first:rounded-t-[22px] last:rounded-b-[22px] hover:bg-surface-2">
+                  <button key={p.exerciseId} onClick={() => navigate(`/library/${e.id}`)} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors first:rounded-t-card last:rounded-b-card hover:bg-surface-2">
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[14px] font-medium">{e.name}</span>
                       <span className="block truncate text-[12px] text-ink-3">{p.reason}{p.level ? ` · Level ${p.level}` : ''}</span>
@@ -185,6 +186,7 @@ export function SkillSheet({ skillId, onClose, onOpenSkill }: { skillId: string 
         {/* The movement */}
         <section className="mt-7">
           <Eyebrow className="mb-3">The movement</Eyebrow>
+          <DemoSlot exerciseId={ex.id} className="mb-2.5" />
           <div className="card flex items-center gap-4 p-4">
             <MuscleMap primary={ex.primary} secondary={ex.secondary} stabilizers={ex.stabilizers} color={color} height={132} className="shrink-0" />
             <div className="min-w-0">

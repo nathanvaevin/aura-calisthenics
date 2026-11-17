@@ -144,13 +144,13 @@ export function Sparkline({ points, width = 120, height = 36, color = 'var(--tex
 
 export function Segmented<T extends string>({ options, value, onChange, className }: { options: { value: T; label: ReactNode }[]; value: T; onChange: (v: T) => void; className?: string }) {
   return (
-    <div className={cx('inline-flex rounded-full border border-line bg-surface p-1', className)}>
+    <div className={cx('inline-flex rounded-(--r-pill) border border-line bg-surface p-1', className)}>
       {options.map((o) => (
         <button
           key={o.value}
           onClick={() => onChange(o.value)}
           className={cx(
-            'h-8 rounded-full px-3.5 text-[13px] font-medium transition-colors',
+            'h-8 rounded-(--r-pill) px-3.5 text-[13px] font-medium transition-colors',
             value === o.value ? 'bg-ink text-bg' : 'text-ink-2 hover:text-ink',
           )}
         >

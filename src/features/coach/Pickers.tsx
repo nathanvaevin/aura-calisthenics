@@ -39,7 +39,7 @@ export function ExercisePicker({ open, onClose, onPick, title = 'Add an exercise
         {results.map((e) => {
           const p = placementsOf(e.id)[0]
           return (
-            <button key={e.id} onClick={() => { onPick(e.id); setQuery(''); onClose() }} className="flex w-full items-center gap-3 px-4 py-2.5 text-left first:rounded-t-[22px] last:rounded-b-[22px] hover:bg-surface-2">
+            <button key={e.id} onClick={() => { onPick(e.id); setQuery(''); onClose() }} className="flex w-full items-center gap-3 px-4 py-2.5 text-left first:rounded-t-card last:rounded-b-card hover:bg-surface-2">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-medium" style={{ background: `color-mix(in oklab, ${dvar(e.discipline)} 14%, transparent)`, color: dvar(e.discipline) }}>
                 {p ? `L${p.level}` : '·'}
               </span>
@@ -69,7 +69,7 @@ export function SkillPicker({ open, onClose, onPick, exclude }: { open: boolean;
       <Filters query={query} setQuery={setQuery} discipline={discipline} setDiscipline={setDiscipline} placeholder="Search skills" />
       <div className="card mt-4 divide-y divide-line">
         {results.map((s) => (
-          <button key={s.id} onClick={() => { onPick(s.id); setQuery(''); onClose() }} className="flex w-full items-center gap-3 px-4 py-2.5 text-left first:rounded-t-[22px] last:rounded-b-[22px] hover:bg-surface-2">
+          <button key={s.id} onClick={() => { onPick(s.id); setQuery(''); onClose() }} className="flex w-full items-center gap-3 px-4 py-2.5 text-left first:rounded-t-card last:rounded-b-card hover:bg-surface-2">
             <DisciplineDot id={s.discipline} />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[14px] font-medium">{s.name}</span>

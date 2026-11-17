@@ -180,3 +180,10 @@ describe('muscle activation', () => {
     expect(a[quads + 1]).toBeCloseTo(0.6)
   })
 })
+
+describe('the plain list of revisions', () => {
+  it('names every movement at its current revision, so a screen can tell without loading the movements', async () => {
+    const { REVISIONS } = await import('../revisions')
+    expect(REVISIONS).toEqual(Object.fromEntries(Object.values(MOTIONS).map((m) => [m.id, m.revision])))
+  })
+})

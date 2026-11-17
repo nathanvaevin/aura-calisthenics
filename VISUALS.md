@@ -120,10 +120,12 @@ Together these are every exercise of the first-day assessment (all 67 of its gui
 
 `src/domain/media.ts` (rules), `src/features/studio/` (screens), table `demo_assets` (migration 0009).
 
-- Statuses: draft → pending review → approved → published, with needs correction and archived. Only an admin moves them; athletes are served published rows only.
-- One version per exercise and slot (`male`, `female`, `instructor`, `instructor:<label>`) is published at a time. Publishing another archives the one before.
+- Statuses: draft → pending review → approved → published, with needs correction and archived. Only an admin moves them; athletes are served published rows only. On screen `published` reads **Official** and `approved` reads **Approved, hidden** (taken down).
+- **Approval is one decision** (`makeOfficial`): *Approve* takes a pending version straight to published, and an archived one back to it. A version sent back for correction cannot be approved; it needs a new version.
+- One version per exercise and slot (`male`, `female`, `instructor`, `instructor:<label>`) is published at a time. Publishing another archives the one before; it stays in the history.
+- **One exercise record, one question.** Every screen that shows an exercise uses `DemoSlot` (`src/features/library/DemoSlot.tsx`), which asks for the published version of that exercise. Nothing is attached per screen, so approving, replacing or taking down reaches the library page, the skill sheet, the workout's technique sheet and both kinds of assessment at once. Where there is no approved animation the slot renders nothing and the screen keeps what it had.
 - A correction note stays on the version it was written on and is copied to the next version. The earlier version is kept.
-- **A published animation is shown only while the movement is the revision that was approved.** If the code changes the movement, the animation drops out of athletes' view until a new version is approved.
+- **A published animation is shown only while the movement is the revision that was approved.** If the code changes the movement, the animation drops out of athletes' view until a new version is approved. Screens that are loaded for every athlete check this against `src/visual/revisions.ts`, a plain list of the current revisions (the movements themselves come with the 3D engine); a test fails when the list and the movements disagree, so raise both together.
 - The content has its own channel to the server (`src/data/cloud/content.ts`), apart from the sync of personal data. If the tables are missing or the server is unreachable the app carries on; nothing is published.
 
 ## 8 · Recorded video
@@ -149,3 +151,42 @@ Expect it to need a person to correct most movements, at least at first. A reali
 - One exercise with muscles: 4 draws, about 67,000 triangles. With an Aura: up to about 250,000 triangles, because the outline redraws the body twice.
 - Measured (T-14): a steady 60 frames a second in desktop Chrome on an Apple M2, including at phone size and with the processor slowed sixfold. **No real phone has been measured.** If older phones struggle, the first things to reduce are the outline (one pass instead of two) and the shadow.
 - A stage stops drawing when it is off screen or the tab is hidden.
+
+## 11 · Universes: a character for each theme
+
+The four themes of the app (`src/theme/themes.ts`) stand on three **universes**: Aura (Aura Dark and Aura Light), Anime Power, Iron Will. A universe is what a theme shares with the 3D side.
+
+| | Aura | Anime Power | Iron Will |
+| --- | --- | --- | --- |
+| Body (`build`) | the two masters | hero build: broad shoulders, tapered waist; swept spiked hair; wristbands and sash | heavy build: thick neck and traps, wide lats, deep separation; hand wraps |
+| Files | `aura-*.glb` | `power-*.glb` | `iron-*.glb` |
+| Shading | modelled by studio light | flat colour in two tones, a drawn outline | three ink tones, hatching, the lines between muscles drawn in |
+| Stage | cool key, two cool rims | warm key, cyan and magenta rims | one hard key from the side, a faint red rim |
+| Muscle colour | Aura pink | orange | red |
+| Hair | as the finish | takes the colour of the Aura as it rises | as the finish |
+
+- **One skeleton.** Every build stands on `skeletonOf(id)`, bone for bone at the same joints, so a movement is written once and plays on all of them. A body is bigger round its bones, never longer. `assets.test.ts` checks every file.
+- **A build is a parameter of the generator** (`anatomyOf(id, build)`); `npm run character:build -- power` builds one universe. The Aura files must come out unchanged when another build is touched.
+- **How a universe is drawn is data** (`src/visual/styles.ts`): shading, outline, cloth colour, stage lighting, how much room the hair needs. The shading runs after the lights in the character's one material, so the three states (base, muscles, Aura) work in every universe.
+- **Finishes** are the athlete's colours for a universe (skin, hair, accent): three each, in `themes.ts`. Material names a character file may use: `skin`, `cloth`, `hair`, `accent`.
+- **A universe reaches athletes only when an administrator releases it** (Studio → Characters; stored with the Aura settings). Until then `wearing()` gives the original theme and the Aura character: an athlete is never shown a character nobody approved, and never a different universe's character in place of a missing one.
+- Original designs. They take a genre's manner (flat colour and speed lines; ink and anatomy), not any existing character, costume or mark. The Aura wordmark keeps its own typeface in every theme.
+
+Known limits: the new bodies were looked at in nine poses as stills, not through every movement. Anime Power hair goes through the floor when the head is close to it. The drawn outline draws each body a second time.
+
+## 12 · Forms: the Aura variations of a universe
+
+A **form** is an Aura theme (§6) given a name, a place in a universe and a condition (`Form` in `themes.ts`). Aura has six (Cosmic, Signature, Lunar, Solar, Ethereal, Electric), Anime Power five (Ignition → Transcendent), Iron Will five (Pressure → Apex). The ten new ones are ordinary entries in `aura/themes.ts`, marked with their universe; Iron Will's use no rays and no ribbons, only heat, steam, sparks and the ground.
+
+- The first form of a universe is everyone's. The others are unlocked by an Aura class reached, a number of skills mastered, or a skill verified by a coach (`Unlock`). **An unlock reads the scoring and nothing reads a form**: `personal.ts` imports the class thresholds, and no file under `src/domain/scoring` knows a theme exists.
+- A form that is chosen but not earned is not worn; the first one is, and the choice is kept for when it is earned. An administrator can wear all of them, to review them.
+- Intensity stays separate (§6): the athlete's own, 10 to 100%.
+- Earning a form is announced once per device (`Celebration.tsx`), never during a workout or an assessment.
+
+## 13 · Whose character, and where
+
+`src/theme/cast.ts` is the one place that turns an athlete's look (`wearing()`: universe, character, form, finish, intensity) into what the player is given, so the profile, the Character Studio and a demonstration show the same character.
+
+- **Demonstrations outside assessments**: the approved movement, performed by the athlete's own character in their universe, with the working muscles as they prefer. The movement and its camera are the approved ones; only who performs it differs.
+- **Official assessments**: always `standardLook()`: the Aura master character, pearl finish, Cosmic Aura, and the whole athlete-side assessment in the Aura Dark theme with its plain wording. Exercise requirements, technique and scoring cannot differ, because they never depended on a theme.
+- **The athlete's Character Studio** (`src/features/personalize/`) previews and saves preferences. The only movements it can play are published ones. It has no way to create, change or publish an asset.

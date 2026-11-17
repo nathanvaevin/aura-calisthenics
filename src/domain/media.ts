@@ -77,18 +77,24 @@ export interface AuraSettings {
   defaultTheme: string
   /** Per theme: whether it is approved for athletes, and the admin's adjustments to it. */
   themes: Record<string, ThemeSetting>
+  /**
+   * The visual universes beyond the original that athletes may choose
+   * (src/theme/themes.ts). Each is released by an administrator once its
+   * characters and forms have been looked at; until then only they can open it.
+   */
+  universes: Partial<Record<'power' | 'iron', boolean>>
   updatedAt: string | null
 }
 
-export const DEFAULT_AURA_SETTINGS: AuraSettings = { defaultTheme: 'cosmic', themes: {}, updatedAt: null }
+export const DEFAULT_AURA_SETTINGS: AuraSettings = { defaultTheme: 'cosmic', themes: {}, universes: {}, updatedAt: null }
 
 export const ASSET_STATUSES: AssetStatus[] = ['draft', 'pending', 'approved', 'published', 'needs_correction', 'archived']
 
 export const STATUS_LABEL: Record<AssetStatus, string> = {
   draft: 'Draft',
   pending: 'Pending review',
-  approved: 'Approved',
-  published: 'Published',
+  approved: 'Approved, hidden',
+  published: 'Official',
   needs_correction: 'Needs correction',
   archived: 'Archived',
 }
@@ -144,6 +150,28 @@ export function move(assets: DemoAsset[], id: string, to: AssetStatus, now: stri
     if (to === 'published' && a.status === 'published' && sameSlot(a, target.exerciseId, target.kind, target.slot)) return { ...a, status: 'archived' as const, updatedAt: now }
     return a
   })
+}
+
+const TO_OFFICIAL: Partial<Record<AssetStatus, AssetStatus[]>> = {
+  pending: ['approved', 'published'],
+  approved: ['published'],
+  draft: ['pending', 'approved', 'published'],
+  archived: ['draft', 'pending', 'approved', 'published'],
+}
+
+/** Whether one decision can make this version the official one. A version sent back for correction cannot: it needs a new version. */
+export const canBeOfficial = (status: AssetStatus) => status in TO_OFFICIAL
+
+/**
+ * Approval in one step: the version becomes the official demonstration of
+ * its exercise, and the version it replaces steps aside (it stays in the
+ * history, and can be made official again the same way).
+ */
+export function makeOfficial(assets: DemoAsset[], id: string, now: string): DemoAsset[] {
+  const target = assets.find((a) => a.id === id)
+  let out = assets
+  for (const to of (target && TO_OFFICIAL[target.status]) ?? []) out = move(out, id, to, now)
+  return out
 }
 
 export const addNote = (assets: DemoAsset[], id: string, note: CorrectionNote): DemoAsset[] =>

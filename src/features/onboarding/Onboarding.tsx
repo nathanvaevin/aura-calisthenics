@@ -326,7 +326,7 @@ export function Onboarding() {
             <Step eyebrow="Experience" title="Where are you starting from?">
               <div className="space-y-2.5">
                 {EXPERIENCE.map((e) => (
-                  <button key={e.level} onClick={() => setLevel(e.level)} className={cx('pressable flex w-full items-center gap-4 rounded-[22px] border p-4 text-left', level === e.level ? 'border-ink bg-surface' : 'border-line')}>
+                  <button key={e.level} onClick={() => setLevel(e.level)} className={cx('pressable flex w-full items-center gap-4 rounded-card border p-4 text-left', level === e.level ? 'border-ink bg-surface' : 'border-line')}>
                     <span className={cx('flex h-6 w-6 shrink-0 items-center justify-center rounded-full border', level === e.level ? 'border-ink bg-ink text-bg' : 'border-line-strong')}>{level === e.level && <Check size={13} strokeWidth={3} />}</span>
                     <span><span className="block text-[15.5px] font-medium">{e.title}</span><span className="block text-[13px] text-ink-2">{e.body}</span></span>
                   </button>

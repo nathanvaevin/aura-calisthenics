@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useVoice } from '@/theme/useTheme'
+import { DemoSlot } from '@/features/library/DemoSlot'
 import { Navigate, useNavigate } from 'react-router'
 import { AnimatePresence, motion } from 'motion/react'
 import { AlertTriangle, ArrowRight, Check, ChevronDown, ChevronLeft, ChevronRight, List, Minus, Pause, Play, Plus, RotateCcw, SkipForward } from 'lucide-react'
@@ -200,7 +202,7 @@ function Live({ a }: { a: ActiveWorkout }) {
         {/* ← EASIER | LEVEL | HARDER → */}
         {hasLadder ? (
           <div className="mt-4">
-            <div className="grid grid-cols-[1fr_auto_1fr] items-stretch overflow-hidden rounded-[22px] border border-line bg-surface">
+            <div className="grid grid-cols-[1fr_auto_1fr] items-stretch overflow-hidden rounded-card border border-line bg-surface">
               <button onClick={() => change(-1)} disabled={!easier} aria-label="Easier variation" className="flex min-w-0 flex-col items-start justify-center gap-1 px-3.5 py-3 text-left transition-colors hover:bg-surface-2 active:bg-surface-3 disabled:opacity-30">
                 <span className="flex items-center gap-0.5 font-mono text-[10px] font-medium tracking-[0.14em] text-ink uppercase"><ChevronLeft size={14} strokeWidth={2.4} />Easier</span>
                 <span className="w-full truncate text-[11.5px] text-ink-3">{easier ? exerciseById[easier.exerciseId].short : entry.level === 1 ? 'Lowest level' : 'Limit set'}</span>
@@ -367,7 +369,7 @@ function Live({ a }: { a: ActiveWorkout }) {
             const x = exerciseById[e.exerciseId]
             const d = e.sets.filter((s) => s.done).length
             return (
-              <button key={e.blockId} onClick={() => { goTo(i); setListOpen(false) }} className={cx('flex w-full items-center gap-3 px-4 py-3 text-left first:rounded-t-[22px] last:rounded-b-[22px] hover:bg-surface-2', i === a.index && 'bg-surface-2')}>
+              <button key={e.blockId} onClick={() => { goTo(i); setListOpen(false) }} className={cx('flex w-full items-center gap-3 px-4 py-3 text-left first:rounded-t-card last:rounded-b-card hover:bg-surface-2', i === a.index && 'bg-surface-2')}>
                 <Ring value={d / e.sets.length} size={34} stroke={2.5} color={dvar(x.discipline)}>
                   {d === e.sets.length ? <Check size={13} strokeWidth={3} /> : <span className="num text-[11px]">{i + 1}</span>}
                 </Ring>
@@ -398,6 +400,7 @@ function Live({ a }: { a: ActiveWorkout }) {
 
       {/* Technique */}
       <Sheet open={howOpen} onClose={() => setHowOpen(false)} eyebrow={ex.category} title={ex.name}>
+        <DemoSlot exerciseId={ex.id} open={howOpen} className="mb-4" />
         {media[ex.id] && <div className="mb-4"><VideoEmbed url={media[ex.id]} /></div>}
         <p className="text-[14.5px] leading-relaxed text-ink-2">{ex.summary}</p>
         <ol className="mt-5 space-y-3">
@@ -440,6 +443,7 @@ function Summary({ a }: { a: ActiveWorkout }) {
   const minutes = Math.max(1, Math.round((Date.now() - new Date(a.log.startedAt).getTime()) / 60000))
   const claims = candidates.filter((c) => !off[c.exerciseId])
   const planned = a.log.source.type === 'course' ? 'Assigned' : 'Planned'
+  const say = useVoice()
 
   const save = () => {
     const source = a.log.source
@@ -451,8 +455,9 @@ function Summary({ a }: { a: ActiveWorkout }) {
     <div className="relative z-10 flex min-h-0 flex-1 flex-col">
       <div className="safe-top min-h-0 flex-1 overflow-y-auto px-5 pb-6">
         <div className="rise pt-10">
-          <Eyebrow>{open >= 0 ? 'Session summary' : 'Session complete'}</Eyebrow>
+          <Eyebrow>{open >= 0 ? 'Session summary' : say('workout.done')}</Eyebrow>
           <h1 className="display mt-2 text-[44px]">{a.log.title}</h1>
+          {open < 0 && <p className="mt-2 text-[13.5px] leading-relaxed text-ink-2">{say('workout.done.line')}</p>}
           <div className="mt-4 grid grid-cols-3 gap-2">
             {[['Minutes', minutes], ['Exercises', performed.length], ['Sets', sets]].map(([l, v]) => (
               <div key={l} className="card px-3.5 py-3"><Eyebrow>{l}</Eyebrow><div className="display num mt-1 text-[30px]">{v}</div></div>

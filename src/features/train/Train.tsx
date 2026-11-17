@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useVoice } from '@/theme/useTheme'
 import { useNavigate } from 'react-router'
 import { ArrowRight, Play, Target } from 'lucide-react'
 import type { Course, WorkoutBlock, WorkoutSource } from '@/domain/types'
@@ -23,6 +24,7 @@ interface Preview {
 const focusColor = (focus: Course['focus']) => (focus === 'full' ? 'var(--accent)' : dvar(focus))
 
 export function Train() {
+  const v = useVoice()
   const me = useMe()
   const navigate = useNavigate()
   const start = useStartWorkout()
@@ -108,7 +110,7 @@ export function Train() {
               <SectionTitle>Toward your goals</SectionTitle>
               <div className="card divide-y divide-line">
                 {goalSessions.map(({ goal, workout }) => (
-                  <div key={goal.id} className="flex items-center gap-3 px-4 py-3 first:rounded-t-[22px] last:rounded-b-[22px]">
+                  <div key={goal.id} className="flex items-center gap-3 px-4 py-3 first:rounded-t-card last:rounded-b-card">
                     <button
                       className="flex min-w-0 flex-1 items-center gap-3 text-left"
                       onClick={() => setPreview({ title: workout!.title, eyebrow: `Goal session · about ${estimateMinutes(workout!.blocks)} min`, summary: workout!.summary, blocks: workout!.blocks, source: { type: 'goal', skillId: goal.id } })}
@@ -192,7 +194,7 @@ export function Train() {
               Training history
             </SectionTitle>
             {history.length === 0 ? (
-              <Empty title="Nothing logged yet">Your completed sessions appear here, with what you were assigned and what you actually did.</Empty>
+              <Empty title={v('empty.logs.title')}>Your completed sessions appear here, with what you were assigned and what you actually did.</Empty>
             ) : (
               <div className="card divide-y divide-line">
                 {(historyAll ? history : history.slice(0, 6)).map((l) => <LogRow key={l.id} log={l} onClick={() => setLogOpen(l.id)} />)}

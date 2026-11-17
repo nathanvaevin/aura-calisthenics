@@ -25,10 +25,15 @@ import { readLink } from '@/features/assess/links'
 import { landing } from './landing'
 import { AssessmentSession } from '@/features/coach/AssessmentSession'
 import { Places } from '@/features/places/Places'
+import { STANDARD_THEME, THEMES } from '@/theme/themes'
+import { ThemeContext, usePersonalTheme } from '@/theme/useTheme'
 import { SpotLanding } from '@/features/places/Spot'
 
 // The Studio brings the 3D engine with it: only admins open it, so only they load it.
 const Studio = lazy(() => import('@/features/studio/Studio'))
+// Personalization previews the character: it comes with the movements, so it loads when opened.
+const Personalize = lazy(() => import('@/features/personalize/Personalize'))
+const CharacterPage = lazy(() => import('@/features/personalize/CharacterPage'))
 
 function ScrollReset() {
   const { pathname } = useLocation()
@@ -68,12 +73,22 @@ function RequireAthlete() {
 
 export function App() {
   const meId = useStore((s) => s.meId)
-  const theme = useStore((s) => s.settings.theme)
+  const own = usePersonalTheme()
+  const location = useLocation()
+  // An official assessment looks and reads the same for everyone: the original Aura, whatever the athlete chose.
+  const official = location.pathname.startsWith('/assess/') || !!readLink(location.hash)
+  const theme = official ? STANDARD_THEME : own
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#08090b' : '#f3f0e9')
+    document.documentElement.dataset.scheme = THEMES[theme].scheme
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEMES[theme].chrome)
   }, [theme])
+
+  // The device remembers the athlete's theme so the next visit is painted in it from the first frame.
+  useEffect(() => {
+    if (useStore.getState().settings.theme !== own) useStore.getState().setSettings({ theme: own })
+  }, [own])
 
   const cloudUid = useStore((s) => s.cloudUid)
   const auth = useCloud((s) => s.auth)
@@ -93,11 +108,13 @@ export function App() {
 
   // An invitation or a hand-in arrives in the address fragment and takes over
   // the screen, whoever is or is not signed in on this device.
-  const link = readLink(useLocation().hash)
+  const link = readLink(location.hash)
   if (link) {
-    if (link.kind === 'spot') return <SpotLanding data={link.data} />
-    if (link.kind === 'j') return <CloudJoin token={link.data} />
-    return link.kind === 'join' ? <JoinInvite data={link.data} /> : <HandInImport data={link.data} />
+    return (
+      <ThemeContext value={STANDARD_THEME}>
+        {link.kind === 'spot' ? <SpotLanding data={link.data} /> : link.kind === 'j' ? <CloudJoin token={link.data} /> : link.kind === 'join' ? <JoinInvite data={link.data} /> : <HandInImport data={link.data} />}
+      </ThemeContext>
+    )
   }
 
   // With accounts: wait for the browser to say who is signed in, then for
@@ -107,12 +124,13 @@ export function App() {
   if (auth === 'in' && joining) return <Splash>Joining the assessment…</Splash>
 
   return (
-    <>
+    <ThemeContext value={theme}>
       <ScrollReset />
       <Routes>
         <Route path="/welcome" element={meId && !needsProfile ? <AfterWelcome /> : <Onboarding />} />
         <Route element={<RequireAthlete />}>
           <Route path="/workout" element={<WorkoutPlayer />} />
+          <Route path="/personalize" element={<Suspense fallback={null}><Personalize /></Suspense>} />
           <Route path="/assess/:sessionId" element={<AssessHub />} />
           <Route path="/assess/:sessionId/station/:station" element={<StationRunner />} />
           <Route path="/assess/:sessionId/reveal" element={<Reveal />} />
@@ -131,12 +149,13 @@ export function App() {
             <Route path="coach" element={<CoachStudio />} />
             <Route path="coach/course/:courseId" element={<CourseEditor />} />
             <Route path="coach/assessment/:sessionId" element={<AssessmentSession />} />
+            <Route path="character" element={<Suspense fallback={null}><CharacterPage /></Suspense>} />
             <Route path="studio" element={<Suspense fallback={null}><Studio /></Suspense>} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Celebrations />
-    </>
+    </ThemeContext>
   )
 }

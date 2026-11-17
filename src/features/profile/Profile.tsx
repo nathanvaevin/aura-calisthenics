@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { ClipboardCheck, Moon, Pencil, ScanLine, Sun, Trash2, X } from 'lucide-react'
+import { ClipboardCheck, Pencil, ScanLine, Settings2, Trash2, X } from 'lucide-react'
 import type { DisciplineId, EquipmentId } from '@/domain/types'
 import { DISCIPLINE_IDS, EQUIPMENT, SKILLS, disciplineById, exerciseById, formatValue, skillById } from '@/domain/catalog'
 import { BANDS, isVerified } from '@/domain/scoring/config'
@@ -15,11 +15,14 @@ import { CoachAccessRow, CoachRequests } from '@/features/account/CoachAccess'
 import { AuraDot, AuraField } from '@/ui/AuraField'
 import { CountUp } from '@/ui/CountUp'
 import { DnaSigil } from '@/ui/DnaSigil'
-import { DisciplineDot, Eyebrow, SectionTitle, Segmented, Sheet, StatusTag, Stepper, TextLink, TierTag, Toggle } from '@/ui/primitives'
+import { DisciplineDot, Eyebrow, SectionTitle, Sheet, StatusTag, Stepper, TextLink, TierTag, Toggle } from '@/ui/primitives'
 import { AuraSheet, LogEvidenceSheet, RatingList, RatingSheet } from '@/features/shared/Explainers'
 import { LogRow, LogSheet } from '@/features/shared/LogView'
 import { SkillSheet } from '@/features/tree/SkillSheet'
 import { IdentityFields, MyIdentity, PrivacyCard } from '@/features/places/Identity'
+import { IdentityCard } from '@/features/personalize/IdentityCard'
+import { THEMES } from '@/theme/themes'
+import { useThemeId, useVoice } from '@/theme/useTheme'
 import { cx, dvar, initials, num, relativeDay, shortDate } from '@/lib/format'
 
 export function Profile() {
@@ -38,6 +41,8 @@ export function Profile() {
   const cloud = useCloud()
   const demo = useStore((s) => s.demo)
   const account = cloud.auth === 'in' ? cloud.user : null
+  const theme = useThemeId()
+  const v = useVoice()
 
   const [auraOpen, setAuraOpen] = useState(false)
   const [ratingOpen, setRatingOpen] = useState<DisciplineId | null>(null)
@@ -46,6 +51,7 @@ export function Profile() {
   const [benchOpen, setBenchOpen] = useState<string | null>(null)
   const [recordsOpen, setRecordsOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const a = me.aura
   const ratingValues = Object.fromEntries(DISCIPLINE_IDS.map((d) => [d, me.ratings[d].rating])) as Record<DisciplineId, number>
@@ -77,6 +83,7 @@ export function Profile() {
         </div>
         <div className="flex shrink-0 gap-2 pt-1">
           <button onClick={() => setEditOpen(true)} aria-label="Edit profile" className="pressable flex h-10 w-10 items-center justify-center rounded-full border border-line bg-surface text-ink-2"><Pencil size={16} /></button>
+          <button onClick={() => setSettingsOpen(true)} aria-label="Settings and privacy" className="pressable flex h-10 w-10 items-center justify-center rounded-full border border-line bg-surface text-ink-2"><Settings2 size={16} /></button>
         </div>
       </header>
       {me.athlete.bio && <p className="rise mt-2 max-w-xl text-[14.5px] leading-relaxed text-ink-2">{me.athlete.bio}</p>}
@@ -87,6 +94,8 @@ export function Profile() {
 
       <div className="mt-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-12">
         <div className="space-y-8">
+          <IdentityCard athlete={me.athlete} />
+
           {/* Aura identity */}
           <section className="rise rise-1">
             <button onClick={() => setAuraOpen(true)} className="card relative flex w-full items-center gap-2 overflow-hidden p-4 text-left">
@@ -128,7 +137,7 @@ export function Profile() {
                   {ratingValues[ranked[0]] - ratingValues[ranked[5]]} points below your peak.
                 </p>
               ) : (
-                <p className="max-w-sm px-4 text-center text-[13.5px] text-ink-3">Your shape appears as you put benchmarks on record.</p>
+                <p className="max-w-sm px-4 text-center text-[13.5px] text-ink-3">{v('profile.dna.empty')}</p>
               )}
             </div>
           </section>
@@ -148,11 +157,11 @@ export function Profile() {
           <section className="rise rise-2">
             <SectionTitle action={records.length > 5 ? <TextLink onClick={() => setRecordsOpen(true)}>All {records.length}</TextLink> : undefined}>Strongest abilities</SectionTitle>
             {records.length === 0 ? (
-              <p className="rounded-[22px] border border-dashed border-line-strong p-5 text-[13.5px] text-ink-3">No benchmarks on record yet. Log one from any exercise in the library.</p>
+              <p className="rounded-card border border-dashed border-line-strong p-5 text-[13.5px] text-ink-3">{v('empty.records')}</p>
             ) : (
               <div className="card divide-y divide-line">
                 {records.slice(0, 5).map(({ e, ex, score }) => (
-                  <button key={e.id} onClick={() => setBenchOpen(ex.id)} className="flex w-full items-center gap-3 px-4 py-3 text-left first:rounded-t-[22px] last:rounded-b-[22px] hover:bg-surface-2">
+                  <button key={e.id} onClick={() => setBenchOpen(ex.id)} className="flex w-full items-center gap-3 px-4 py-3 text-left first:rounded-t-card last:rounded-b-card hover:bg-surface-2">
                     <DisciplineDot id={ex.discipline} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[14.5px] font-medium">{ex.name}</span>
@@ -194,7 +203,7 @@ export function Profile() {
             {unlocks.length > 0 && (
               <div className="card mt-2.5 divide-y divide-line">
                 {unlocks.map((s) => (
-                  <button key={s.id} onClick={() => setSkillOpen(s.id)} className="flex w-full items-center gap-3 px-4 py-3 text-left first:rounded-t-[22px] last:rounded-b-[22px] hover:bg-surface-2">
+                  <button key={s.id} onClick={() => setSkillOpen(s.id)} className="flex w-full items-center gap-3 px-4 py-3 text-left first:rounded-t-card last:rounded-b-card hover:bg-surface-2">
                     <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: dvar(s.discipline), boxShadow: `0 0 12px ${dvar(s.discipline)}` }} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[14px] font-medium">{s.name}</span>
@@ -254,8 +263,6 @@ export function Profile() {
             )}
           </section>
 
-          <PrivacyCard athlete={me.athlete} />
-
           <KeepProfile />
 
           <CoachRequests />
@@ -270,18 +277,56 @@ export function Profile() {
             </button>
           )}
 
-          {/* Settings */}
+          <button onClick={() => setSettingsOpen(true)} className="card pressable flex w-full items-center justify-between gap-4 p-4 text-left">
+            <span>
+              <span className="block text-[15px] font-medium">Settings and privacy</span>
+              <span className="mt-0.5 block text-[12.5px] text-ink-3">Theme, sounds, what you share, your account</span>
+            </span>
+            <Settings2 size={17} className="shrink-0 text-ink-3" />
+          </button>
+        </div>
+      </div>
+
+      <AuraSheet aura={a} dedication={me.dedication.score} open={auraOpen} onClose={() => setAuraOpen(false)} />
+      <RatingSheet rating={ratingOpen ? me.ratings[ratingOpen] : null} open={!!ratingOpen} onClose={() => setRatingOpen(null)} onLog={(id) => { setRatingOpen(null); setBenchOpen(id) }} />
+      <SkillSheet skillId={skillOpen} onClose={() => setSkillOpen(null)} onOpenSkill={setSkillOpen} />
+      <LogSheet logId={logOpen} onClose={() => setLogOpen(null)} />
+      <LogEvidenceSheet exerciseId={benchOpen} open={!!benchOpen} onClose={() => setBenchOpen(null)} />
+
+      <Sheet open={recordsOpen} onClose={() => setRecordsOpen(false)} eyebrow={`${records.length} benchmarks on record`} title="Personal records">
+        <p className="mb-4 text-[13px] leading-relaxed text-ink-2">Your best demonstrated performance on every rated exercise. Self-reported entries can be removed if they were logged by mistake.</p>
+        <div className="card divide-y divide-line">
+          {records.map(({ e, ex, score }) => (
+            <div key={e.id} className="flex items-center gap-3 px-4 py-3">
+              <DisciplineDot id={ex.discipline} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[14px] font-medium">{ex.name}</span>
+                <span className="block text-[12px] text-ink-3">{formatValue(ex, e.value, true)} · {shortDate(e.date)}</span>
+              </span>
+              <TierTag tier={e.tier} compact />
+              <span className="num w-9 text-right text-[14px] font-medium">{score}</span>
+              {!isVerified(e.tier) ? (
+                <button aria-label={`Remove ${ex.name} record`} className="flex h-8 w-8 items-center justify-center rounded-full text-ink-3 hover:bg-surface-2 hover:text-ink" onClick={() => window.confirm(`Remove this ${ex.name} record?`) && removeEvidence(e.id)}>
+                  <Trash2 size={14} />
+                </button>
+              ) : (
+                <span className="w-8" />
+              )}
+            </div>
+          ))}
+        </div>
+      </Sheet>
+
+      {/* Everything that is about the app or the account, not about the athlete: one tap away, out of the way. */}
+      <Sheet open={settingsOpen} onClose={() => setSettingsOpen(false)} eyebrow="Your app, your account" title="Settings and privacy">
+        <div className="space-y-7">
           <section>
             <SectionTitle>Settings</SectionTitle>
             <div className="card divide-y divide-line">
-              <div className="flex items-center justify-between px-4 py-3">
-                <span className="text-[14px]">Appearance</span>
-                <Segmented
-                  value={settings.theme}
-                  onChange={(theme) => setSettings({ theme })}
-                  options={[{ value: 'dark', label: <span className="flex items-center gap-1.5"><Moon size={13} />Dark</span> }, { value: 'light', label: <span className="flex items-center gap-1.5"><Sun size={13} />Light</span> }]}
-                />
-              </div>
+              <button onClick={() => { setSettingsOpen(false); navigate('/personalize?step=theme') }} className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left first:rounded-t-card hover:bg-surface-2">
+                <span className="text-[14px]">Theme<span className="block text-[12px] text-ink-3">{THEMES[theme].name} · {THEMES[theme].tone.toLowerCase()}</span></span>
+                <span className="text-[12.5px] text-ink-3">Change</span>
+              </button>
               <div className="flex items-center justify-between px-4 py-3.5">
                 <span className="text-[14px]">Sounds<span className="block text-[12px] text-ink-3">Rest timer and skill unlocks</span></span>
                 <Toggle on={settings.sound} onChange={(sound) => setSettings({ sound })} label="Sounds" />
@@ -337,7 +382,7 @@ export function Profile() {
               {account && !cloud.user?.guest && (
                 <div>
                   <button
-                    className="flex w-full items-center gap-2 px-4 py-3.5 text-left text-[14px] text-ink-2 last:rounded-b-[22px] hover:bg-surface-2"
+                    className="flex w-full items-center gap-2 px-4 py-3.5 text-left text-[14px] text-ink-2 last:rounded-b-card hover:bg-surface-2"
                     disabled={erasing}
                     onClick={() => {
                       if (!window.confirm('Erase your results, workouts, goals and assessment answers, and go back to the welcome questions?\n\nYour account, your role and the courses you coach stay. This cannot be undone.')) return
@@ -352,7 +397,7 @@ export function Profile() {
               )}
               {!account && (
                 <button
-                  className="flex w-full items-center gap-2 px-4 py-3.5 text-left text-[14px] text-ink-2 last:rounded-b-[22px] hover:bg-surface-2"
+                  className="flex w-full items-center gap-2 px-4 py-3.5 text-left text-[14px] text-ink-2 last:rounded-b-card hover:bg-surface-2"
                   onClick={() => {
                     if (window.confirm('Erase everything on this device and start again from the welcome screen?')) {
                       reset()
@@ -365,36 +410,7 @@ export function Profile() {
               )}
             </div>
           </section>
-        </div>
-      </div>
-
-      <AuraSheet aura={a} dedication={me.dedication.score} open={auraOpen} onClose={() => setAuraOpen(false)} />
-      <RatingSheet rating={ratingOpen ? me.ratings[ratingOpen] : null} open={!!ratingOpen} onClose={() => setRatingOpen(null)} onLog={(id) => { setRatingOpen(null); setBenchOpen(id) }} />
-      <SkillSheet skillId={skillOpen} onClose={() => setSkillOpen(null)} onOpenSkill={setSkillOpen} />
-      <LogSheet logId={logOpen} onClose={() => setLogOpen(null)} />
-      <LogEvidenceSheet exerciseId={benchOpen} open={!!benchOpen} onClose={() => setBenchOpen(null)} />
-
-      <Sheet open={recordsOpen} onClose={() => setRecordsOpen(false)} eyebrow={`${records.length} benchmarks on record`} title="Personal records">
-        <p className="mb-4 text-[13px] leading-relaxed text-ink-2">Your best demonstrated performance on every rated exercise. Self-reported entries can be removed if they were logged by mistake.</p>
-        <div className="card divide-y divide-line">
-          {records.map(({ e, ex, score }) => (
-            <div key={e.id} className="flex items-center gap-3 px-4 py-3">
-              <DisciplineDot id={ex.discipline} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[14px] font-medium">{ex.name}</span>
-                <span className="block text-[12px] text-ink-3">{formatValue(ex, e.value, true)} · {shortDate(e.date)}</span>
-              </span>
-              <TierTag tier={e.tier} compact />
-              <span className="num w-9 text-right text-[14px] font-medium">{score}</span>
-              {!isVerified(e.tier) ? (
-                <button aria-label={`Remove ${ex.name} record`} className="flex h-8 w-8 items-center justify-center rounded-full text-ink-3 hover:bg-surface-2 hover:text-ink" onClick={() => window.confirm(`Remove this ${ex.name} record?`) && removeEvidence(e.id)}>
-                  <Trash2 size={14} />
-                </button>
-              ) : (
-                <span className="w-8" />
-              )}
-            </div>
-          ))}
+          <PrivacyCard athlete={me.athlete} />
         </div>
       </Sheet>
 

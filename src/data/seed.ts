@@ -356,6 +356,16 @@ const IDENTITIES: Record<string, Partial<Athlete>> = {
   ben: { from: 'Leeds, England', environments: ['outdoor', 'home'], homePlaceId: CALHAU, privacy: { origin: 'following', base: 'everyone', places: 'me', visits: 'me' } },
 }
 
+/** How the sample athletes chose to look: one in each universe, so the demo shows what a choice does. */
+const STYLES: Record<string, { theme: 'dark' | 'light' | 'power' | 'iron'; character: 'male' | 'female'; form: string; interests: Athlete['interests'] }> = {
+  elena: { theme: 'light', character: 'female', form: 'solar', interests: ['handstand', 'mobility'] },
+  maya: { theme: 'power', character: 'female', form: 'awakened', interests: ['push', 'core'] },
+  jonas: { theme: 'iron', character: 'male', form: 'tempered', interests: ['pull', 'legs'] },
+  lina: { theme: 'power', character: 'female', form: 'ignition', interests: ['pull', 'handstand'] },
+  priya: { theme: 'dark', character: 'female', form: 'lunar', interests: ['core', 'mobility'] },
+  tomas: { theme: 'iron', character: 'male', form: 'pressure', interests: ['push'] },
+}
+
 /** Who the sample athletes follow: the circle their "people I follow" setting opens to. */
 const FOLLOWS: Record<string, string[]> = { lina: [ME, 'priya', 'maya'], priya: [ME, 'lina'], maya: ['elena'], tomas: [ME], ben: [] }
 
@@ -411,6 +421,13 @@ export function buildWorld(now: Date, demoMe: boolean): World {
   )
   const community = sampleCommunity(now, demoMe)
   for (const [id, identity] of Object.entries(community.identities)) if (athletes[id]) athletes[id] = { ...athletes[id], ...identity }
+  for (const [id, look] of Object.entries(STYLES)) {
+    if (!athletes[id]) continue
+    const universe = look.theme === 'power' || look.theme === 'iron' ? look.theme : 'aura'
+    athletes[id] = { ...athletes[id], interests: look.interests, style: { theme: look.theme, character: look.character, forms: { [universe]: look.form }, finishes: {}, intensity: 60, muscles: true, steps: { theme: iso(t - 30 * DAY), character: iso(t - 30 * DAY) } } }
+  }
+  // The sample athletes show their ratings: that is what the demo's athlete list is for. A real athlete's stay private until they open them.
+  for (const id of Object.keys(athletes)) if (id !== ME) athletes[id] = { ...athletes[id], privacy: { ...athletes[id].privacy, ratings: 'everyone' } }
   const evidence = personas.flatMap((p) => toEvidence(p.athlete.id, p.evidence, t))
 
   const handstand = courseFromTemplate('handstand-foundations', 'elena', mondayOffset(-2), { status: 'active' })

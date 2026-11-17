@@ -62,7 +62,7 @@ export function AssessHistory() {
     <div>
       <div className="card divide-y divide-line">
         {done.map(({ session, participant }) => (
-          <div key={session.id} className="flex items-center gap-3 px-4 py-3 first:rounded-t-[22px] last:rounded-b-[22px]">
+          <div key={session.id} className="flex items-center gap-3 px-4 py-3 first:rounded-t-card last:rounded-b-card">
             <button className="min-w-0 flex-1 text-left" onClick={() => navigate(`/assess/${session.id}/reveal`)}>
               <span className="block truncate text-[14.5px] font-medium">{session.title} · {session.origin === 'solo' ? 'on your own' : session.groupName}</span>
               <span className="mt-0.5 flex items-center gap-2 text-[12px] text-ink-3">

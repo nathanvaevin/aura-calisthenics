@@ -7,7 +7,7 @@ import { BONES, PARENT, type Skeleton } from '../../src/visual/body/skeleton'
 export interface Part {
   name: string
   /** A material slot by name; the renderer supplies the actual look. */
-  material: 'skin' | 'cloth' | 'hair'
+  material: 'skin' | 'cloth' | 'hair' | 'accent'
   pos: Float32Array
   nrm: Float32Array
   idx: Uint32Array
@@ -89,7 +89,7 @@ export function writeGlb(sk: Skeleton, parts: Part[], extras: Record<string, unk
     scenes: [{ nodes: [0], extras }],
     nodes,
     meshes,
-    materials: materialNames.map((name) => ({ name, pbrMetallicRoughness: { baseColorFactor: name === 'cloth' ? [0.03, 0.03, 0.04, 1] : [0.8, 0.8, 0.82, 1], metallicFactor: 0.1, roughnessFactor: 0.5 } })),
+    materials: materialNames.map((name) => ({ name, pbrMetallicRoughness: { baseColorFactor: name === 'cloth' ? [0.03, 0.03, 0.04, 1] : name === 'accent' ? [0.75, 0.2, 0.15, 1] : [0.8, 0.8, 0.82, 1], metallicFactor: 0.1, roughnessFactor: 0.5 } })),
     skins: [{ joints: boneNode, inverseBindMatrices: ibmAccessor, skeleton: boneNode[0] }],
     accessors,
     bufferViews: views,

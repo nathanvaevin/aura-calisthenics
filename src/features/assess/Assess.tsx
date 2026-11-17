@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { DemoSlot } from '@/features/library/DemoSlot'
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router'
 import { ArrowLeft, ArrowRight, Check, Hand, Minus, Pause, Play, Plus, X } from 'lucide-react'
 import type { DisciplineId } from '@/domain/types'
@@ -319,7 +320,7 @@ export function StationRunner() {
               const r = target.results[t.id]
               const reading = resultReading(t, r.value, r.skipped)
               return (
-                <button key={t.id} className="flex w-full items-center gap-3 px-4 py-3 text-left first:rounded-t-[22px] last:rounded-b-[22px] hover:bg-surface-2" onClick={() => setParams({ ...(params.get('p') ? { p: params.get('p')! } : {}), t: t.id })}>
+                <button key={t.id} className="flex w-full items-center gap-3 px-4 py-3 text-left first:rounded-t-card last:rounded-b-card hover:bg-surface-2" onClick={() => setParams({ ...(params.get('p') ? { p: params.get('p')! } : {}), t: t.id })}>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[14.5px] font-medium">{exerciseById[t.exerciseId].name}</span>
                     <span className="block text-[12px] text-ink-3">{reading ? `Reads ${reading.points} · ${reading.band} range` : r.skipped ? 'Could not be tested today' : 'Not there yet. Now you know where to start'}</span>
@@ -383,6 +384,8 @@ function TestCard({
           {ex.standard && test.kind === 'max' && <p className="mt-2 border-l-2 pl-3 text-[13px] leading-snug text-ink-2" style={{ borderColor: color }}>Counts when: {ex.standard}</p>}
           {test.target && test.kind === 'max' && <p className="mt-2 text-[12.5px] text-ink-3">Suggested: {targetLabel(test)}. Record what you actually do, even past it.</p>}
           {ex.safety && <p className="mt-2 text-[12.5px] leading-snug text-warn">{ex.safety}</p>}
+          {/* The official demonstration: the same character and presentation for every athlete. */}
+          <DemoSlot key={ex.id} exerciseId={ex.id} official className="mt-4" />
         </div>
 
         {test.kind === 'choice' ? (

@@ -4,6 +4,9 @@ import type {
 } from '@/domain/types'
 import { demonstrated, resultsToEvidence, testById } from '@/domain/assessment'
 import { privacyOf } from '@/domain/places'
+import { DISCIPLINE_IDS } from '@/domain/catalog'
+import { DEFAULT_PERSONAL, personalOf, type Personal } from '@/theme/personal'
+import { isThemeId } from '@/theme/themes'
 import { emptyRowSet, instant, isUuid, put, type Row, type RowSet } from './rows'
 
 /**
@@ -30,6 +33,41 @@ const orNull = <T>(v: T | undefined | null | ''): T | null => (v === undefined |
 const opt = <T>(v: unknown): T | undefined => (v === null || v === undefined ? undefined : (v as T))
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, Math.round(n)))
 
+const text = (v: string | undefined) => orNull(v?.slice(0, 40))
+
+/** An athlete's personal style as flat columns: each is compared and merged on its own. */
+function styleRow(p: Personal): Row {
+  return {
+    theme: p.theme, persona: orNull(p.character),
+    form_aura: text(p.forms.aura), form_power: text(p.forms.power), form_iron: text(p.forms.iron),
+    finish_aura: text(p.finishes.aura), finish_power: text(p.finishes.power), finish_iron: text(p.finishes.iron),
+    intensity: clamp(p.intensity, 0, 100), show_muscles: p.muscles,
+    themed_at: orNull(p.steps.theme), persona_at: orNull(p.steps.character), about_at: orNull(p.steps.about), sharing_at: orNull(p.steps.sharing),
+  }
+}
+
+function styleFromRow(r: Row): Personal {
+  const pick = (a: unknown, b: unknown, c: unknown) => {
+    const out: Personal['forms'] = {}
+    if (typeof a === 'string') out.aura = a
+    if (typeof b === 'string') out.power = b
+    if (typeof c === 'string') out.iron = c
+    return out
+  }
+  const steps: Personal['steps'] = {}
+  for (const [step, col] of [['theme', 'themed_at'], ['character', 'persona_at'], ['about', 'about_at'], ['sharing', 'sharing_at']] as const) {
+    const at = instant(r[col])
+    if (at) steps[step] = at
+  }
+  return {
+    theme: isThemeId(r.theme) ? r.theme : DEFAULT_PERSONAL.theme,
+    character: r.persona === 'male' || r.persona === 'female' ? r.persona : undefined,
+    forms: pick(r.form_aura, r.form_power, r.form_iron), finishes: pick(r.finish_aura, r.finish_power, r.finish_iron),
+    intensity: typeof r.intensity === 'number' ? r.intensity : DEFAULT_PERSONAL.intensity,
+    muscles: r.show_muscles !== false, steps,
+  }
+}
+
 /** A log entry has no id of its own on the device; derive a stable one from its log and position. */
 export const entryId = (logId: string, position: number) => `${logId.slice(0, 32)}${position.toString(16).padStart(4, '0')}`
 
@@ -43,13 +81,16 @@ export function project(s: Synced, uid: string): RowSet {
     if (!isUuid(a.id)) continue
     put(set, 'profiles', {
       id: a.id, name: a.name.trim().slice(0, 80) || 'Athlete', handle: HANDLE.test(a.handle) ? a.handle : null, bio: a.bio ?? '', roles: a.roles,
-      weekly_target: clamp(a.weeklyTarget, 1, 14), equipment: a.equipment, created_at: a.joinedAt,
+      weekly_target: clamp(a.weeklyTarget, 1, 14), equipment: a.equipment, created_at: a.joinedAt, is_public: a.discoverable !== false,
     })
     if (a.id !== uid) continue
     const privacy = privacyOf(a)
     put(set, 'athlete_identity', {
       athlete_id: a.id, origin: orNull(a.from?.trim().slice(0, 80)), city: orNull(a.city?.trim().slice(0, 80)), environments: a.environments ?? [],
       open_to_train: !!a.openToTrain, origin_audience: privacy.origin, base_audience: privacy.base, places_audience: privacy.places, visits_audience: privacy.visits,
+      country: orNull(a.country?.trim().slice(0, 60)), interests: (a.interests ?? []).filter((d) => DISCIPLINE_IDS.includes(d)),
+      style_audience: privacy.style, ratings_audience: privacy.ratings, interests_audience: privacy.interests,
+      ...styleRow(personalOf(a)),
     })
     for (const skill_id of a.goals) put(set, 'athlete_goals', { athlete_id: a.id, skill_id })
   }
@@ -215,16 +256,27 @@ export function build(set: RowSet, uid: string, prev: Synced): Synced {
       id, name: String(r.name ?? 'Athlete'), handle: String(r.handle ?? ''), bio: String(r.bio ?? ''), roles: (r.roles as Athlete['roles']) ?? ['athlete'],
       goals: ordered((goals.get(id) ?? []).map((g) => String(g.skill_id)), (g) => g, was?.goals), joinedAt: instant(r.created_at) ?? was?.joinedAt ?? now,
       weeklyTarget: Number(r.weekly_target ?? 3), equipment: (r.equipment as Athlete['equipment']) ?? [],
+      // Unset means discoverable: only a profile that was hidden, or had the choice recorded, carries the field.
+      discoverable: r.is_public === false ? false : was?.discoverable === undefined ? undefined : true,
     }
     if (id === uid && identity) {
       next.from = opt<string>(identity.origin)
       next.city = opt<string>(identity.city)
       next.environments = (identity.environments as TrainingEnvironment[]) ?? []
       next.openToTrain = !!identity.open_to_train
-      next.privacy = {
+      next.country = opt<string>(identity.country)
+      const interests = (identity.interests as DisciplineId[]) ?? []
+      next.interests = interests.length || was?.interests ? interests : undefined
+      const privacy = {
         origin: identity.origin_audience as Audience, base: identity.base_audience as Audience,
         places: identity.places_audience as Audience, visits: identity.visits_audience as Audience,
+        style: (identity.style_audience as Audience) ?? 'everyone', ratings: (identity.ratings_audience as Audience) ?? 'me',
+        interests: (identity.interests_audience as Audience) ?? 'everyone',
       }
+      // What the device holds is kept as it is while it says the same thing, parts left to their default included.
+      next.privacy = was && same(privacyOf(was), privacy) ? was.privacy : privacy
+      const style = styleFromRow(identity)
+      next.style = was && same(personalOf(was), style) ? was.style : style
     }
     athletes[id] = keep(was, next)
   }

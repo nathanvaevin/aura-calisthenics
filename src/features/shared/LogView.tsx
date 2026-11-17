@@ -61,7 +61,7 @@ export function BlockList({ blocks }: { blocks: WorkoutBlock[] }) {
 export function LogRow({ log, onClick, who }: { log: WorkoutLog; onClick: () => void; who?: string }) {
   const count = useStore((s) => s.feedback.filter((f) => f.logId === log.id).length)
   return (
-    <button onClick={onClick} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors first:rounded-t-[22px] last:rounded-b-[22px] hover:bg-surface-2">
+    <button onClick={onClick} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors first:rounded-t-card last:rounded-b-card hover:bg-surface-2">
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[14px] font-medium">{who ? `${who} · ` : ''}{log.title}</span>
         <span className="flex items-center gap-2 truncate text-[12px] text-ink-3">

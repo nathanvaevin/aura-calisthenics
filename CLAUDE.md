@@ -37,6 +37,16 @@ Never present simulated or sample behaviour as real. If something cannot work wi
 - After changing `scripts/character/` or `src/visual/body/`, run `npm run character:build` and commit the `.glb` files. `npm test` fails while they differ from the code.
 - Update `VISUALS.md` in the same piece of work.
 
+## Standing rule: themes and personalization
+
+- A theme is presentation. Nothing under `src/domain/scoring` may read a theme, a character, a form or a finish; unlocks read the scoring, never the reverse. Changing a theme must leave evidence, ratings, courses and assessments untouched.
+- A theme is data: an entry in `src/theme/themes.ts`, a block of tokens in `src/styles/index.css`, a column in `src/theme/voice.ts`. No screen may branch on a theme id; it uses tokens, `useVoice()` and `useWearing()`. A component that must look right inside another theme's preview reads the theme's own variables (`--display`, `--r-card`), not the Tailwind tokens.
+- Official assessments are shown the standard way for everyone: Aura Dark, plain wording, the Aura master character under the Cosmic Aura (`standardLook`). Do not put `useVoice()` or the athlete's look into `src/features/assess/`.
+- A universe beyond the original, and anything new in one (a character, a form), reaches athletes only when the owner releases it in the Studio. Do not default a release to on.
+- Every build of a character stands on the same skeleton. Do not move a joint for one build.
+- Characters and themes are original. They may take a genre's manner; never an existing character, costume, name or mark.
+- An exercise's demonstration is shown through `DemoSlot`, wherever the exercise appears. Do not attach an animation to a screen.
+
 ## Standing rule: location and presence
 
 - Never store or transmit an athlete's position. A visit is a place and a time window.
@@ -49,10 +59,10 @@ Never present simulated or sample behaviour as real. If something cannot work wi
 
 - `npm run dev` · `npm test` · `npm run build`
 - `npm run db:seed` regenerates `supabase/seed.sql` from `src/domain`
-- `npm run db:check` applies all ten migrations + seed to an in-process Postgres and checks the access rules
+- `npm run db:check` applies all eleven migrations + seed to an in-process Postgres and checks the access rules
 - `npm run db:bundle` regenerates `supabase/apply.sql` (the one-paste setup) from the migrations and seed — run it after changing either
 - `npm run deploy` tests, builds for the public address and replaces the `gh-pages` branch. Publishing is outward-facing: run it only when the owner says so
-- `npm run character:build` regenerates the two characters in `public/characters/` (`-- --draft` is quick and coarse, for sculpting)
+- `npm run character:build` regenerates the six characters in `public/characters/` (`-- power`, `-- iron male` build some of them; `-- --draft` is quick and coarse, for sculpting)
 - `npm run scoring:audit` recomputes every figure in SCORING.md; `-- --write` regenerates its tables, `-- --check` verifies them
 
 ## Orientation
@@ -61,6 +71,8 @@ Never present simulated or sample behaviour as real. If something cannot work wi
 - `src/data/store.ts` is the only place state changes. Screens read and write it and never wait for the network.
 - `src/data/cloud/` keeps that store and Supabase in step while someone is signed in: `rows.ts` (tables and who may write a row), `mappers.ts` (state ↔ rows), `engine.ts` (push, fetch, merge), `remote.ts` (Supabase). A new synced table is added in `rows.ts` and `mappers.ts`; the engine does not change. `cloud.test.ts` runs two simulated devices against a pretend server.
 - `src/visual/` is the 3D side, loaded lazily (never import it from a screen every athlete opens, except through `lazy()`): `body/` (skeleton and muscle channels, shared with the generator), `rig.ts` (pose → joints), `motions/` (one movement per exercise), `aura/` (themes, field, behaviour), `player.ts`, `Demo.tsx`. `src/visual/pilot.ts` and `aura/themes.ts` are plain data and safe to import anywhere.
+- `src/theme/` is personalization, pure data and rules except `useTheme.ts`: `themes.ts` (the four themes, three universes, forms, finishes), `personal.ts` (an athlete's choices, unlocks, what is worn, completion), `voice.ts` (copy per voice), `cast.ts` (a look → a character on stage). `src/features/personalize/` holds the flow and the athlete's Character Studio. An athlete's choices live on `Athlete.style` and sync as columns of `athlete_identity`.
+- `src/visual/styles.ts` says how each universe draws its character and lights its stage; `src/visual/revisions.ts` repeats each movement's revision as plain data (a test keeps it true).
 - `src/domain/media.ts` holds the review rules; `src/data/cloud/content.ts` keeps admin-managed content in step with the server on its own channel, apart from the sync engine, and must keep working when its tables are missing.
 - A schema change is a new numbered migration, added to `scripts/check-schema.ts` and `scripts/build-bundle.ts`, and the owner has to run it on the live project: say so. After a catalogue change the live database needs the new `seed.sql` too.
 - Scoring is provisional and versioned (`src/domain/scoring/config.ts`). The assessment protocol is versioned too (`PROTOCOL` in `assessment.ts`, now `baseline-2`); bump it when tests change and add the old one to `KNOWN_PROTOCOLS` if its tests still read. `ALL_TESTS` order is part of hand-in links: only ever append (station `extra` lists come after every guided test). Station menu variations must already have a curve.

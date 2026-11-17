@@ -36,10 +36,17 @@ export interface TableDef {
  */
 export const TABLES: TableDef[] = [
   // Roles are granted on the server (coach access by request, admin by hand) and never sent from a device.
-  { name: 'profiles', key: ['id'], cols: ['id', 'name', 'handle', 'bio', 'weekly_target', 'equipment'] },
+  { name: 'profiles', key: ['id'], cols: ['id', 'name', 'handle', 'bio', 'weekly_target', 'equipment', 'is_public'] },
   {
     name: 'athlete_identity', key: ['athlete_id'],
-    cols: ['athlete_id', 'origin', 'city', 'environments', 'open_to_train', 'origin_audience', 'base_audience', 'places_audience', 'visits_audience'],
+    cols: [
+      'athlete_id', 'origin', 'city', 'environments', 'open_to_train', 'origin_audience', 'base_audience', 'places_audience', 'visits_audience',
+      // 0011: more about the athlete, and their personal style
+      'country', 'interests', 'style_audience', 'ratings_audience', 'interests_audience',
+      'theme', 'persona', 'form_aura', 'form_power', 'form_iron', 'finish_aura', 'finish_power', 'finish_iron', 'intensity', 'show_muscles',
+      'themed_at', 'persona_at', 'about_at', 'sharing_at',
+    ],
+    ts: ['themed_at', 'persona_at', 'about_at', 'sharing_at'],
   },
   { name: 'athlete_goals', key: ['athlete_id', 'skill_id'], cols: ['athlete_id', 'skill_id'] },
   { name: 'follows', key: ['follower_id', 'followee_id'], cols: ['follower_id', 'followee_id'] },

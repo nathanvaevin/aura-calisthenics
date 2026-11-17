@@ -127,7 +127,7 @@ export function CourseView() {
           })()}
 
           <div className="mt-5 space-y-3">
-            {weekSessions.length === 0 && !(current.kind && current.kind !== 'training') && <p className="rounded-[22px] border border-dashed border-line-strong p-5 text-[13.5px] text-ink-3">No sessions planned for this week yet.</p>}
+            {weekSessions.length === 0 && !(current.kind && current.kind !== 'training') && <p className="rounded-card border border-dashed border-line-strong p-5 text-[13.5px] text-ink-3">No sessions planned for this week yet.</p>}
             {weekSessions.map((s) => {
               const diff = dayDiff(s.date)
               const state = s.log ? 'done' : diff === 0 ? 'today' : diff < 0 ? 'missed' : 'upcoming'
@@ -191,7 +191,7 @@ export function CourseView() {
             <section>
               <SectionTitle>Coach feedback</SectionTitle>
               {feedback.length === 0 ? (
-                <p className="rounded-[22px] border border-dashed border-line-strong p-5 text-[13.5px] text-ink-3">Feedback from {coach?.name.split(' ')[0] ?? 'your coach'} on your sessions will appear here.</p>
+                <p className="rounded-card border border-dashed border-line-strong p-5 text-[13.5px] text-ink-3">Feedback from {coach?.name.split(' ')[0] ?? 'your coach'} on your sessions will appear here.</p>
               ) : (
                 <div className="space-y-2.5">
                   {feedback.map((f) => {

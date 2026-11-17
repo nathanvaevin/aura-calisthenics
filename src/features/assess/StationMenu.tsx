@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { DemoSlot } from '@/features/library/DemoSlot'
 import { Check, ChevronDown, Compass, Play, X } from 'lucide-react'
 import type { AssessmentResult, DisciplineId } from '@/domain/types'
 import { difficultyOf, entryTest, menuOf, stationById, type AssessmentTest } from '@/domain/assessment'
@@ -32,6 +33,7 @@ function Details({ t }: { t: AssessmentTest }) {
       {ex.cues.length > 0 && <p className="text-ink-2"><span className="text-ink-3">Cues: </span>{ex.cues.slice(0, 3).join(' · ')}</p>}
       {ex.mistakes.length > 0 && <p className="text-ink-2"><span className="text-ink-3">Watch for: </span>{ex.mistakes.slice(0, 2).join(' · ')}</p>}
       {ex.safety && <p className="text-warn">{ex.safety}</p>}
+      <DemoSlot exerciseId={ex.id} official className="!mt-3" />
     </div>
   )
 }

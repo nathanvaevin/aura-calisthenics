@@ -129,7 +129,7 @@ describe('places in the store', () => {
 
   it('sets privacy one part at a time', () => {
     s().setPrivacy({ visits: 'me' })
-    expect(s().athletes[ME].privacy).toEqual({ origin: 'everyone', base: 'everyone', places: 'following', visits: 'me' })
+    expect(s().athletes[ME].privacy).toEqual({ origin: 'everyone', base: 'everyone', places: 'following', visits: 'me', style: 'everyone', ratings: 'me', interests: 'everyone' })
   })
 })
 

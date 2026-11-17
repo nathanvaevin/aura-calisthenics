@@ -146,7 +146,7 @@ export function CoachStudio() {
           <section>
             <SectionTitle>Bests waiting for verification</SectionTitle>
             {pending.length === 0 ? (
-              <p className="rounded-[22px] border border-dashed border-line-strong p-5 text-[13.5px] text-ink-3">Nothing to verify. When a student records a new best in one of your sessions it appears here.</p>
+              <p className="rounded-card border border-dashed border-line-strong p-5 text-[13.5px] text-ink-3">Nothing to verify. When a student records a new best in one of your sessions it appears here.</p>
             ) : (
               <div className="card divide-y divide-line">
                 {pending.map((e) => {
@@ -169,7 +169,7 @@ export function CoachStudio() {
           <section className="mt-8 lg:mt-0">
             <SectionTitle>Completed sessions</SectionTitle>
             {courseLogs.length === 0 ? (
-              <p className="rounded-[22px] border border-dashed border-line-strong p-5 text-[13.5px] text-ink-3">No student sessions yet.</p>
+              <p className="rounded-card border border-dashed border-line-strong p-5 text-[13.5px] text-ink-3">No student sessions yet.</p>
             ) : (
               <div className="card divide-y divide-line">
                 {courseLogs.slice(0, 14).map((l) => (
@@ -238,7 +238,7 @@ export function CoachStudio() {
                 const aura = auraFor(evidence.filter((e) => e.athleteId === id))
                 const waiting = pending.filter((e) => e.athleteId === id).length
                 return (
-                  <button key={id} onClick={() => setStudentOpen(id)} className="flex w-full items-center gap-3.5 px-4 py-3.5 text-left first:rounded-t-[22px] last:rounded-b-[22px] hover:bg-surface-2">
+                  <button key={id} onClick={() => setStudentOpen(id)} className="flex w-full items-center gap-3.5 px-4 py-3.5 text-left first:rounded-t-card last:rounded-b-card hover:bg-surface-2">
                     <AuraDot mix={aura.mix} size={42}>{initials(athlete.name)}</AuraDot>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2 truncate text-[14.5px] font-medium">
@@ -277,7 +277,7 @@ export function CoachStudio() {
               <p className="mt-1 text-[13px] leading-snug text-ink-2">{t.description}</p>
             </button>
           ))}
-          <button className="block w-full rounded-[22px] border border-dashed border-line-strong p-4 text-left hover:bg-surface" onClick={() => navigate(`/coach/course/${createCourse(null)}`)}>
+          <button className="block w-full rounded-card border border-dashed border-line-strong p-4 text-left hover:bg-surface" onClick={() => navigate(`/coach/course/${createCourse(null)}`)}>
             <div className="display text-[24px]">Blank course</div>
             <p className="mt-1 text-[13px] text-ink-2">Four empty weeks to build from scratch.</p>
           </button>

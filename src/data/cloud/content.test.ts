@@ -93,7 +93,7 @@ describe('taking in what the server holds', () => {
 
   it('follows the server on an account, except for changes still waiting to go', () => {
     useStore.setState({ demo: false, cloudUid: ACCOUNT })
-    s().applyContent({ demos: [remote('r1'), remote('r2'), remote('r3')], workoutVideos: [], auraSettings: { defaultTheme: 'solar', themes: {}, updatedAt: '2026-11-17T10:00:00.000Z' } })
+    s().applyContent({ demos: [remote('r1'), remote('r2'), remote('r3')], workoutVideos: [], auraSettings: { defaultTheme: 'solar', themes: {}, universes: {}, updatedAt: '2026-11-17T10:00:00.000Z' } })
     expect(s().auraSettings.defaultTheme).toBe('solar')
     s().moveDemo('r1', 'archived')
     s().moveDemo('r3', 'archived')
@@ -101,7 +101,7 @@ describe('taking in what the server holds', () => {
     s().setAuraSettings({ defaultTheme: 'primal' })
     const waiting = s().createDemo(male)
     // The server still has the old state of r1 and r3, has lost r2, and has a row this device never saw.
-    s().applyContent({ demos: [remote('r1'), remote('r3'), remote('r4')], workoutVideos: [], auraSettings: { defaultTheme: 'solar', themes: {}, updatedAt: '2026-11-17T10:00:00.000Z' } })
+    s().applyContent({ demos: [remote('r1'), remote('r3'), remote('r4')], workoutVideos: [], auraSettings: { defaultTheme: 'solar', themes: {}, universes: {}, updatedAt: '2026-11-17T10:00:00.000Z' } })
     expect(s().demos.map((d) => d.id).sort()).toEqual(['r1', 'r4', waiting].sort())
     expect(status('r1')).toBe('archived')
     expect(s().auraSettings.defaultTheme).toBe('primal')
@@ -137,6 +137,6 @@ describe('content as database rows', () => {
     expect(workoutFromRow(workoutToRow(w))).toEqual(w)
     expect(settingsFromRow(null)).toBeNull()
     expect(settingsFromRow({ key: 'aura', value: { defaultTheme: 'solar', themes: { solar: { status: 'approved' } } }, updated_at: '2026-11-17T10:00:00+00:00' }))
-      .toEqual({ defaultTheme: 'solar', themes: { solar: { status: 'approved' } }, updatedAt: '2026-11-17T10:00:00+00:00' })
+      .toEqual({ defaultTheme: 'solar', themes: { solar: { status: 'approved' } }, universes: {}, updatedAt: '2026-11-17T10:00:00+00:00' })
   })
 })

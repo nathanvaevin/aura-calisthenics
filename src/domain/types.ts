@@ -301,7 +301,16 @@ export interface Athlete {
   favouritePlaces?: string[]
   /** Happy to be approached to train together. Shown wherever their presence is. */
   openToTrain?: boolean
-  privacy?: AthletePrivacy
+  /** The country they live in now. Shares the audience of the city. */
+  country?: string
+  /** The disciplines they care about most. A statement of taste, never an input to a rating. */
+  interests?: DisciplineId[]
+  /** Whether other athletes can find this profile at all. Unset means yes. */
+  discoverable?: boolean
+  /** Parts left out take their default (DEFAULT_PRIVACY in places.ts). */
+  privacy?: Partial<AthletePrivacy>
+  /** Theme, character and Aura form: presentation only (src/theme/personal.ts). */
+  style?: import('@/theme/personal').Personal
 }
 
 // ── Identity, places and presence ────────────────────────────────────────
@@ -323,6 +332,12 @@ export interface AthletePrivacy {
   places: Audience
   /** Recent visits and "regular" status: things derived from where they actually went. */
   visits: Audience
+  /** The character and theme they chose. */
+  style: Audience
+  /** Aura and discipline ratings. A coach of theirs always sees these. */
+  ratings: Audience
+  /** The disciplines they named as favourites. */
+  interests: Audience
 }
 
 export type PlaceKind = 'calisthenics' | 'outdoor' | 'gym' | 'studio' | 'other'

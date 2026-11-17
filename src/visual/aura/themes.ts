@@ -19,6 +19,8 @@ export interface AuraTheme {
   id: string
   name: string
   blurb: string
+  /** The visual universe it belongs to (src/theme/themes.ts). Unset: the original Aura. */
+  universe?: 'power' | 'iron'
   /** Up to six colours; the first is the body's own light. */
   palette: string[]
   /** Breaths per second, and how fast everything flows. */
@@ -126,6 +128,123 @@ export const THEMES: AuraTheme[] = [
     rings: { dashes: 90, spin: 0.15 },
     sparks: { count: 60, speed: 0.8 },
   }),
+
+  // ── Anime Power: flame-like, tall, loud. One per form. ───────────────────
+  { ...theme('ignition', 'Ignition', 'A first flame: amber, close to the body.', ['#ffb347', '#ff7a1f', '#ffe2a6', '#ff4d2e'], {
+    breath: 0.4, flow: 1.6, body: 0.7,
+    shell: { level: 1.2, reach: 1.1, flame: 1 },
+    halo: { level: 0.7, size: 0.9 },
+    rays: { level: 0, from: 1 },
+    ribbons: { level: 0, from: 1 },
+    motes: { level: 0.8, count: 120, rise: 0.8, size: 0.7, swirl: 0.3, twinkle: 1 },
+    streams: { level: 1, from: 0.15, count: 18, height: 1.1 },
+    rings: { level: 0.8, dashes: 0, spin: 0.2 },
+    sparks: { count: 100, speed: 1.3 },
+  }), universe: 'power' },
+  { ...theme('awakened', 'Awakened', 'Jade fire that climbs well above the head.', ['#7dffcf', '#1fe0a0', '#eafff6', '#16b3d6'], {
+    breath: 0.42, flow: 1.8, body: 0.8,
+    shell: { level: 1.3, reach: 1.3, flame: 1 },
+    halo: { level: 0.8, size: 1 },
+    rays: { level: 0.5, from: 0.5, count: 10, sharp: 4 },
+    ribbons: { level: 0, from: 1 },
+    motes: { level: 0.9, count: 150, rise: 0.9, size: 0.7, swirl: 0.3, twinkle: 1 },
+    streams: { level: 1.2, from: 0.1, count: 24, height: 1.5 },
+    rings: { level: 1, dashes: 0, spin: 0.25 },
+    sparks: { count: 110, speed: 1.4 },
+  }), universe: 'power' },
+  { ...theme('ascended', 'Ascended', 'Violet and magenta, with the first lightning.', ['#d07bff', '#8a4dff', '#ff6be6', '#f3e1ff'], {
+    breath: 0.46, flow: 2, body: 0.85,
+    shell: { level: 1.3, reach: 1.4, flame: 1 },
+    halo: { level: 0.9, size: 1.05 },
+    rays: { level: 0.4, from: 0.6, count: 12, sharp: 5 },
+    ribbons: { level: 0.5, count: 4, turns: 1.2, width: 0.05, speed: 2.2, ripple: 1.4 },
+    motes: { level: 0.9, count: 150, rise: 0.9, size: 0.7, swirl: 0.6, twinkle: 1 },
+    streams: { level: 1.1, from: 0.1, count: 22, height: 1.5 },
+    rings: { level: 1, dashes: 24, spin: 0.8 },
+    sparks: { count: 120, speed: 1.5, crackle: 0.5 },
+    arcs: { level: 0.6, from: 0.3, count: 5 },
+  }), universe: 'power' },
+  { ...theme('overdrive', 'Overdrive', 'Crimson fire and white lightning, at full speed.', ['#ff3355', '#ff8a5c', '#ffffff', '#ff2bd6'], {
+    breath: 0.6, flow: 2.4, body: 0.9,
+    shell: { level: 1.4, reach: 1.5, flame: 1 },
+    halo: { level: 0.9, size: 1.05 },
+    rays: { level: 0.5, from: 0.5, count: 14, sharp: 6 },
+    ribbons: { level: 0.4, count: 4, turns: 1.6, width: 0.03, speed: 2.8, ripple: 1.8 },
+    motes: { level: 0.9, count: 150, rise: 1, size: 0.65, swirl: 1.2, twinkle: 1 },
+    streams: { level: 1.2, from: 0.1, count: 26, height: 1.6 },
+    rings: { level: 1.1, dashes: 48, spin: 1.6 },
+    sparks: { count: 140, speed: 1.8, crackle: 1 },
+    arcs: { level: 1, from: 0.1, count: 10 },
+  }), universe: 'power' },
+  { ...theme('transcendent', 'Transcendent', 'Every colour at once, and quiet: power that no longer needs to shout.', ['#fff6d8', '#ffd76b', '#9be8ff', '#ff9ee6', '#c6a6ff'], {
+    breath: 0.14, flow: 0.8, body: 1,
+    shell: { level: 1.2, reach: 1.2, flame: 0.5 },
+    halo: { level: 1.4, size: 1.4 },
+    rays: { level: 1.2, from: 0.15, count: 16, sharp: 3 },
+    ribbons: { level: 0.7, count: 5, turns: 0.6, width: 0.12, speed: 0.6, ripple: 0.3 },
+    motes: { level: 1.1, count: 260, rise: 0.2, size: 1, swirl: 0.5, twinkle: 0.8 },
+    streams: { level: 0.8, count: 18, height: 1.3 },
+    rings: { level: 1, dashes: 48, spin: 0.2 },
+    sparks: { count: 90, speed: 0.8 },
+  }), universe: 'power' },
+
+  // ── Iron Will: restrained. Heat, steam and the ground; no rays, no ribbons. ──
+  { ...theme('pressure', 'Pressure', 'Heat coming off a body at work. Pale steam, close to the skin.', ['#e9e2d6', '#b8ada0', '#8a8078', '#ffffff'], {
+    breath: 0.26, flow: 0.9, body: 0.35,
+    shell: { level: 0.8, reach: 0.5, flame: 0.35 },
+    halo: { level: 0.25, size: 0.7 },
+    rays: { level: 0, from: 1 },
+    ribbons: { level: 0, from: 1 },
+    motes: { level: 0.4, count: 60, rise: 0.5, size: 0.6, swirl: 0.2, twinkle: 0.2 },
+    streams: { level: 1, from: 0.1, count: 14, height: 1.2 },
+    rings: { level: 0.6, dashes: 0, spin: 0 },
+    sparks: { level: 0, from: 1 },
+  }), universe: 'iron' },
+  { ...theme('tempered', 'Tempered', 'Ember red under the skin. The floor answers each rep.', ['#ff5a3c', '#c2281c', '#ffb08a', '#7a1410'], {
+    breath: 0.28, flow: 1, body: 0.5,
+    shell: { level: 0.9, reach: 0.8, flame: 0.6 },
+    halo: { level: 0.3, size: 0.75 },
+    rays: { level: 0, from: 1 },
+    ribbons: { level: 0, from: 1 },
+    motes: { level: 0.5, count: 70, rise: 0.6, size: 0.6, swirl: 0.2, twinkle: 0.4 },
+    streams: { level: 1.1, from: 0.1, count: 16, height: 1.2 },
+    rings: { level: 1, dashes: 0, spin: 0 },
+    sparks: { level: 0.5, count: 50, speed: 1 },
+  }), universe: 'iron' },
+  { ...theme('forged', 'Forged', 'Molten orange and flying sparks.', ['#ff8a2b', '#ff3d1f', '#ffd9a0', '#a31a0c'], {
+    breath: 0.3, flow: 1.2, body: 0.6,
+    shell: { level: 1, reach: 1.1, flame: 0.8 },
+    halo: { level: 0.35, size: 0.8 },
+    rays: { level: 0, from: 1 },
+    ribbons: { level: 0, from: 1 },
+    motes: { level: 0.7, count: 100, rise: 0.9, size: 0.55, swirl: 0.3, twinkle: 0.8 },
+    streams: { level: 1.1, from: 0.1, count: 18, height: 1.3 },
+    rings: { level: 1.1, dashes: 0, spin: 0 },
+    sparks: { level: 1, from: 0.3, count: 110, speed: 1.4, crackle: 0.2 },
+  }), universe: 'iron' },
+  { ...theme('unbroken', 'Unbroken', 'White-hot and still. A hard edge of light.', ['#ffffff', '#ffe9dc', '#ff6b4a', '#c9c2ba'], {
+    breath: 0.2, flow: 0.8, body: 0.75,
+    shell: { level: 1.3, reach: 0.7, flame: 0.2 },
+    halo: { level: 0.4, size: 0.8 },
+    rays: { level: 0, from: 1 },
+    ribbons: { level: 0, from: 1 },
+    motes: { level: 0.5, count: 80, rise: 0.4, size: 0.5, swirl: 0.2, twinkle: 0.5 },
+    streams: { level: 0.9, from: 0.1, count: 14, height: 1.1 },
+    rings: { level: 1.3, dashes: 0, spin: 0 },
+    sparks: { level: 0.6, count: 60, speed: 1 },
+  }), universe: 'iron' },
+  { ...theme('apex', 'Apex', 'Red and white, in heavy beats. Nothing held back.', ['#ff1f2e', '#ffffff', '#8f0a14', '#ff7a66'], {
+    breath: 0.34, flow: 1.5, body: 0.8,
+    shell: { level: 1.4, reach: 1.5, flame: 1 },
+    halo: { level: 0.45, size: 0.85 },
+    rays: { level: 0, from: 1 },
+    ribbons: { level: 0, from: 1 },
+    motes: { level: 0.7, count: 110, rise: 0.9, size: 0.6, swirl: 0.3, twinkle: 0.8 },
+    streams: { level: 1.2, from: 0.1, count: 24, height: 1.4 },
+    rings: { level: 1.4, dashes: 0, spin: 0 },
+    sparks: { level: 1, from: 0.3, count: 120, speed: 1.4, crackle: 0.3 },
+    arcs: { level: 0.4, from: 0.6, count: 3 },
+  }), universe: 'iron' },
 ]
 
 export const themeById = Object.fromEntries(THEMES.map((t) => [t.id, t])) as Record<string, AuraTheme>

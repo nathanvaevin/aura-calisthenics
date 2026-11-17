@@ -1,9 +1,11 @@
 /**
- * Builds the two master characters into public/characters/*.glb.
+ * Builds the characters into public/characters/<build>-<male|female>.glb.
  *
- *   npm run character:build            both, full quality
- *   npm run character:build -- male    one of them
- *   npm run character:build -- --draft coarser and quicker, for sculpting
+ *   npm run character:build                 every build, both sexes, full quality
+ *   npm run character:build -- male         one sex
+ *   npm run character:build -- iron         one build (aura, power, iron)
+ *   npm run character:build -- iron male    one character
+ *   npm run character:build -- --draft      coarser and quicker, for sculpting
  *
  * The body is meshed in parts so that detail goes where it is needed: hands,
  * feet and head on a finer grid than the trunk. Parts are cut along flat
@@ -11,7 +13,7 @@
  */
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { BONES, type BoneName, type CharacterId, type V3 } from '../../src/visual/body/skeleton'
+import { BONES, BUILDS, type BoneName, type BuildId, type CharacterId, type V3 } from '../../src/visual/body/skeleton'
 import { CHANNELS } from '../../src/visual/body/muscles'
 import { anatomyOf } from './anatomy'
 import { writeGlb, type Part } from './glb'
@@ -22,6 +24,7 @@ import { muscles, skin } from './skin'
 const args = process.argv.slice(2)
 const draft = args.includes('--draft')
 const who = (['male', 'female'] as CharacterId[]).filter((id) => !args.some((a) => a === 'male' || a === 'female') || args.includes(id))
+const builds = BUILDS.filter((b) => !args.some((a) => (BUILDS as readonly string[]).includes(a)) || args.includes(b))
 const q = draft ? 1.7 : 1
 
 interface Piece { pos: Float32Array; nrm: Float32Array; idx: Uint32Array; joints: Uint8Array; weights: Uint8Array; muscle: Uint8Array }
@@ -58,15 +61,17 @@ function join(pieces: Piece[]): Piece {
   return out
 }
 
-async function build(id: CharacterId) {
+async function build(id: CharacterId, kind: BuildId) {
   const t0 = Date.now()
-  const an = anatomyOf(id)
+  const an = anatomyOf(id, kind)
   const sk = an.sk
   const S = sk.scale
   const J = sk.joints
   const field = new Field(an.body)
   const bodyFn: Fn = (x, y, z) => field.value(x, y, z)
-  const { wrist, neck, ankle } = an.cuts
+  const { wrist, neck, ankle, rise } = an.cuts
+  /** Height of the neck cut at this distance from the centre line. */
+  const neckAt = (x: number) => neck + rise * x * x
 
   /** One part of the skin: meshed inside `box` where `cut` is negative. */
   async function piece(name: string, cut: Fn, lo: V3, hi: V3, h: number, triangles: number, symmetric: boolean, hidden?: Fn): Promise<Piece> {
@@ -97,8 +102,8 @@ async function build(id: CharacterId) {
 
   const covered: Fn = (x, y, z) => Math.min(...an.garments.map((g) => g.region(x, y, z)))
   const reach = sk.tips.fingertipL[0]
-  const trunk = await piece('trunk', (x, y) => Math.max(Math.abs(x) - wrist, y - neck, ankle - y), [0, ankle - 0.01, -0.2 * S], [wrist + 0.01, neck + 0.01, 0.19 * S], 0.004, 36000, true, covered)
-  const head = await piece('head', (_x, y) => neck - y, [0, neck - 0.01, -0.14 * S], [0.12 * S, sk.height + 0.02, 0.15 * S], 0.003, 5000, true)
+  const trunk = await piece('trunk', (x, y) => Math.max(Math.abs(x) - wrist, y - neckAt(x), ankle - y), [0, ankle - 0.01, -0.2 * S], [wrist + 0.01, neck + 0.01 + (rise ? 0.12 * S : 0), 0.19 * S], 0.004, 36000, true, covered)
+  const head = await piece('head', (x, y) => neckAt(x) - y, [0, neck - 0.01, -0.14 * S], [0.12 * S, sk.height + 0.02, 0.15 * S], 0.003, 5000, true)
   const hand = await piece('hand', (x) => wrist - x, [wrist - 0.008, J.handL[1] - 0.05 * S, J.handL[2] - 0.075 * S], [reach + 0.015, J.handL[1] + 0.035 * S, J.handL[2] + 0.1 * S], 0.0016, 5200, false)
   const foot = await piece('foot', (_x, y) => y - ankle, [J.footL[0] - 0.075 * S, -0.004, -0.09 * S], [J.footL[0] + 0.085 * S, ankle + 0.008, 0.21 * S], 0.0025, 3000, false)
   const body = join([trunk, head, hand, otherSide(hand), foot, otherSide(foot)])
@@ -109,14 +114,15 @@ async function build(id: CharacterId) {
     const surface: Fn = (x, y, z) => bodyFn(x, y, z) - g.thickness(x, y, z)
     const solid: Fn = (x, y, z) => Math.max(surface(x, y, z), g.region(x, y, z))
     const h = 0.0035 * q
-    let mesh = extract(solid, [0, 0.5 * S, -0.22 * S], [0.3 * S, 1.6 * S, 0.2 * S], h, true)
+    const [lo, hi] = g.box ?? [[0, 0.5 * S, -0.22 * S], [0.3 * S, 1.6 * S, 0.2 * S]]
+    let mesh = extract(solid, lo, hi, h, true)
     settle(mesh, surface, g.region, h)
-    ;({ mesh } = await simplify(mesh, Math.round(10000 / q), 0.0018 * S))
+    ;({ mesh } = await simplify(mesh, Math.round((g.triangles ?? 10000) / q), 0.0018 * S))
     const kinds = settle(mesh, surface, g.region, h)
     const nrm = normals(mesh, surface, g.region, kinds)
     const muscle = muscles(mesh, nrm, field, 0.005 * S)
     kinds.forEach((k, v) => { if (k === 1) muscle.fill(0, v * 4, v * 4 + 4) })
-    parts.push({ name: g.name, material: 'cloth', ...mesh, nrm, ...skin(mesh, field, sk, undefined, nrm, g.thickness), muscle })
+    parts.push({ name: g.name, material: g.material ?? 'cloth', ...mesh, nrm, ...skin(mesh, field, sk, undefined, nrm, g.thickness), muscle })
     console.log(`  ${g.name.padEnd(8)} ${String(mesh.idx.length / 3).padStart(16)} triangles`)
   }
 
@@ -124,21 +130,22 @@ async function build(id: CharacterId) {
     const hairField = new Field(an.hair)
     const fn: Fn = (x, y, z) => hairField.value(x, y, z)
     const h = 0.003 * q
-    let mesh = extract(fn, [-0.13 * S, 1.5 * S, -0.16 * S], [0.13 * S, 1.86 * S, 0.16 * S], h)
+    let mesh = extract(fn, an.hairBox[0], an.hairBox[1], h)
     settle(mesh, fn, null, h)
-    ;({ mesh } = await simplify(mesh, Math.round(6000 / q), 0.0015 * S))
+    ;({ mesh } = await simplify(mesh, Math.round(an.hairTriangles / q), 0.0015 * S))
     const kinds = settle(mesh, fn, null, h)
     parts.push({ name: 'hair', material: 'hair', ...mesh, nrm: normals(mesh, fn, null, kinds), ...skin(mesh, hairField, sk, 'head') })
     console.log(`  ${'hair'.padEnd(8)} ${String(mesh.idx.length / 3).padStart(16)} triangles`)
   }
 
-  const glb = writeGlb(sk, parts, { character: id, height: sk.height, scale: S, logo: an.logo, channels: CHANNELS, generator: 2 })
+  // The Aura masters were written before builds existed: their files stay as they were, byte for byte.
+  const glb = writeGlb(sk, parts, { character: id, ...(kind === 'aura' ? {} : { build: kind }), height: sk.height, scale: S, logo: an.logo, channels: CHANNELS, generator: 2 })
   const dir = resolve(import.meta.dirname, '../../public/characters')
   mkdirSync(dir, { recursive: true })
-  const file = resolve(dir, `aura-${id}${draft ? '.draft' : ''}.glb`)
+  const file = resolve(dir, `${kind}-${id}${draft ? '.draft' : ''}.glb`)
   writeFileSync(file, glb)
   const tris = parts.reduce((s, p) => s + p.idx.length / 3, 0)
-  console.log(`${id}: ${tris} triangles, ${(glb.length / 1e6).toFixed(2)} MB, ${((Date.now() - t0) / 1000).toFixed(1)} s → ${file}`)
+  console.log(`${kind} ${id}: ${tris} triangles, ${(glb.length / 1e6).toFixed(2)} MB, ${((Date.now() - t0) / 1000).toFixed(1)} s → ${file}`)
 }
 
-for (const id of who) await build(id)
+for (const kind of builds) for (const id of who) await build(id, kind)

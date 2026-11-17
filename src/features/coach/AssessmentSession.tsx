@@ -431,7 +431,7 @@ function Board({ session, participants }: { session: Session; participants: Asse
             <Eyebrow className="mb-2.5">Worth walking over to</Eyebrow>
             <div className="card divide-y divide-line">
               {attention.map(({ participant, reasons }) => (
-                <button key={participant.id} className="block w-full px-4 py-3 text-left first:rounded-t-[22px] last:rounded-b-[22px] hover:bg-surface-2" onClick={() => setPerson(participant.id)}>
+                <button key={participant.id} className="block w-full px-4 py-3 text-left first:rounded-t-card last:rounded-b-card hover:bg-surface-2" onClick={() => setPerson(participant.id)}>
                   <span className="block text-[14px] font-medium">{participant.name}</span>
                   <span className="block text-[12px] leading-snug text-ink-3">{reasons.join(' · ')}</span>
                 </button>

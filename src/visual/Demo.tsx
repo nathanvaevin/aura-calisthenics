@@ -89,7 +89,7 @@ export default function Demo({ cast, ratio = 1, controls = 'simple', margin, ang
   const orbit = controls === 'review'
 
   return (
-    <div ref={box} className={cx('relative w-full overflow-hidden rounded-[22px] border border-line bg-[#08090d]', className)} style={{ aspectRatio: String(ratio) }}>
+    <div ref={box} className={cx('relative w-full overflow-hidden rounded-card border border-line bg-(--stage)', className)} style={{ aspectRatio: String(ratio) }}>
       <canvas
         ref={canvas} role="img" aria-label={label ?? 'Animated demonstration'}
         className={cx('block h-full w-full transition-opacity duration-500', ready ? 'opacity-100' : 'opacity-0', orbit && 'cursor-grab touch-none active:cursor-grabbing')}

@@ -131,7 +131,7 @@ function View({ place, now, setMode, onClose }: { place: Place; now: number; set
       <section>
         <SectionTitle>Athletes</SectionTitle>
         {people.length === 0 ? (
-          <p className="rounded-[22px] border border-dashed border-line-strong p-4 text-[13px] leading-relaxed text-ink-3">
+          <p className="rounded-card border border-dashed border-line-strong p-4 text-[13px] leading-relaxed text-ink-3">
             Nobody you can see is tied to this place yet. People appear here only when they check in and choose to be visible, or save the place and share their places.
           </p>
         ) : (
@@ -241,7 +241,7 @@ function PersonRow({ person, role, now, mine, theirs, onOpen }: {
         : `Last here ${relativeDay(person.lastSeen!).toLowerCase()}`
   const also = [role !== 'regular' && person.regular && 'a regular', role !== 'favourite' && person.home && 'home spot', role !== 'favourite' && !person.home && person.favourite && 'a favourite'].filter(Boolean)
   return (
-    <button onClick={onOpen} className="flex w-full items-start gap-3 px-4 py-3 text-left first:rounded-t-[22px] last:rounded-b-[22px] hover:bg-surface-2">
+    <button onClick={onOpen} className="flex w-full items-start gap-3 px-4 py-3 text-left first:rounded-t-card last:rounded-b-card hover:bg-surface-2">
       <AuraDot mix={theirs.aura.mix} size={40}>{initials(athlete.name)}</AuraDot>
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2 text-[14.5px] font-medium">

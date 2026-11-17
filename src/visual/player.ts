@@ -18,6 +18,7 @@ import { stand } from './motions/stand'
 import { emptyPose, type Pose } from './rig'
 import { buildProps } from './props'
 import { ANGLE, Stage, type CameraAngle } from './stage'
+import { STYLES, type PerformerStyle } from './styles'
 import type { Group } from 'three'
 
 export interface PerformerSpec {
@@ -31,6 +32,8 @@ export interface PerformerSpec {
   /** Colour of the muscle layer. */
   glow?: string
   aura: { theme: string; mode: AuraMode; level?: number; tuning?: ThemeTuning }
+  /** The universe the character is drawn in and the athlete's colours. Left out: the Aura master character. */
+  style?: PerformerStyle
   /** Where across the stage, in metres, and which way it faces, in degrees. */
   x?: number
   facing?: number
@@ -98,7 +101,7 @@ export class Player {
   /** Puts these performers on stage, replacing whoever was there. */
   async setCast(specs: PerformerSpec[], opts: { keepView?: boolean } = {}) {
     const generation = ++this.generation
-    const actors = await Promise.all(specs.map((s) => createActor(s.character)))
+    const actors = await Promise.all(specs.map((s) => createActor(s.character, STYLES[s.style?.universe ?? 'aura'].build)))
     if (generation !== this.generation || this.disposed) { actors.forEach((a) => a.dispose()); return }
     for (const p of this.cast) { p.field.dispose(); p.actor.dispose(); p.props?.removeFromParent() }
     this.cast = specs.map((spec, i) => {
@@ -120,6 +123,7 @@ export class Player {
       }
       return p
     })
+    this.stage.setLook(STYLES[specs[0]?.style?.universe ?? 'aura'].stage)
     this.sets = specs.some((s) => s.aura.mode === 'living')
     this.time = 0
     this.settle = -1
@@ -129,7 +133,7 @@ export class Player {
 
   /** Changes how the performers already on stage look, without reloading them. */
   update(specs: PerformerSpec[]) {
-    if (specs.length !== this.cast.length || specs.some((s, i) => s.character !== this.cast[i].spec.character || s.motion !== this.cast[i].spec.motion || s.revision !== this.cast[i].spec.revision || (s.x ?? 0) !== (this.cast[i].spec.x ?? 0) || (s.facing ?? 0) !== (this.cast[i].spec.facing ?? 0))) return void this.setCast(specs, { keepView: specs.length === this.cast.length })
+    if (specs.length !== this.cast.length || specs.some((s, i) => s.character !== this.cast[i].spec.character || (s.style?.universe ?? 'aura') !== (this.cast[i].spec.style?.universe ?? 'aura') || s.motion !== this.cast[i].spec.motion || s.revision !== this.cast[i].spec.revision || (s.x ?? 0) !== (this.cast[i].spec.x ?? 0) || (s.facing ?? 0) !== (this.cast[i].spec.facing ?? 0))) return void this.setCast(specs, { keepView: specs.length === this.cast.length })
     specs.forEach((s, i) => this.apply(this.cast[i], s))
     const sets = specs.some((s) => s.aura.mode === 'living')
     if (sets !== this.sets) { this.sets = sets; this.settle = -1 }
@@ -142,10 +146,13 @@ export class Player {
     p.base.fill(0)
     if (spec.muscles === 'exercise' && ex) p.base.set(activationOf(ex, p.motion?.detail))
     else if (spec.muscles && spec.muscles !== 'exercise') p.base.set(activationOf(spec.muscles))
+    p.actor.setStyle(spec.style)
     const glow = new Color(spec.glow ?? MUSCLE_COLOUR)
     p.actor.look.glowA.value.copy(glow)
     p.actor.look.glowB.value.copy(glow).lerp(new Color(0xffffff), 0.72)
-    p.field.setTheme(themeById[spec.aura.theme] ?? THEMES[0], spec.aura.tuning)
+    const theme = themeById[spec.aura.theme] ?? THEMES[0]
+    p.field.setTheme(theme, spec.aura.tuning)
+    p.actor.look.hairGlow.value.set(theme.palette[0])
   }
 
   /** Frames everything the performers do over a whole cycle. */
@@ -158,7 +165,7 @@ export class Player {
         else stand(p.actor.rig.body, p.pose, 0)
         p.actor.rig.solve(p.pose)
         const pos = p.actor.rig.pos
-        const crown = pos.head.clone().add(new Vector3(0, 0.22 * p.actor.rig.body.scale, 0).applyQuaternion(p.actor.rig.rot.head))
+        const crown = pos.head.clone().add(new Vector3(0, p.actor.style.headroom * p.actor.rig.body.scale, 0).applyQuaternion(p.actor.rig.rot.head))
         for (const v of [crown, pos.handL, pos.handR, pos.footL, pos.footR, pos.hips, pos.toesL, pos.toesR]) {
           q.copy(v).applyAxisAngle(new Vector3(0, 1, 0), p.actor.group.rotation.y).add(p.actor.group.position)
           lo.min(q); hi.max(q)
@@ -260,6 +267,11 @@ export class Player {
       p.lastPhase = phase
       const level = this.settle >= 0 && mode === 'living' ? 0.1 : levelOf(mode, m?.kind ?? 'hold', { progress: Math.min(1, this.time / length), effort, phase, time: this.time }, p.spec.aura.level)
       p.field.update(dt, level, this.stage.camera, this.stage.renderer.domElement.height)
+      // Hair that takes the colour of the Aura turns with it.
+      if (p.actor.style.hairGlow) {
+        const charge = p.actor.look.hairCharge
+        charge.value += (Math.min(1, level * 1.6) - charge.value) * (dt > 0 ? 1 - Math.exp(-dt * 5) : 1)
+      }
     }
   }
 

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { AlertTriangle, ClipboardCopy, Plus } from 'lucide-react'
-import { ASSET_STATUSES, CORRECTION_TAGS, STATUS_LABEL, canMove, historyOf, reviewQueue, type AssetStatus, type CameraAngle, type CharacterId, type DemoAsset } from '@/domain/media'
+import { ASSET_STATUSES, CORRECTION_TAGS, STATUS_LABEL, canBeOfficial, canMove, historyOf, reviewQueue, type AssetStatus, type CameraAngle, type CharacterId, type DemoAsset } from '@/domain/media'
 import { exerciseById } from '@/domain/catalog'
 import { useStore } from '@/data/store'
 import { Empty, Eyebrow, Segmented, Sheet, Toggle } from '@/ui/primitives'
@@ -26,19 +26,25 @@ function specOf(a: DemoAsset, character: CharacterId, opts: { muscles: boolean; 
   }
 }
 
-/** Generated animations: nothing here reaches an athlete until it has been approved and then published. */
+/** Generated animations: nothing here reaches an athlete until it has been approved. Approval is one tap and makes it official everywhere. */
 export function Review() {
   const demos = useStore((s) => s.demos)
   const settings = useStore((s) => s.auraSettings)
   const createDemo = useStore((s) => s.createDemo)
   const animations = useMemo(() => demos.filter((d) => d.kind === 'animation' && d.animation), [demos])
-  const [filter, setFilter] = useState<AssetStatus | 'all'>('all')
+  // Open on what is waiting for a decision.
+  const [filter, setFilter] = useState<AssetStatus | 'all'>(() => (demos.some((d) => d.kind === 'animation' && d.status === 'pending') ? 'pending' : 'all'))
   const [selected, setSelected] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
   const [copied, setCopied] = useState(false)
   const counts = reviewQueue(animations)
   const wide = useWide()
   const asset = animations.find((a) => a.id === selected) ?? null
+  /** After a decision, the next one still waiting: so a review is a run of single taps. */
+  const nextPending = (after: string) => {
+    const waiting = animations.filter((a) => a.status === 'pending' && a.id !== after && isCurrent(a))
+    return waiting[0]?.id ?? null
+  }
 
   const generate = (exerciseId: string, character: CharacterId, camera?: CameraAngle) => {
     const m = MOTIONS[exerciseId]
@@ -65,7 +71,7 @@ export function Review() {
   if (animations.length === 0) {
     return (
       <Empty title="Nothing generated yet" action={<button className="btn btn-primary" onClick={generatePilot}>Generate the pilot</button>}>
-        The pilot is ten exercises, each performed by both characters: twenty animations. They arrive here as pending, and stay out of athletes' sight until you approve and publish them.
+        The pilot is ten exercises, each performed by both characters: twenty animations. They arrive here as pending, and stay out of athletes' sight until you approve them.
       </Empty>
     )
   }
@@ -112,7 +118,7 @@ export function Review() {
 
         {wide && (
           <div className="sticky top-8">
-            {asset ? <Detail key={asset.id} asset={asset} all={animations} defaultTheme={settings.defaultTheme} onSelect={setSelected} />
+            {asset ? <Detail key={asset.id} asset={asset} all={animations} defaultTheme={settings.defaultTheme} onSelect={setSelected} nextPending={nextPending} />
               : <div className="card-quiet px-6 py-14 text-center text-[13.5px] text-ink-3">Choose an animation to review it.</div>}
           </div>
         )}
@@ -120,7 +126,7 @@ export function Review() {
       {/* On a phone the review opens over the list. */}
       {!wide && (
         <Sheet open={!!asset} onClose={() => setSelected(null)}>
-          {asset && <Detail key={asset.id} asset={asset} all={animations} defaultTheme={settings.defaultTheme} onSelect={setSelected} />}
+          {asset && <Detail key={asset.id} asset={asset} all={animations} defaultTheme={settings.defaultTheme} onSelect={setSelected} nextPending={nextPending} />}
         </Sheet>
       )}
 
@@ -129,8 +135,9 @@ export function Review() {
   )
 }
 
-function Detail({ asset, all, defaultTheme, onSelect }: { asset: DemoAsset; all: DemoAsset[]; defaultTheme: string; onSelect: (id: string) => void }) {
+function Detail({ asset, all, defaultTheme, onSelect, nextPending }: { asset: DemoAsset; all: DemoAsset[]; defaultTheme: string; onSelect: (id: string) => void; nextPending: (after: string) => string | null }) {
   const moveDemo = useStore((s) => s.moveDemo)
+  const approveDemo = useStore((s) => s.approveDemo)
   const noteDemo = useStore((s) => s.noteDemo)
   const reviseDemo = useStore((s) => s.reviseDemo)
   const patchDemo = useStore((s) => s.patchDemo)
@@ -152,6 +159,9 @@ function Detail({ asset, all, defaultTheme, onSelect }: { asset: DemoAsset; all:
   const previous = history.find((h) => h.version < asset.version)
   const previousPlayable = !!previous && !!motionAt(previous.animation!.motion, previous.animation!.revision)
   const other: CharacterId = recipe.character === 'male' ? 'female' : 'male'
+  /** The same exercise on the other character, when it is waiting for a decision too. */
+  const otherLatest = historyOf(all, asset.exerciseId, 'animation', other)[0]
+  const otherPending = asset.status === 'pending' && otherLatest?.status === 'pending' && isCurrent(otherLatest) ? otherLatest : null
   const opts = { muscles, aura, theme, glow: tint === 'discipline' ? DISCIPLINE_GLOW[ex.discipline] : MUSCLE_COLOUR }
   const ratio = STAGE_RATIO[motion?.stage ?? 'square']
   const margin = aura === 'off' ? 1.16 : 1.4
@@ -220,7 +230,7 @@ function Detail({ asset, all, defaultTheme, onSelect }: { asset: DemoAsset; all:
       {compare === 'previous' && previous && !previousPlayable && <p className="mt-2 text-[12.5px] text-ink-3">Version {previous.version} showed an earlier movement that has since been removed from the app, so it can no longer be played.</p>}
 
       {motion && (
-        <div className="mt-5 rounded-[22px] bg-surface p-4">
+        <div className="mt-5 rounded-card bg-surface p-4">
           <Eyebrow>What correct looks like</Eyebrow>
           <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-2">{motion.standard}</p>
           {ex.standard && <p className="mt-2 text-[12.5px] leading-relaxed text-ink-3">In the library: {ex.standard}</p>}
@@ -229,10 +239,16 @@ function Detail({ asset, all, defaultTheme, onSelect }: { asset: DemoAsset; all:
       )}
 
       <div className="mt-5 flex flex-wrap gap-2">
-        {can('approved') && asset.status !== 'published' && <button className="btn btn-primary btn-sm" disabled={!current} onClick={() => moveDemo(asset.id, 'approved')}>Approve</button>}
-        {can('published') && <button className="btn btn-accent btn-sm" disabled={!current} onClick={() => moveDemo(asset.id, 'published')}>Publish to athletes</button>}
+        {canBeOfficial(asset.status) && (
+          <button className="btn btn-primary btn-sm" disabled={!current} onClick={() => { approveDemo(asset.id); const next = nextPending(asset.id); if (next) onSelect(next) }}>
+            {asset.status === 'archived' ? 'Make official again' : 'Approve'}
+          </button>
+        )}
+        {canBeOfficial(asset.status) && otherPending && current && (
+          <button className="btn btn-outline btn-sm" onClick={() => { approveDemo(asset.id); approveDemo(otherPending.id); const next = nextPending(otherPending.id); if (next && next !== asset.id) onSelect(next) }}>Approve both characters</button>
+        )}
+        {can('needs_correction') && asset.status !== 'published' && <button className="btn btn-outline btn-sm" onClick={() => setCorrecting(true)}>Needs correction</button>}
         {asset.status === 'published' && <button className="btn btn-outline btn-sm" onClick={() => moveDemo(asset.id, 'approved')}>Take down</button>}
-        {can('needs_correction') && <button className="btn btn-outline btn-sm" onClick={() => setCorrecting(true)}>Needs correction</button>}
         {asset.status === 'needs_correction' && <button className="btn btn-primary btn-sm" onClick={newVersion}>Make a new version</button>}
         {asset.status !== 'needs_correction' && !current && <button className="btn btn-primary btn-sm" onClick={newVersion}>Make a new version</button>}
         {asset.status === 'draft' && <button className="btn btn-primary btn-sm" onClick={() => moveDemo(asset.id, 'pending')}>Send to review</button>}
@@ -240,7 +256,9 @@ function Detail({ asset, all, defaultTheme, onSelect }: { asset: DemoAsset; all:
         {can('archived') && <button className="btn btn-quiet btn-sm" onClick={() => moveDemo(asset.id, 'archived')}>Archive</button>}
         {(asset.status === 'draft' || asset.status === 'archived') && <button className="btn btn-quiet btn-sm" onClick={() => { removeDemo(asset.id); onSelect('') }}>Delete</button>}
       </div>
-      {asset.status === 'published' && <p className="mt-2 text-[12.5px] text-ink-3">Athletes see this on the exercise's page. Publishing another version of the same character replaces it.</p>}
+      {canBeOfficial(asset.status) && current && <p className="mt-2 text-[12.5px] leading-relaxed text-ink-3">Approving makes this the official demonstration of {ex.name}. It then shows wherever the exercise does: the library, the skill tree, workouts and assessments. Nothing else to do.</p>}
+      {asset.status === 'approved' && <p className="mt-2 text-[12.5px] leading-relaxed text-ink-3">Taken down: athletes do not see it. Approve puts it back.</p>}
+      {asset.status === 'published' && <p className="mt-2 text-[12.5px] leading-relaxed text-ink-3">This is the official demonstration: athletes see it wherever {ex.name} appears. Approving another version of the same character replaces it everywhere, and this one stays in the history.</p>}
 
       {correcting && (
         <div className="card mt-4 p-4">

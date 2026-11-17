@@ -11,6 +11,12 @@
 
 export type V3 = [number, number, number]
 export type CharacterId = 'male' | 'female'
+/**
+ * A body sculpted for one visual universe. Every build stands on the same
+ * skeleton, joint for joint, so one movement plays on all of them.
+ */
+export const BUILDS = ['aura', 'power', 'iron'] as const
+export type BuildId = (typeof BUILDS)[number]
 export type Side = 'L' | 'R'
 
 export const CENTRE_BONES = ['hips', 'spine', 'chest', 'upperChest', 'neck', 'head'] as const

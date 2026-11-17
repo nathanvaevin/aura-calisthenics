@@ -16,7 +16,7 @@ type View = 'exercises' | 'ladders' | 'muscles'
 export function ExerciseRow({ ex, best, onClick, trailing }: { ex: Exercise; best?: number; onClick: () => void; trailing?: React.ReactNode }) {
   const placement = placementsOf(ex.id)[0]
   return (
-    <button onClick={onClick} className="flex w-full items-center gap-3.5 px-4 py-3 text-left transition-colors first:rounded-t-[22px] last:rounded-b-[22px] hover:bg-surface-2">
+    <button onClick={onClick} className="flex w-full items-center gap-3.5 px-4 py-3 text-left transition-colors first:rounded-t-card last:rounded-b-card hover:bg-surface-2">
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-mono text-[11px] font-medium" style={{ background: `color-mix(in oklab, ${dvar(ex.discipline)} 14%, transparent)`, color: dvar(ex.discipline) }}>
         {placement ? `L${placement.level}` : '·'}
       </span>

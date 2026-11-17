@@ -2,19 +2,29 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { CHANNELS } from './muscles'
-import { BONES, skeletonOf, type CharacterId } from './skeleton'
+import { BONES, BUILDS, skeletonOf, type BuildId, type CharacterId } from './skeleton'
 
 /** The JSON part of a .glb file. */
-function read(id: CharacterId) {
-  const file = readFileSync(resolve(__dirname, `../../../public/characters/aura-${id}.glb`))
+function read(build: BuildId, id: CharacterId) {
+  const file = readFileSync(resolve(__dirname, `../../../public/characters/${build}-${id}.glb`))
   expect(file.readUInt32LE(0)).toBe(0x46546c67)
   const length = file.readUInt32LE(12)
   return { json: JSON.parse(file.subarray(20, 20 + length).toString('utf8')), bytes: file.length }
 }
 
 // The character files are built from the code (`npm run character:build`). These fail when the two have drifted apart.
-describe.each(['male', 'female'] as const)('the %s character file', (id) => {
-  const { json, bytes } = read(id)
+const CAST = BUILDS.flatMap((build) => (['male', 'female'] as const).map((id) => [build, id] as const))
+
+/** What each character wears, in the order the file holds it. Hair comes last. */
+const KIT: Record<BuildId, Record<CharacterId, string[]>> = {
+  aura: { male: ['body', 'shorts'], female: ['body', 'shorts', 'top', 'hair'] },
+  power: { male: ['body', 'shorts', 'wristbands', 'sash', 'hair'], female: ['body', 'shorts', 'top', 'wristbands', 'sash', 'hair'] },
+  iron: { male: ['body', 'shorts', 'wraps'], female: ['body', 'shorts', 'top', 'wraps', 'hair'] },
+}
+const MATERIAL: Record<string, string> = { body: 'skin', shorts: 'cloth', top: 'cloth', hair: 'hair', wristbands: 'accent', sash: 'accent', wraps: 'accent' }
+
+describe.each(CAST)('the %s %s character file', (build, id) => {
+  const { json, bytes } = read(build, id)
 
   it('carries the Aura skeleton, bone for bone, at the same joints', () => {
     const joints: number[] = json.skins[0].joints
@@ -27,14 +37,17 @@ describe.each(['male', 'female'] as const)('the %s character file', (id) => {
 
   it('has a skinned body with muscle data, and clothes of its own', () => {
     const names = json.meshes.map((m: { name: string }) => m.name)
-    expect(names).toEqual(id === 'female' ? ['body', 'shorts', 'top', 'hair'] : ['body', 'shorts'])
+    expect(names).toEqual(KIT[build][id])
     for (const mesh of json.meshes) {
       const a = mesh.primitives[0].attributes
       expect(a.JOINTS_0).toBeDefined()
       expect(a.WEIGHTS_0).toBeDefined()
       if (mesh.name !== 'hair') expect(a._MUSCLE, mesh.name).toBeDefined()
     }
-    expect(json.materials.map((m: { name: string }) => m.name).sort()).toEqual(id === 'female' ? ['cloth', 'hair', 'skin'] : ['cloth', 'skin'])
+    for (const mesh of json.meshes) expect(json.materials[mesh.primitives[0].material].name, mesh.name).toBe(MATERIAL[mesh.name])
+    expect(json.materials.map((m: { name: string }) => m.name).sort()).toEqual([...new Set(KIT[build][id].map((n) => MATERIAL[n]))].sort())
+    // The Aura masters carry no build name: their files predate builds and are kept byte for byte.
+    expect(json.scenes[0].extras.build).toBe(build === 'aura' ? undefined : build)
   })
 
   it('numbers its muscles the way the app reads them', () => {

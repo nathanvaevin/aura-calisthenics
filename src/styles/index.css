@@ -1,7 +1,8 @@
 @import 'tailwindcss';
 
-@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
-@custom-variant light (&:where([data-theme='light'], [data-theme='light'] *));
+/* Four themes, two schemes: `dark:` and `light:` follow the scheme, not the theme. */
+@custom-variant dark (&:where([data-scheme='dark'], [data-scheme='dark'] *));
+@custom-variant light (&:where([data-scheme='light'], [data-scheme='light'] *));
 
 @theme inline {
   --color-bg: var(--bg);
@@ -21,9 +22,9 @@
 
   --font-sans: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: 'Geist Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
-  --font-display: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
+  --font-display: var(--display);
 
-  --radius-card: 22px;
+  --radius-card: var(--r-card);
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -60,6 +61,42 @@
   --shadow-pop: 0 24px 60px -20px rgba(0, 0, 0, 0.7);
 }
 
+/* Type, shape and atmosphere of the original Aura, by night and by day. */
+:root,
+[data-theme='dark'],
+[data-theme='light'] {
+  /* Type and shape: what makes a theme more than a palette. */
+  --display: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
+  --display-weight: 400;
+  --display-style: normal;
+  --display-case: none;
+  --display-tracking: -0.012em;
+  --display-leading: 0.98;
+  --label: var(--font-sans);
+  --label-weight: 550;
+  --label-style: normal;
+  --label-case: none;
+  --label-tracking: -0.005em;
+  --label-size: 1;
+  --r-card: 22px;
+  --r-pill: 999px;
+  --r-field: 14px;
+  /* The 3D stage is always night: an Aura is light, and light needs dark to be seen. */
+  --stage: #08090d;
+
+  /* Atmosphere: the light behind a page, an optional texture over it, and how a card sits on it. */
+  --glow:
+    radial-gradient(90% 46% at 50% -8%, color-mix(in oklab, var(--accent) 9%, transparent), transparent 70%),
+    radial-gradient(60% 40% at 100% 100%, color-mix(in oklab, var(--d-pull) 4%, transparent), transparent 70%);
+  --glow-over: none;
+  --glow-mask: none;
+  --glow-over-opacity: 1;
+  --glow-over-blend: normal;
+  --card-bg: var(--surface);
+  --card-line: var(--line);
+  --eyebrow-tracking: 0.14em;
+}
+
 [data-theme='light'] {
   color-scheme: light;
   --bg: #f3f0e9;
@@ -88,6 +125,130 @@
   --aura-opacity: 0.5;
   --aura-core: rgba(255, 252, 244, 0.95);
   --shadow-pop: 0 24px 60px -24px rgba(40, 30, 10, 0.28);
+}
+
+/* Anime Power: indigo night, flame amber, condensed italics. */
+[data-theme='power'] {
+  color-scheme: dark;
+  --bg: #07061a;
+  --bg-2: #0b0a24;
+  --surface: #110f2e;
+  --surface-2: #19173d;
+  --surface-3: #262358;
+  --line: rgba(160, 170, 255, 0.12);
+  --line-strong: rgba(175, 185, 255, 0.26);
+  --text: #f6f4ff;
+  --text-2: rgba(238, 235, 255, 0.72);
+  --text-3: rgba(238, 235, 255, 0.46);
+  --accent: #ffb21e;
+  --accent-ink: #1c1000;
+  --good: #3ee6a0;
+  --warn: #ff7a4d;
+
+  --d-handstand: #ffc933;
+  --d-pull: #4da3ff;
+  --d-push: #ff6a45;
+  --d-core: #b98cff;
+  --d-legs: #a6ea45;
+  --d-mobility: #2fe3c2;
+
+  --aura-opacity: 0.78;
+  --aura-blur: 22px;
+  --shadow-pop: 0 24px 60px -20px rgba(4, 2, 30, 0.85);
+
+  --display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --display-weight: 800;
+  --display-style: italic;
+  --display-case: uppercase;
+  --display-tracking: 0.004em;
+  --display-leading: 0.94;
+  --label: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --label-weight: 700;
+  --label-style: italic;
+  --label-case: uppercase;
+  --label-tracking: 0.045em;
+  --label-size: 1.12;
+  --r-card: 14px;
+  --r-pill: 9px;
+  --r-field: 9px;
+  --stage: #060518;
+
+  /* Speed lines converging above the page, and a second light from below. */
+  --glow:
+    radial-gradient(80% 50% at 50% -12%, color-mix(in oklab, var(--accent) 16%, transparent), transparent 70%),
+    radial-gradient(70% 45% at 0% 100%, color-mix(in oklab, #7c5cff 14%, transparent), transparent 72%),
+    radial-gradient(60% 40% at 100% 90%, color-mix(in oklab, #2fd0ff 8%, transparent), transparent 70%);
+  --glow-over: repeating-conic-gradient(from 0deg at 50% -6%, rgba(255, 255, 255, 0.032) 0deg 0.7deg, transparent 0.7deg 5deg);
+  --glow-mask: radial-gradient(75% 60% at 50% 0%, #000 0%, transparent 78%);
+  --glow-over-opacity: 1;
+  --glow-over-blend: normal;
+  --card-bg: linear-gradient(155deg, color-mix(in oklab, var(--surface) 92%, #7c5cff) 0%, var(--surface) 46%);
+  --card-line: var(--line);
+  --eyebrow-tracking: 0.14em;
+}
+
+/* Iron Will: ink, bone and red. Square, heavy, nothing decorative. */
+[data-theme='iron'] {
+  color-scheme: dark;
+  --bg: #0b0a09;
+  --bg-2: #100e0c;
+  --surface: #161412;
+  --surface-2: #1f1c19;
+  --surface-3: #2c2824;
+  --line: rgba(236, 231, 220, 0.11);
+  --line-strong: rgba(236, 231, 220, 0.28);
+  --text: #ece7dc;
+  --text-2: rgba(236, 231, 220, 0.7);
+  --text-3: rgba(236, 231, 220, 0.45);
+  --accent: #d63a2f;
+  --accent-ink: #fff3ee;
+  --good: #a9bf72;
+  --warn: #e09a4a;
+
+  --d-handstand: #e0b458;
+  --d-pull: #7f9fd1;
+  --d-push: #e0674a;
+  --d-core: #a892d6;
+  --d-legs: #a9bf72;
+  --d-mobility: #6fc2ad;
+
+  --aura-opacity: 0.4;
+  --aura-blur: 34px;
+  --shadow-pop: 0 24px 60px -20px rgba(0, 0, 0, 0.85);
+
+  --display: 'Anton', 'Arial Narrow', Impact, sans-serif;
+  --display-weight: 400;
+  --display-style: normal;
+  --display-case: uppercase;
+  --display-tracking: 0.012em;
+  --display-leading: 1.02;
+  --label: 'Anton', 'Arial Narrow', Impact, sans-serif;
+  --label-weight: 400;
+  --label-style: normal;
+  --label-case: uppercase;
+  --label-tracking: 0.07em;
+  --label-size: 0.98;
+  --r-card: 4px;
+  --r-pill: 4px;
+  --r-field: 4px;
+  --stage: #090807;
+
+  /* Paper grain, hatching and a hard vignette. */
+  --glow:
+    radial-gradient(120% 70% at 50% 0%, transparent 40%, rgba(0, 0, 0, 0.5) 100%),
+    repeating-linear-gradient(118deg, rgba(236, 231, 220, 0.022) 0 1px, transparent 1px 7px),
+    radial-gradient(70% 34% at 50% -6%, color-mix(in oklab, var(--accent) 13%, transparent), transparent 72%);
+  --glow-over: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .93  0 0 0 0 .9  0 0 0 0 .86  0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --glow-mask: none;
+  --glow-over-opacity: 0.16;
+  --glow-over-blend: overlay;
+  --card-bg: var(--surface);
+  --card-line: var(--line-strong);
+  --eyebrow-tracking: 0.2em;
+}
+
+[data-theme='light'] {
+  --stage: #121317;
 }
 
 /* ── Base ───────────────────────────────────────────────────────────── */
@@ -147,19 +308,31 @@
   /* ── Type ───────────────────────────────────────────────────────────── */
 
   .display {
-    font-family: var(--font-display);
-    font-weight: 400;
-    letter-spacing: -0.012em;
-    line-height: 0.98;
+    /* The theme's own variable, not the Tailwind token: a card previewing another theme must resolve it for itself. */
+    font-family: var(--display);
+    font-weight: var(--display-weight);
+    font-style: var(--display-style);
+    text-transform: var(--display-case);
+    letter-spacing: var(--display-tracking);
+    line-height: var(--display-leading);
   }
 
   .eyebrow {
     font-family: var(--font-mono);
     font-size: 10.5px;
     font-weight: 500;
-    letter-spacing: 0.14em;
+    letter-spacing: var(--eyebrow-tracking);
     text-transform: uppercase;
     color: var(--text-3);
+  }
+
+  /* The Aura wordmark is the brand: it keeps its own face in every theme. */
+  .wordmark {
+    font-family: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
+    font-weight: 400;
+    font-style: normal;
+    text-transform: none;
+    letter-spacing: -0.012em;
   }
 
   .num {
@@ -170,15 +343,15 @@
   /* ── Surfaces ───────────────────────────────────────────────────────── */
 
   .card {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-card);
+    background: var(--card-bg);
+    border: 1px solid var(--card-line);
+    border-radius: var(--r-card);
   }
 
   .card-quiet {
     background: color-mix(in oklab, var(--surface) 55%, transparent);
     border: 1px solid var(--line);
-    border-radius: var(--radius-card);
+    border-radius: var(--r-card);
   }
 
   .glass {
@@ -207,11 +380,14 @@
     gap: 8px;
     height: 48px;
     padding: 0 22px;
-    border-radius: 999px;
+    border-radius: var(--r-pill);
     border: 1px solid transparent;
-    font-size: 15px;
-    font-weight: 550;
-    letter-spacing: -0.005em;
+    font-family: var(--label);
+    font-size: calc(15px * var(--label-size));
+    font-weight: var(--label-weight);
+    font-style: var(--label-style);
+    text-transform: var(--label-case);
+    letter-spacing: var(--label-tracking);
     white-space: nowrap;
     transition:
       transform 0.18s var(--ease-out-soft),
@@ -249,11 +425,11 @@
   .btn-sm {
     height: 36px;
     padding: 0 14px;
-    font-size: 13.5px;
+    font-size: calc(13.5px * var(--label-size));
   }
   .btn-lg {
     height: 56px;
-    font-size: 16px;
+    font-size: calc(16px * var(--label-size));
   }
 
   .chip {
@@ -262,7 +438,7 @@
     gap: 6px;
     height: 32px;
     padding: 0 13px;
-    border-radius: 999px;
+    border-radius: var(--r-pill);
     border: 1px solid var(--line);
     background: transparent;
     font-size: 13px;
@@ -281,7 +457,7 @@
     width: 100%;
     height: 48px;
     padding: 0 16px;
-    border-radius: 14px;
+    border-radius: var(--r-field);
     border: 1px solid var(--line);
     background: var(--surface);
     outline: none;
@@ -329,9 +505,17 @@
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  background:
-    radial-gradient(90% 46% at 50% -8%, color-mix(in oklab, var(--accent) 9%, transparent), transparent 70%),
-    radial-gradient(60% 40% at 100% 100%, color-mix(in oklab, var(--d-pull) 4%, transparent), transparent 70%);
+  background: var(--glow);
+}
+.page-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--glow-over);
+  -webkit-mask-image: var(--glow-mask);
+  mask-image: var(--glow-mask);
+  opacity: var(--glow-over-opacity);
+  mix-blend-mode: var(--glow-over-blend);
 }
 
 .dot-grid {
@@ -366,7 +550,7 @@
   filter: blur(14px);
   animation: aura-breathe 5s ease-in-out infinite;
 }
-[data-theme='light'] .aura-core {
+[data-scheme='light'] .aura-core {
   mix-blend-mode: soft-light;
 }
 

@@ -6,12 +6,14 @@ import type {
 } from '@/domain/types'
 import { PRESENCE, isLive, liveVisit, mergePlaces, privacyOf } from '@/domain/places'
 import { PROTOCOL, protocolKnown, resultsToEvidence, stationById, type HandIn, type Invite } from '@/domain/assessment'
-import { DEFAULT_AURA_SETTINGS, addNote, move, newAsset, revise, type AssetStatus, type AuraSettings, type DemoAsset, type NewDemo, type WorkoutVideo } from '@/domain/media'
+import { DEFAULT_AURA_SETTINGS, addNote, makeOfficial, move, newAsset, revise, type AssetStatus, type AuraSettings, type DemoAsset, type NewDemo, type WorkoutVideo } from '@/domain/media'
 import { exerciseById, skillById, stepAt } from '@/domain/catalog'
 import { bestEvidence } from '@/domain/scoring/mastery'
 import { adaptTarget, skillStatuses } from '@/domain/scoring/skills'
 import { startOfWeek } from '@/domain/scoring/aura'
 import { courseFromTemplate, uid } from './courseTemplates'
+import { personalOf, type Personal, type Step } from '@/theme/personal'
+import type { ThemeId } from '@/theme/themes'
 import { ME, buildWorld, isoDay, sampleCommunity } from './seed'
 
 export interface ActiveWorkout {
@@ -32,9 +34,12 @@ export interface Celebration {
 }
 
 export interface Settings {
-  theme: 'dark' | 'light'
+  /** The theme this device last showed, so it can be painted before anything loads. The athlete's own choice lives on their profile. */
+  theme: ThemeId
   sound: boolean
   coachMode: boolean
+  /** The Aura forms this device has already announced as earned (`universe:form`). Unset until an athlete first opens the app here. */
+  seenForms?: string[]
   /** Audience chosen at the last check-in, offered again next time. */
   audience?: Audience
   stayMinutes?: number
@@ -204,6 +209,8 @@ interface State {
   createDemo: (input: NewDemo) => string
   /** Follows the review workflow; an illegal move does nothing. Publishing archives the version it replaces. */
   moveDemo: (id: string, to: AssetStatus) => void
+  /** Approve in one step: the version becomes the official demonstration wherever its exercise is shown. */
+  approveDemo: (id: string) => void
   noteDemo: (id: string, note: { tags: string[]; text: string }) => void
   /** A new pending version of the same demonstration, carrying its correction notes. */
   reviseDemo: (id: string) => string | null
@@ -212,7 +219,7 @@ interface State {
   removeDemo: (id: string) => void
   saveWorkoutVideo: (video: WorkoutVideoInput) => string
   removeWorkoutVideo: (id: string) => void
-  setAuraSettings: (patch: Partial<Pick<AuraSettings, 'defaultTheme' | 'themes'>>) => void
+  setAuraSettings: (patch: Partial<Pick<AuraSettings, 'defaultTheme' | 'themes' | 'universes'>>) => void
   /** Take in what the server holds. Changes still waiting to be sent win; owned by src/data/cloud/content.ts. */
   applyContent: (server: ServerContent) => void
   contentSent: (keys: string[]) => void
@@ -246,6 +253,8 @@ interface State {
   toggleFavourite: (placeId: string) => void
   setHomePlace: (placeId: string | null) => void
   setPrivacy: (patch: Partial<AthletePrivacy>) => void
+  /** Theme, character, form, appearance. `step` marks a step of personalization as done. */
+  setStyle: (patch: Partial<Personal>, step?: Step) => void
   /** Start a stay. Any stay still running ends first: nobody is in two places. */
   checkIn: (placeId: string, opts: { minutes: number; audience: Audience; onSite: boolean }) => void
   checkOut: () => void
@@ -419,10 +428,20 @@ export const useStore = create<State>()(
       updateMe: (patch) =>
         set((s) => (s.meId ? { athletes: { ...s.athletes, [s.meId]: { ...s.athletes[s.meId], ...patch } } } : s)),
 
-      setSettings: (patch) => {
-        set((s) => ({ settings: { ...s.settings, ...patch } }))
-        if (patch.theme) document.documentElement.dataset.theme = patch.theme
-      },
+      setSettings: (patch) => set((s) => ({ settings: { ...s.settings, ...patch } })),
+
+      setStyle: (patch, step) =>
+        set((s) => {
+          if (!s.meId) return s
+          const me = s.athletes[s.meId]
+          const was = personalOf(me)
+          const style: Personal = {
+            ...was, ...patch,
+            forms: { ...was.forms, ...patch.forms }, finishes: { ...was.finishes, ...patch.finishes },
+            steps: step ? { ...was.steps, [step]: new Date().toISOString() } : was.steps,
+          }
+          return { athletes: { ...s.athletes, [me.id]: { ...me, style } } }
+        }),
 
       toggleGoal: (skillId) =>
         set((s) => {
@@ -685,6 +704,14 @@ export const useStore = create<State>()(
           const demos = move(s.demos, id, to, new Date().toISOString())
           if (demos === s.demos) return s
           // Publishing may have archived another version: that one changed too.
+          const changed = demos.filter((d, i) => d !== s.demos[i]).map((d) => `demo:${d.id}`)
+          return { demos, contentDirty: dirtied(s.contentDirty, ...changed) }
+        }),
+
+      approveDemo: (id) =>
+        set((s) => {
+          const demos = makeOfficial(s.demos, id, new Date().toISOString())
+          if (demos === s.demos) return s
           const changed = demos.filter((d, i) => d !== s.demos[i]).map((d) => `demo:${d.id}`)
           return { demos, contentDirty: dirtied(s.contentDirty, ...changed) }
         }),

@@ -7,3 +7,4 @@ dist
 .shots
 scripts/_*
 public/characters/*.draft.glb
+*.tsbuildinfo

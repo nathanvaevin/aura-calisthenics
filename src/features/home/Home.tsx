@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { ArrowRight, ArrowUpRight, ClipboardCheck, Play, Plus, ScanLine, Target } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, ClipboardCheck, Play, Plus, ScanLine, Sparkles, Target } from 'lucide-react'
 import type { DisciplineId } from '@/domain/types'
 import { DISCIPLINE_IDS, disciplineById, exerciseById, formatValue } from '@/domain/catalog'
 import { auraTimeline } from '@/domain/scoring/aura'
@@ -16,11 +16,13 @@ import { SkillSheet } from '@/features/tree/SkillSheet'
 import { useStartWorkout } from '@/features/workout/useStart'
 import { AssessPrompt } from '@/features/assess/AssessCards'
 import { TrainingNow } from '@/features/places/shared'
+import { completion } from '@/theme/personal'
+import { useVoice } from '@/theme/useTheme'
 import { dayDiff, dvar, initials, num, relativeDay, shortDate } from '@/lib/format'
 
-const greeting = () => {
+const partOfDay = () => {
   const h = new Date().getHours()
-  return h < 5 ? 'Late session' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
+  return h < 5 ? 'night' : h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening'
 }
 
 export function Home() {
@@ -28,6 +30,8 @@ export function Home() {
   const coach = useIsCoach()
   const navigate = useNavigate()
   const start = useStartWorkout()
+  const v = useVoice()
+  const personal = completion(me.athlete)
   const courses = useStore((s) => s.courses)
   const enrollments = useStore((s) => s.enrollments)
 
@@ -63,7 +67,7 @@ export function Home() {
         <button onClick={() => navigate('/profile')} className="flex items-center gap-3 text-left">
           <span className="lg:hidden"><AuraDot mix={me.aura.mix} size={40}>{initials(me.athlete.name)}</AuraDot></span>
           <span>
-            <Eyebrow>{greeting()}</Eyebrow>
+            <Eyebrow>{v(`home.greeting.${partOfDay()}`)}</Eyebrow>
             <span className="display mt-1 block text-[26px] lg:text-[34px]">{me.athlete.name.split(' ')[0]}</span>
           </span>
         </button>
@@ -92,8 +96,9 @@ export function Home() {
 
           <div className="rise rise-2 -mt-2 flex items-center justify-center gap-2">
             <StatusTag status={me.aura.status} />
-            {cls.next && <span className="num text-[12.5px] text-ink-3">{num(cls.next.min - me.aura.aura)} to {cls.next.label}</span>}
+            {cls.next && <span className="num text-[12.5px] text-ink-3">{v('home.toNext', { n: num(cls.next.min - me.aura.aura), label: cls.next.label })}</span>}
           </div>
+          <p className="rise rise-2 display mx-auto mt-4 max-w-[330px] text-center text-[19px] leading-snug text-ink-2">{v('home.line')}</p>
 
           <div className="rise rise-3 card mt-6 flex items-center justify-between gap-4 p-4">
             <div>
@@ -120,6 +125,13 @@ export function Home() {
         </section>
 
         <div className="mt-8 space-y-8 lg:mt-4">
+          {!personal.core && (
+            <button onClick={() => navigate('/personalize')} className="rise card pressable mb-3 flex w-full items-center gap-3.5 p-3.5 text-left">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-accent-ink"><Sparkles size={17} /></span>
+              <span className="min-w-0 flex-1"><span className="block text-[14.5px] font-medium">Personalize</span><span className="block text-[12.5px] leading-snug text-ink-3">{v('personal.start')}</span></span>
+              <ArrowRight size={16} className="shrink-0 text-ink-3" />
+            </button>
+          )}
           <div className="rise rise-3 empty:hidden"><AssessPrompt /></div>
           <div className="rise rise-3 empty:hidden"><TrainingNow /></div>
 
@@ -168,7 +180,7 @@ export function Home() {
           <section className="rise rise-4">
             <SectionTitle action={<TextLink onClick={() => navigate('/tree')}>Choose goals</TextLink>}>Goals</SectionTitle>
             {goals.length === 0 ? (
-              <button onClick={() => navigate('/tree')} className="pressable flex w-full items-center gap-3 rounded-[22px] border border-dashed border-line-strong p-5 text-left">
+              <button onClick={() => navigate('/tree')} className="pressable flex w-full items-center gap-3 rounded-card border border-dashed border-line-strong p-5 text-left">
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-2"><Plus size={18} /></span>
                 <span>
                   <span className="block text-[15px] font-medium">Pick a skill to work toward</span>
@@ -237,7 +249,7 @@ export function Home() {
                   <button
                     key={i}
                     onClick={() => (s.skill ? setSkillOpen(s.skill.id) : setLogOpen(s.exerciseId))}
-                    className="flex w-full items-center gap-3.5 px-4 py-3.5 text-left transition-colors first:rounded-t-[22px] last:rounded-b-[22px] hover:bg-surface-2"
+                    className="flex w-full items-center gap-3.5 px-4 py-3.5 text-left transition-colors first:rounded-t-card last:rounded-b-card hover:bg-surface-2"
                   >
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: `color-mix(in oklab, ${dvar(s.discipline)} 16%, transparent)`, color: dvar(s.discipline) }}>
                       {s.kind === 'benchmark' ? <Plus size={16} /> : <ArrowUpRight size={16} />}

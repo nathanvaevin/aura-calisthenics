@@ -1,7 +1,12 @@
 /**
  * The Aura body, as shapes.
  *
- * One description for both master characters: every shape is placed relative
+ * One description for every character. A build (`aura`, `power`, `iron`) is
+ * the same anatomy on the same skeleton with more or less muscle on it, its
+ * own hair and its own small pieces of kit; see `TUNE` and the hair and
+ * clothing sections. The Aura build is the master the others are derived from.
+ *
+ * One description for both sexes: every shape is placed relative
  * to the skeleton, so the female character is the same anatomy on her own
  * proportions, with a handful of stated differences. Coordinates are written
  * for the 1.80 m reference body and scaled.
@@ -10,20 +15,37 @@
  * (src/visual/body/muscles.ts). That is what makes the activation follow the
  * muscle instead of a painted patch.
  */
-import { skeletonOf, type CharacterId, type Skeleton, type V3 } from '../../src/visual/body/skeleton'
+import { skeletonOf, type BuildId, type CharacterId, type Skeleton, type V3 } from '../../src/visual/body/skeleton'
 import type { Channel } from '../../src/visual/body/muscles'
-import type { Fn, Shape } from './sdf'
+import { Field, gradient, type Fn, type Shape } from './sdf'
 
-export interface Garment { name: string; thickness: Fn; region: Fn }
+export interface Garment {
+  name: string
+  thickness: Fn
+  region: Fn
+  /** `accent` pieces take the colour of the athlete's theme. */
+  material?: 'cloth' | 'accent'
+  /** Where to mesh it, when it is not on the trunk. */
+  box?: [V3, V3]
+  triangles?: number
+}
 
 export interface Anatomy {
   id: CharacterId
+  build: BuildId
   sk: Skeleton
   body: Shape[]
   hair: Shape[]
+  /** Room the hair needs, and how finely it is kept. */
+  hairBox: [V3, V3]
+  hairTriangles: number
   garments: Garment[]
-  /** Where the fine parts are cut from the body: hands beyond x, head above y, feet below y. */
-  cuts: { wrist: number; neck: number; ankle: number }
+  /**
+   * Where the fine parts are cut from the body: hands beyond x, head above y, feet below y.
+   * `rise` lifts the neck cut away from the centre line (metres per metre squared), so that
+   * shoulders and traps which stand higher than the neck stay part of the trunk.
+   */
+  cuts: { wrist: number; neck: number; ankle: number; rise: number }
   /** Where the wordmark sits on the shorts, at rest, seen from the front. */
   logo: { x: number; y: number; width: number; height: number }
 }
@@ -53,12 +75,51 @@ const cross = (a: V3, b: V3): V3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[
 const unit = (a: V3): V3 => mul(a, 1 / Math.hypot(a[0], a[1], a[2]))
 const mix = (a: V3, b: V3, t: number): V3 => add(a, mul(sub(b, a), t))
 
-export function anatomyOf(id: CharacterId): Anatomy {
+/**
+ * What a build changes about the Aura body: how much muscle sits on the same
+ * skeleton and how deeply it is cut. Every value is a multiple of the Aura
+ * master's, [male, female]; the Aura build is all ones.
+ */
+interface Tune {
+  /** Depth of the muscle definition, and how square and sharp-edged each muscle is. */
+  def: [number, number]; power: number; edge: number
+  /** Muscle bulk in general, then part by part. */
+  mus: [number, number]
+  trunkW: [number, number]; trunkD: [number, number]; waist: [number, number]
+  arm: [number, number]; forearm: [number, number]; delt: [number, number]; neck: [number, number]
+  lat: [number, number]; trap: [number, number]; chest: [number, number]
+  leg: [number, number]; calf: [number, number]; glute: [number, number]
+}
+
+const ONE: [number, number] = [1, 1]
+const TUNE: Record<BuildId, Tune> = {
+  aura: { def: ONE, power: 1, edge: 0, mus: ONE, trunkW: ONE, trunkD: ONE, waist: ONE, arm: ONE, forearm: ONE, delt: ONE, neck: ONE, lat: ONE, trap: ONE, chest: ONE, leg: ONE, calf: ONE, glute: ONE },
+  // The anime hero: wide shoulders over a narrow waist, full forearms and calves, clean smooth muscle.
+  power: {
+    def: [1.3, 1.35], power: 1, edge: 0, mus: [1.15, 1.12],
+    trunkW: [1.04, 1.02], trunkD: [1.02, 1], waist: [0.93, 0.95],
+    arm: [1.12, 1.1], forearm: [1.2, 1.14], delt: [1.18, 1.14], neck: [1.08, 1],
+    lat: [1.22, 1.14], trap: [1.15, 1.05], chest: [1.14, 1.04],
+    leg: [1.06, 1.05], calf: [1.16, 1.12], glute: [1, 1.02],
+  },
+  // The fighter: dense everywhere, thick neck and traps, wide lats, muscle cut deep.
+  iron: {
+    def: [1.55, 1.75], power: 1.05, edge: -0.1, mus: [1.4, 1.45],
+    trunkW: [1.08, 1.05], trunkD: [1.08, 1.04], waist: [1.04, 1.02],
+    arm: [1.28, 1.3], forearm: [1.34, 1.34], delt: [1.3, 1.32], neck: [1.3, 1.22],
+    lat: [1.3, 1.32], trap: [1.6, 1.45], chest: [1.3, 1.1],
+    leg: [1.16, 1.2], calf: [1.24, 1.24], glute: [1.08, 1.1],
+  },
+}
+
+export function anatomyOf(id: CharacterId, build: BuildId = 'aura'): Anatomy {
   const sk = skeletonOf(id)
   const J = sk.joints
   const S = sk.scale
   const F = id === 'female'
   const pick = <T,>(male: T, female: T) => (F ? female : male)
+  const T = TUNE[build]
+  const tu = (k: Exclude<keyof Tune, 'power' | 'edge'>) => T[k][F ? 1 : 0]
 
   const body: Shape[] = []
   const E = (c: V3, r: V3, o: Opt) => body.push({ kind: 'ell', c, r, axes: o.rot ? turned(o.rot) : undefined, k: o.k * S, sub: o.sub, mirror: o.mirror ?? c[0] > 1e-6, bones: o.bones })
@@ -73,10 +134,10 @@ export function anatomyOf(id: CharacterId): Anatomy {
     body.push({ kind: 'ell', c, r: [w * S, len * S, d * S], axes: limbAxes(dir), k: o.k * S, mirror: true, bones: o.bones })
 
   // Scales. `m` thins muscle, `wT` and `dT` narrow the trunk, `def` is how deep the definition is cut.
-  const m = pick(1, 0.8)
-  const wT = pick(1, 0.9)
-  const dT = pick(1, 0.94)
-  const def = pick(1, 0.62)
+  const m = pick(1, 0.8) * tu('mus')
+  const wT = pick(1, 0.9) * tu('trunkW')
+  const dT = pick(1, 0.94) * tu('trunkD')
+  const def = pick(1, 0.62) * tu('def')
   const t = (x: number, y: number, z: number): V3 => [x * S, y * S, z * S]
   const tm = (x: number, y: number, z: number): V3 => [x * S * wT, y * S, z * S * dT]
   const R = (a: number, b: number, c: number): V3 => [a * S, b * S, c * S]
@@ -87,19 +148,21 @@ export function anatomyOf(id: CharacterId): Anatomy {
    * centred on the skin and is as deep as it needs to be to catch it.
    */
   const M = (channel: Channel, c: V3, r: V3, height: number, o: { rot?: V3; axes?: [V3, V3, V3]; edge?: number; power?: number } = {}) =>
-    body.push({ kind: 'ell', c, r, axes: o.axes ?? (o.rot ? turned(o.rot) : undefined), k: 0, mirror: true, bones: {}, muscle: channel, relief: height * S * def, edge: o.edge ?? 0.5, power: o.power ?? 2.6 })
+    body.push({ kind: 'ell', c, r, axes: o.axes ?? (o.rot ? turned(o.rot) : undefined), k: 0, mirror: true, bones: {}, muscle: channel, relief: height * S * def, edge: Math.max(0.15, Math.min(0.85, (o.edge ?? 0.5) + T.edge)), power: (o.power ?? 2.6) * T.power })
 
   // ── Trunk ──────────────────────────────────────────────────────────────
   E(t(0, 0.975, -0.008), R(0.14 * pick(1, 1.03), 0.095, 0.097 * pick(1, 1.02)), { k: 0.05, bones: { hips: 1, spine: 0.6 } })
-  E(t(0, 1.1, -0.002), R(0.121 * pick(1, 0.93), 0.115, 0.08 * pick(1, 0.94)), { k: 0.05, bones: { spine: 1, chest: 1, hips: 0.7 } })
+  E(t(0, 1.1, -0.002), R(0.121 * pick(1, 0.93) * tu('waist'), 0.115, 0.08 * pick(1, 0.94)), { k: 0.05, bones: { spine: 1, chest: 1, hips: 0.7 } })
   E(t(0, 1.285, -0.01), R(0.15 * wT, 0.15, 0.107 * dT), { k: 0.05, bones: { chest: 1, upperChest: 1, spine: 0.6 } })
   E(t(0, 1.405, -0.018), [J.upperArmL[0] * 0.86, 0.075 * S, 0.09 * S * dT], { k: 0.05, bones: { upperChest: 1, chest: 0.5, neck: 0.3 } })
 
-  const aS = S * pick(1, 0.85)
+  const aS = S * pick(1, 0.85) * tu('arm')
+  // Deltoid and forearm on top of the arm's own thickness.
+  const dl = tu('delt') / tu('arm'), fa = tu('forearm') / tu('arm')
   const A = (J.lowerArmL[0] - J.upperArmL[0]) / 0.3
   const sh = (dx: number, dy: number, dz: number): V3 => [J.upperArmL[0] + dx * A, J.upperArmL[1] + dy * S, J.upperArmL[2] + dz * S]
   C(t(0.04, 1.452, -0.02), sh(-0.012, -0.002, -0.002), 0.058 * aS, 0.047 * aS, { k: 0.04, bones: { upperChest: 1, shoulderL: 1 } })
-  const nk = S * pick(1, 0.86)
+  const nk = S * pick(1, 0.86) * tu('neck')
   C(t(0, 1.45, -0.022), t(0, 1.6, -0.004), 0.058 * nk, 0.052 * nk, { k: 0.035, bones: { neck: 1, upperChest: 0.8, head: 0.8 } })
   E(t(0, 1.693, 0.012), R(0.079, 0.108, 0.095), { k: 0.03, bones: { head: 1 } })
   E(t(0, 1.64, 0.026), R(pick(0.064, 0.059), 0.066, 0.068), { k: 0.03, bones: { head: 1, neck: 0.4 } })
@@ -109,14 +172,14 @@ export function anatomyOf(id: CharacterId): Anatomy {
   C(t(0.018, 1.452, 0.052), sh(-0.03, 0.008, 0.022), 0.0095 * S, 0.0085 * S, { k: 0.016, bones: { upperChest: 1, shoulderL: 0.8 } })
 
   // Mass: what gives the trunk its athletic shape, blended smooth.
-  E(tm(0.072, 1.372, 0.05), R(0.082 * wT, 0.066, 0.048 * pick(1, 0.7)), { k: 0.04, rot: [0, 0, 8], bones: { upperChest: 1, shoulderL: 0.4, upperArmL: 0.25 } })
+  E(tm(0.072, 1.372, 0.05), R(0.082 * wT, 0.066, 0.048 * pick(1, 0.7) * tu('chest')), { k: 0.04, rot: [0, 0, 8], bones: { upperChest: 1, shoulderL: 0.4, upperArmL: 0.25 } })
   C(tm(0.125, 1.4, 0.046), sh(0.04, -0.014, 0.02), 0.03 * S * m, 0.022 * aS, { k: 0.035, bones: { upperChest: 1, shoulderL: 0.8, upperArmL: 0.35 } })
   if (F) E(tm(0.071, 1.35, 0.088), R(0.056, 0.05, 0.047), { k: 0.026, bones: { upperChest: 1, chest: 0.6 } })
   E(tm(0.075, 1.375, -0.078), R(0.085 * wT, 0.1, 0.045), { k: 0.045, bones: { upperChest: 1, chest: 0.8, shoulderL: 0.4 } })
-  E(tm(0.124, 1.275, -0.056), R(0.054 * pick(1, 0.85), 0.125, 0.046 * m), { k: 0.035, rot: [0, 0, -13], bones: { chest: 1, upperChest: 1, spine: 0.6 } })
+  E(tm(0.124, 1.275, -0.056), R(0.054 * pick(1, 0.85) * tu('lat'), 0.125, 0.046 * m), { k: 0.035, rot: [0, 0, -13], bones: { chest: 1, upperChest: 1, spine: 0.6 } })
   C(tm(0.138, 1.375, -0.058), sh(0.04, -0.016, -0.028), 0.032 * S * m, 0.022 * aS, { k: 0.035, bones: { upperChest: 1, shoulderL: 0.8, upperArmL: 0.35 } })
-  E(tm(0.075, 1.49, -0.04), R(0.085 * wT, 0.032, 0.042), { k: 0.03, rot: [0, 0, -14], bones: { upperChest: 1, neck: 0.5, shoulderL: 0.6 } })
-  C(t(0.03, 1.565, -0.03), tm(0.11, 1.475, -0.03), 0.02 * nk, 0.03 * S, { k: 0.03, bones: { neck: 1, upperChest: 1, shoulderL: 0.5 } })
+  E(tm(0.075, 1.49, -0.04), R(0.085 * wT, 0.032 * tu('trap'), 0.042 * tu('trap')), { k: 0.03, rot: [0, 0, -14], bones: { upperChest: 1, neck: 0.5, shoulderL: 0.6 } })
+  C(t(0.03, 1.565, -0.03), tm(0.11, 1.475, -0.03), 0.02 * nk * tu('trap'), 0.03 * S * tu('trap'), { k: 0.03, bones: { neck: 1, upperChest: 1, shoulderL: 0.5 } })
   E(tm(0.034, 1.11, -0.074), R(0.03, 0.11, 0.022), { k: 0.025, bones: { spine: 1, chest: 1, hips: 1 } })
   E(tm(0.088, 1.13, 0.014), R(0.026, 0.075, 0.05), { k: 0.045, bones: { spine: 1, chest: 1, hips: 0.7 } })
   E(t(0, 1.26, -0.134 * dT), R(0.006, 0.2, 0.012), { k: 0.012, sub: true, bones: {} })
@@ -141,11 +204,11 @@ export function anatomyOf(id: CharacterId): Anatomy {
   C(sh(0, 0, 0), sh(0.3, 0, 0), 0.043 * aS, 0.035 * aS, { k: 0.03, bones: { shoulderL: 0.5, upperArmL: 1, lowerArmL: 1 } })
   C(sh(0.3, 0, 0), sh(0.564, 0, 0), 0.036 * aS, 0.0245 * aS, { k: 0.02, bones: { upperArmL: 1, lowerArmL: 1, handL: 1 } })
   E(sh(0.3, 0, -0.03), mul([0.022, 0.02, 0.018], aS), { k: 0.014, bones: { upperArmL: 1, lowerArmL: 1 } })
-  E(sh(0.046, 0.024, -0.002), [0.098 * A, 0.056 * aS, 0.062 * aS], { k: 0.03, bones: { shoulderL: 0.6, upperArmL: 1, upperChest: 0.2 } })
+  E(sh(0.046, 0.024, -0.002), [0.098 * A, 0.056 * aS * dl, 0.062 * aS * dl], { k: 0.03, bones: { shoulderL: 0.6, upperArmL: 1, upperChest: 0.2 } })
   E(sh(0.157, -0.004, 0.028), [0.1 * A, 0.036 * aS, 0.034 * aS * m], { k: 0.026, bones: { upperArmL: 1, lowerArmL: 0.5 } })
   E(sh(0.142, 0, -0.032), [0.11 * A, 0.038 * aS, 0.034 * aS * m], { k: 0.026, bones: { upperArmL: 1, shoulderL: 0.3 } })
-  E(sh(0.397, -0.014, 0.008), [0.095 * A, 0.027 * aS, 0.036 * aS], { k: 0.022, bones: { lowerArmL: 1, upperArmL: 0.5 } })
-  E(sh(0.382, 0.015, -0.002), [0.092 * A, 0.024 * aS, 0.036 * aS], { k: 0.022, bones: { lowerArmL: 1, upperArmL: 0.5 } })
+  E(sh(0.397, -0.014, 0.008), [0.095 * A, 0.027 * aS * fa, 0.036 * aS * fa], { k: 0.022, bones: { lowerArmL: 1, upperArmL: 0.5 } })
+  E(sh(0.382, 0.015, -0.002), [0.092 * A, 0.024 * aS * fa, 0.036 * aS * fa], { k: 0.022, bones: { lowerArmL: 1, upperArmL: 0.5 } })
   E(sh(0.332, 0.006, 0.028), [0.06 * A, 0.022 * aS, 0.02 * aS], { k: 0.022, bones: { upperArmL: 1, lowerArmL: 1 } })
   const arm = (dx: number, dy: number, dz: number, len: number, up: number, across: number): [V3, V3] => [sh(dx, dy, dz), [len * A, up * aS, across * aS]]
   M('delt_lat', ...arm(0.058, 0.052, -0.002, 0.096, 0.056, 0.036), 0.005)
@@ -183,9 +246,9 @@ export function anatomyOf(id: CharacterId): Anatomy {
   const thigh = sub(knee, hip), shin = sub(ankle, knee)
   const lg = (tt: number, ox: number, oz: number): V3 => add(mix(hip, knee, tt), [ox * S, 0, oz * S])
   const sn = (tt: number, ox: number, oz: number): V3 => add(mix(knee, ankle, tt), [ox * S, 0, oz * S])
-  const gl = pick(1, 1.06)
-  const lb = pick(1, 0.96)
-  const cb = pick(1, 0.92)
+  const gl = pick(1, 1.06) * tu('glute')
+  const lb = pick(1, 0.96) * tu('leg')
+  const cb = pick(1, 0.92) * tu('calf')
   E([hip[0] - 0.012 * S, 0.955 * S, -0.068 * S], R(0.08 * gl, 0.085 * gl, 0.054 * gl), { k: 0.035, bones: { hips: 1, upperLegL: 0.6 } })
   E([hip[0] + 0.03 * S, 1.01 * S, -0.03 * S], R(0.036, 0.05, 0.05), { k: 0.04, bones: { hips: 1, spine: 0.3 } })
   if (F) E([hip[0] + 0.04 * S, 0.93 * S, -0.012 * S], R(0.052, 0.09, 0.076), { k: 0.045, bones: { hips: 1, upperLegL: 0.6 } })
@@ -225,7 +288,7 @@ export function anatomyOf(id: CharacterId): Anatomy {
 
   // ── Hair (female): short, loose, to the jaw ─────────────────────────────
   const hair: Shape[] = []
-  if (F) {
+  if (F && build === 'aura') {
     const lock = (c: V3, r: V3, rot: V3 = [0, 0, 0], extra: Partial<Shape> = {}) => hair.push({ kind: 'ell', c, r, axes: turned(rot), k: 0.012 * S, mirror: c[0] > 1e-6, bones: { head: 1 }, ...extra })
     lock(t(0, 1.708, -0.006), R(0.0855, 0.1, 0.101), [0, 0, 0], { k: 0.02 * S })
     lock(t(0, 1.648, -0.058), R(0.076, 0.078, 0.042))
@@ -240,9 +303,61 @@ export function anatomyOf(id: CharacterId): Anatomy {
     hair.push({ kind: 'ell', c: t(0, 1.65, 0.1), r: R(0.061, 0.088, 0.066), k: 0.016 * S, sub: true, mirror: false, bones: {} })
   }
 
+  // ── Hair of the other builds ────────────────────────────────────────────
+  let hairBox: [V3, V3] = [[-0.13 * S, 1.5 * S, -0.16 * S], [0.13 * S, 1.86 * S, 0.16 * S]]
+  let hairTriangles = 6000
+  if (build !== 'aura') {
+    const cap = (c: V3, r: V3) => hair.push({ kind: 'ell', c, r, k: 0.02 * S, mirror: false, bones: { head: 1 } })
+    const tuft = (c: V3, r: V3, rot: V3 = [0, 0, 0]) => hair.push({ kind: 'ell', c, r, axes: turned(rot), k: 0.014 * S, mirror: c[0] > 1e-6, bones: { head: 1 } })
+    /** A spike: thick at the scalp, a point at the tip. */
+    const spike = (a: V3, b: V3, r1: number, r2 = 0.0045, both = a[0] > 1e-6 || b[0] > 1e-6) => hair.push({ kind: 'cone', a, b, r1: r1 * S, r2: r2 * S, k: 0.014 * S, mirror: both, bones: { head: 1 } })
+    const face = () => hair.push({ kind: 'ell', c: t(0, 1.65, 0.1), r: R(0.061, 0.088, 0.066), k: 0.016 * S, sub: true, mirror: false, bones: {} })
+    if (build === 'power' && !F) {
+      // Swept back as if by speed: long flames laid over the crown, tallest down the middle, and one lock across the brow.
+      cap(t(0, 1.725, -0.004), R(0.084, 0.086, 0.1))
+      spike(t(0, 1.775, 0.055), t(0, 1.9, -0.09), 0.05)
+      spike(t(0, 1.785, -0.005), t(0, 1.9, -0.185), 0.05)
+      spike(t(0, 1.765, -0.05), t(0, 1.84, -0.245), 0.046)
+      spike(t(0, 1.71, -0.07), t(0, 1.74, -0.215), 0.04)
+      spike(t(0.045, 1.76, 0.045), t(0.075, 1.87, -0.085), 0.042)
+      spike(t(0.058, 1.75, -0.015), t(0.1, 1.845, -0.17), 0.042)
+      spike(t(0.066, 1.715, -0.04), t(0.112, 1.765, -0.2), 0.036)
+      spike(t(0.074, 1.72, 0.035), t(0.1, 1.765, -0.075), 0.03)
+      spike(t(0.012, 1.775, 0.08), t(-0.06, 1.75, 0.122), 0.032, 0.004, false)
+      spike(t(0.04, 1.772, 0.072), t(0.066, 1.756, 0.106), 0.024, 0.004, false)
+      face()
+      hairBox = [[-0.16 * S, 1.5 * S, -0.3 * S], [0.16 * S, 1.96 * S, 0.17 * S]]
+      hairTriangles = 7000
+    } else if (build === 'power') {
+      // Pulled up and back into a tail that arcs behind the head and breaks into spikes; a fringe swept to one side.
+      cap(t(0, 1.715, -0.006), R(0.0845, 0.095, 0.1))
+      spike(t(0.074, 1.74, 0.04), t(0.088, 1.69, 0.062), 0.024, 0.006)
+      spike(t(0.02, 1.776, 0.078), t(-0.052, 1.742, 0.12), 0.03, 0.004, false)
+      spike(t(0.046, 1.77, 0.068), t(0.072, 1.74, 0.104), 0.025, 0.004, false)
+      spike(t(-0.03, 1.775, 0.07), t(-0.078, 1.752, 0.092), 0.024, 0.004, false)
+      // The tail: full where it leaves the tie, arcing down behind the head, ending in points.
+      const strand = (a: V3, b: V3, r1: number, r2: number) => hair.push({ kind: 'cone', a, b, r1: r1 * S, r2: r2 * S, k: 0.016 * S, mirror: false, bones: { head: 1 } })
+      tuft(t(0, 1.792, -0.076), R(0.038, 0.034, 0.03))
+      strand(t(0, 1.79, -0.17), t(0, 1.79, -0.075), 0.06, 0.036)
+      strand(t(0, 1.79, -0.17), t(0, 1.7, -0.26), 0.06, 0.048)
+      spike(t(0, 1.7, -0.26), t(0, 1.56, -0.31), 0.048)
+      spike(t(0, 1.72, -0.25), t(0, 1.66, -0.385), 0.036)
+      spike(t(0.02, 1.71, -0.25), t(0.072, 1.6, -0.3), 0.03)
+      spike(t(0, 1.82, -0.17), t(0, 1.84, -0.285), 0.03)
+      face()
+      hairBox = [[-0.14 * S, 1.48 * S, -0.44 * S], [0.14 * S, 1.92 * S, 0.17 * S]]
+      hairTriangles = 7000
+    } else if (F) {
+      // Cropped close, with a small tight knot at the back.
+      cap(t(0, 1.712, -0.004), R(0.083, 0.098, 0.099))
+      tuft(t(0, 1.722, -0.106), R(0.033, 0.033, 0.028))
+      face()
+    }
+  }
+
   // ── Clothing ────────────────────────────────────────────────────────────
   const waist = pick(1.032, 1.05) * S
-  const hem = mix(hip, knee, pick(0.47, 0.31))
+  const hem = mix(hip, knee, build === 'iron' ? pick(0.36, 0.27) : pick(0.47, 0.31))
   const down = unit(thigh)
   const smooth = (a: number, b: number, v: number) => { const u = Math.min(1, Math.max(0, (v - a) / (b - a))); return u * u * (3 - 2 * u) }
   const garments: Garment[] = [{
@@ -269,9 +384,55 @@ export function anatomyOf(id: CharacterId): Anatomy {
     })
   }
 
+  // The muscle patches were placed on the Aura master's skin. Where a build carries more mass the skin
+  // has moved outward, and each patch moves with it, so it sits as deep in this body as it did in that one.
+  if (build !== 'aura') {
+    const master = anatomyOf(id, 'aura').body
+    const solid = (shapes: Shape[]) => { const f = new Field(shapes.filter((x) => !x.relief)); return (x: number, y: number, z: number) => f.value(x, y, z) }
+    const was = solid(master), now = solid(body)
+    const mine = body.filter((x) => x.relief), theirs = master.filter((x) => x.relief)
+    theirs.forEach((ref, i) => {
+      const c = mine[i].c!
+      const depth = was(...ref.c!)
+      for (let pass = 0; pass < 3; pass++) {
+        const off = depth - now(...c)
+        const n = unit(gradient(now, c[0], c[1], c[2], 0.002))
+        for (let k = 0; k < 3; k++) c[k] += n[k] * off
+      }
+    })
+  }
+
+  // Pieces in the colour of the athlete's theme.
+  const wristX = J.handL[0], wristY = J.handL[1], wristZ = J.handL[2]
+  const armBox = (to: number): [V3, V3] => [[0, wristY - 0.09 * S, wristZ - 0.09 * S], [to + 0.02 * S, wristY + 0.09 * S, wristZ + 0.09 * S]]
+  if (build === 'power') {
+    const a = wristX - 0.092 * S, b = wristX - 0.027 * S
+    garments.push({
+      name: 'wristbands', material: 'accent', box: armBox(b), triangles: 1400,
+      thickness: () => 0.0052 * S,
+      region: (x) => Math.max(a - Math.abs(x), Math.abs(x) - b),
+    })
+    // Above the hip crease, so that it stays a band when the hips fold.
+    const lo = waist - 0.004 * S, hi = waist + 0.056 * S
+    garments.push({
+      name: 'sash', material: 'accent', triangles: 2400,
+      thickness: () => 0.009 * S,
+      region: (_x, y) => Math.max(lo - y, y - hi),
+    })
+  }
+  if (build === 'iron') {
+    const a = wristX - 0.14 * S, b = wristX + 0.03 * H
+    garments.push({
+      name: 'wraps', material: 'accent', box: armBox(b), triangles: 3000,
+      // Wound round the arm: each turn stands a little proud of the last.
+      thickness: (x, _y, z) => (0.0042 + 0.0011 * Math.sin((Math.abs(x) + 0.45 * z) * (Math.PI * 2 / (0.019 * S)))) * S,
+      region: (x) => Math.max(a - Math.abs(x), Math.abs(x) - b),
+    })
+  }
+
   return {
-    id, sk, body, hair, garments,
-    cuts: { wrist: J.handL[0] - 0.024 * H, neck: 1.548 * S, ankle: ankle[1] + 0.046 * S },
+    id, build, sk, body, hair, garments, hairBox, hairTriangles,
+    cuts: { wrist: J.handL[0] - 0.024 * H, neck: 1.548 * S, ankle: ankle[1] + 0.046 * S, rise: build === 'aura' ? 0 : 3 / S },
     logo: { x: hip[0] + 0.018 * S, y: hem[1] + pick(0.078, 0.05) * S, width: pick(0.104, 0.082) * S, height: pick(0.104, 0.082) * S * 0.34 },
   }
 }

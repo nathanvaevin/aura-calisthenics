@@ -1,18 +1,10 @@
-import { lazy, Suspense, useEffect, useState, type ComponentProps } from 'react'
+import { useEffect, useState } from 'react'
 import type { DisciplineId, MuscleId } from '@/domain/types'
 import type { AssetStatus } from '@/domain/media'
 import { cx } from '@/lib/format'
 
-const LazyDemo = lazy(() => import('@/visual/Demo'))
-
 /** The 3D stage, loaded when first needed. */
-export function Stage(props: ComponentProps<typeof LazyDemo>) {
-  return (
-    <Suspense fallback={<div className={cx('w-full rounded-[22px] border border-line bg-[#08090d]', props.className)} style={{ aspectRatio: String(props.ratio ?? 1) }} />}>
-      <LazyDemo {...props} />
-    </Suspense>
-  )
-}
+export { Stage3D as Stage } from '@/ui/Stage3D'
 
 /** Whether there is room for two columns. */
 export function useWide() {

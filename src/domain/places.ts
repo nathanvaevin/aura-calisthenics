@@ -68,7 +68,7 @@ export const AUDIENCES: Record<Audience, { label: string; short: string }> = {
  * Defaults when an athlete has chosen nothing. Declared, coarse facts are open;
  * anything about where a person actually is or goes starts closed.
  */
-export const DEFAULT_PRIVACY: AthletePrivacy = { origin: 'everyone', base: 'everyone', places: 'following', visits: 'me' }
+export const DEFAULT_PRIVACY: AthletePrivacy = { origin: 'everyone', base: 'everyone', places: 'following', visits: 'me', style: 'everyone', ratings: 'me', interests: 'everyone' }
 
 export const privacyOf = (a: Pick<Athlete, 'privacy'>): AthletePrivacy => ({ ...DEFAULT_PRIVACY, ...a.privacy })
 
@@ -85,6 +85,8 @@ export const canSee = (audience: Audience, relation: Relation) =>
 export interface PublicIdentity {
   from?: string
   city?: string
+  country?: string
+  interests: import('./types').DisciplineId[]
   environments: TrainingEnvironment[]
   homePlaceId?: string
   favouritePlaces: string[]
@@ -98,6 +100,8 @@ export function identityFor(a: Athlete, relation: Relation): PublicIdentity {
   return {
     from: canSee(p.origin, relation) ? a.from : undefined,
     city: canSee(p.base, relation) ? a.city : undefined,
+    country: canSee(p.base, relation) ? a.country : undefined,
+    interests: canSee(p.interests, relation) ? (a.interests ?? []) : [],
     environments: places ? (a.environments ?? []) : [],
     homePlaceId: places ? a.homePlaceId : undefined,
     favouritePlaces: places ? (a.favouritePlaces ?? []) : [],

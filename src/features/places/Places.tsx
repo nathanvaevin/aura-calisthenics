@@ -4,6 +4,7 @@ import { House, LocateFixed, MapPin, Plus, RefreshCw, ScanLine, Search, Star, X 
 import type { Place, PlaceAmenity, PlaceEquipment, PlaceKind } from '@/domain/types'
 import { MAX_SEARCH_AREA, PLACE_EQUIPMENT, PLACE_KINDS, distance, formatDistance, inBox, liveVisit, type BBox, type LatLon } from '@/domain/places'
 import { useStore } from '@/data/store'
+import { useScheme } from '@/theme/useTheme'
 import { useClock, useMe } from '@/data/hooks'
 import { Eyebrow, PageHeader, Sheet } from '@/ui/primitives'
 import type { MapPlace, MapViewState } from '@/ui/MapView'
@@ -44,7 +45,7 @@ export function Places() {
 
   const places = useStore((s) => s.places)
   const visits = useStore((s) => s.visits)
-  const theme = useStore((s) => s.settings.theme)
+  const theme = useScheme()
   const savedView = useStore((s) => s.mapView)
   const setMapView = useStore((s) => s.setMapView)
   const mergePlaces = useStore((s) => s.mergePlaces)
@@ -220,7 +221,7 @@ export function Places() {
         {hits && hits.length > 0 && (
           <div className="card absolute inset-x-0 top-full z-20 mt-2 divide-y divide-line shadow-(--shadow-pop)">
             {hits.map((h) => (
-              <button key={`${h.lat},${h.lon}`} type="button" onClick={() => goTo(h)} className="block w-full truncate px-4 py-3 text-left text-[13.5px] first:rounded-t-[22px] last:rounded-b-[22px] hover:bg-surface-2">{h.name}</button>
+              <button key={`${h.lat},${h.lon}`} type="button" onClick={() => goTo(h)} className="block w-full truncate px-4 py-3 text-left text-[13.5px] first:rounded-t-card last:rounded-b-card hover:bg-surface-2">{h.name}</button>
             ))}
           </div>
         )}
@@ -232,7 +233,7 @@ export function Places() {
 
       <div className="mt-4 lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-8">
         {mapOk ? (
-          <div className="relative h-[46dvh] min-h-[300px] overflow-hidden rounded-[22px] border border-line bg-surface lg:sticky lg:top-8 lg:h-[calc(100dvh-400px)] lg:min-h-[440px]">
+          <div className="relative h-[46dvh] min-h-[300px] overflow-hidden rounded-card border border-line bg-surface lg:sticky lg:top-8 lg:h-[calc(100dvh-400px)] lg:min-h-[440px]">
             <Suspense fallback={<div className="flex h-full items-center justify-center text-[13px] text-ink-3">Loading the map…</div>}>
               <MapView className="h-full w-full" places={mapPlaces} initial={initial} target={target} selected={selected} onSelect={(id) => !adding && open(id)} onMove={onMove} me={here} theme={theme} />
             </Suspense>
@@ -295,7 +296,7 @@ export function Places() {
               {listed.slice(0, 40).map((p) => {
                 const n = live.get(p.id)?.length ?? 0
                 return (
-                  <button key={p.id} onClick={() => open(p.id)} className={cx('flex w-full items-center gap-3 px-4 py-3 text-left first:rounded-t-[22px] last:rounded-b-[22px] hover:bg-surface-2', selected === p.id && 'bg-surface-2')}>
+                  <button key={p.id} onClick={() => open(p.id)} className={cx('flex w-full items-center gap-3 px-4 py-3 text-left first:rounded-t-card last:rounded-b-card hover:bg-surface-2', selected === p.id && 'bg-surface-2')}>
                     <span className={cx('flex h-9 w-9 shrink-0 items-center justify-center rounded-full', p.kind === 'calisthenics' ? 'bg-accent text-accent-ink' : 'bg-surface-2 text-ink-2')}>
                       {me.athlete.homePlaceId === p.id ? <House size={15} /> : saved.has(p.id) ? <Star size={15} fill="currentColor" /> : <MapPin size={15} />}
                     </span>

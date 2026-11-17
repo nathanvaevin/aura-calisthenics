@@ -233,7 +233,7 @@ function Program({ course, mutate }: { course: Course; mutate: Mutate }) {
             </div>
           ))}
           <button
-            className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[22px] border border-dashed border-line-strong text-[14px] font-medium text-ink-2 hover:bg-surface hover:text-ink"
+            className="flex h-[52px] w-full items-center justify-center gap-2 rounded-card border border-dashed border-line-strong text-[14px] font-medium text-ink-2 hover:bg-surface hover:text-ink"
             onClick={() => mutate((c) => { const w = c.weeks[index]; w.sessions.push(blankSession(freeDay(w.sessions))) })}
           >
             <Plus size={16} /> Add session
@@ -523,7 +523,7 @@ function Students({ course }: { course: Course }) {
         ) : (
           <div className="card divide-y divide-line">
             {others.map((a) => (
-              <button key={a.id} className="flex w-full items-center gap-3 px-4 py-3 text-left first:rounded-t-[22px] last:rounded-b-[22px] hover:bg-surface-2" onClick={() => enroll(course.id, a.id)}>
+              <button key={a.id} className="flex w-full items-center gap-3 px-4 py-3 text-left first:rounded-t-card last:rounded-b-card hover:bg-surface-2" onClick={() => enroll(course.id, a.id)}>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[14.5px] font-medium">{a.name}</span>
                   <span className="block truncate text-[12px] text-ink-3">@{a.handle}{a.city ? ` · ${a.city}` : ''}</span>
@@ -574,9 +574,9 @@ function Results({ course }: { course: Course }) {
       </div>
 
       {!session ? (
-        <p className="mt-5 rounded-[22px] border border-dashed border-line-strong p-5 text-[13.5px] text-ink-3">No sessions in this week.</p>
+        <p className="mt-5 rounded-card border border-dashed border-line-strong p-5 text-[13.5px] text-ink-3">No sessions in this week.</p>
       ) : students.length === 0 ? (
-        <p className="mt-5 rounded-[22px] border border-dashed border-line-strong p-5 text-[13.5px] text-ink-3">No students enrolled yet.</p>
+        <p className="mt-5 rounded-card border border-dashed border-line-strong p-5 text-[13.5px] text-ink-3">No students enrolled yet.</p>
       ) : (
         <>
           <p className="mt-5 text-[13px] text-ink-2">
@@ -677,7 +677,7 @@ function Details({ course, mutate }: { course: Course; mutate: Mutate }) {
           <button className="btn btn-quiet btn-sm" onClick={() => setPickerOpen(true)}><Plus size={14} /> Add</button>
         </div>
         {course.milestones.length === 0 ? (
-          <p className="rounded-[22px] border border-dashed border-line-strong p-4 text-[13px] text-ink-3">Pick skills from the tree. Students see their own progress toward each one on the course page.</p>
+          <p className="rounded-card border border-dashed border-line-strong p-4 text-[13px] text-ink-3">Pick skills from the tree. Students see their own progress toward each one on the course page.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {course.milestones.filter((id) => skillById[id]).map((id) => (

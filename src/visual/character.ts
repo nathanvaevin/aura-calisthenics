@@ -5,22 +5,24 @@
  * The layers are uniforms on one material, so they change smoothly and
  * independently of each other and of the pose.
  */
-import { CanvasTexture, Color, Group, MeshStandardMaterial, SRGBColorSpace, type Bone, type Mesh, type Object3D, type Texture } from 'three'
+import { BackSide, CanvasTexture, Color, Group, MeshStandardMaterial, ShaderMaterial, SkinnedMesh, SRGBColorSpace, type Bone, type Mesh, type Object3D, type Texture } from 'three'
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js'
-import { BONES, type BoneName, type CharacterId } from './body/skeleton'
+import { BONES, type BoneName, type BuildId, type CharacterId } from './body/skeleton'
 import { SLOTS } from './body/muscles'
 import { Rig, type Pose } from './rig'
+import { STYLES, type CharacterStyle, type PerformerStyle } from './styles'
 
-const assets = new Map<CharacterId, Promise<GLTF>>()
+const assets = new Map<string, Promise<GLTF>>()
 
-/** The characters are files in public/characters, built by `npm run character:build`. */
-export function loadCharacter(id: CharacterId): Promise<GLTF> {
-  let p = assets.get(id)
+/** The characters are files in public/characters, built by `npm run character:build`: one per build and sex. */
+export function loadCharacter(id: CharacterId, build: BuildId = 'aura'): Promise<GLTF> {
+  const key = `${build}-${id}`
+  let p = assets.get(key)
   if (!p) {
-    p = new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}characters/aura-${id}.glb`)
-    p.catch(() => assets.delete(id))
-    assets.set(id, p)
+    p = new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}characters/${key}.glb`)
+    p.catch(() => assets.delete(key))
+    assets.set(key, p)
   }
   return p
 }
@@ -68,6 +70,11 @@ export interface Look {
   charge: { value: number }
   chargeColor: { value: Color }
   rim: { value: number }
+  /** How the body is drawn: 0 modelled by light, 1 flat colour in two tones, 2 ink. */
+  shade: { value: number }
+  /** Hair that takes the colour of the Aura: the colour, and how far it has turned. */
+  hairGlow: { value: Color }
+  hairCharge: { value: number }
 }
 
 const VERT_DECL = /* glsl */ `
@@ -90,8 +97,8 @@ const FRAG_DECL = /* glsl */ `
 varying vec2 vMus;
 varying vec3 vRest;
 varying float vFront;
-uniform float uMuscle, uCharge, uRim, uCloth;
-uniform vec3 uGlowA, uGlowB, uChargeColor;
+uniform float uMuscle, uCharge, uRim, uCloth, uShade, uHair, uHairCharge;
+uniform vec3 uGlowA, uGlowB, uChargeColor, uHairGlow;
 uniform sampler2D uLogo;
 uniform vec4 uLogoRect;
 `
@@ -113,8 +120,14 @@ const FRAG_MAIN = /* glsl */ `
   totalEmissiveRadiance += uGlowA * lit * (0.3 + 0.5 * fres) + uGlowB * (edge * 0.7 + lit * fres * 0.5);
   // Base: a quiet rim of light. Charge: the body itself glows.
   totalEmissiveRadiance += vec3(0.62, 0.7, 1.0) * fres * uRim * mix(1.0, 0.35, uCloth);
-  totalEmissiveRadiance += uChargeColor * uCharge * (0.1 + 1.5 * fres) * mix(1.0, 0.5, uCloth);
-  diffuseColor.rgb = mix(diffuseColor.rgb, mix(diffuseColor.rgb, vec3(1.0), 0.35) , uCharge * (1.0 - uCloth));
+  // A drawn body keeps its colours: the charge shows at its edge only.
+  float drawnBody = step(0.5, uShade);
+  totalEmissiveRadiance += uChargeColor * uCharge * mix(0.1 + 1.5 * fres, 0.9 * pow(fres, 1.6), drawnBody) * mix(1.0, 0.5, uCloth);
+  diffuseColor.rgb = mix(diffuseColor.rgb, mix(diffuseColor.rgb, vec3(1.0), 0.35) , uCharge * (1.0 - uCloth) * (1.0 - drawnBody));
+  // Hair that turns the colour of the Aura.
+  float turned = uHair * uHairCharge;
+  diffuseColor.rgb = mix(diffuseColor.rgb, uHairGlow, turned * 0.9);
+  totalEmissiveRadiance += uHairGlow * turned * (0.35 + 0.9 * fres);
   if (uCloth > 0.5 && vFront > 0.35) {
     vec2 uv = (vRest.xy - uLogoRect.xy) / uLogoRect.zw + 0.5;
     if (uv.x > 0.0 && uv.x < 1.0 && uv.y > 0.0 && uv.y < 1.0) {
@@ -125,17 +138,65 @@ const FRAG_MAIN = /* glsl */ `
 }
 `
 
-function material(kind: 'skin' | 'cloth' | 'hair', look: Look, logo: { x: number; y: number; width: number; height: number }) {
+/**
+ * Drawn shading, after the lights: the body as flat tones instead of a
+ * modelled surface. The key light decides where the tones fall, shadows cast
+ * by the body on itself included.
+ */
+const FRAG_SHADE = /* glsl */ `
+if (uShade > 0.5) {
+  #if NUM_DIR_LIGHTS > 0
+    float ndl = dot(normal, directionalLights[0].direction);
+  #else
+    float ndl = normal.y;
+  #endif
+  float open = 1.0;
+  #if defined( USE_SHADOWMAP ) && NUM_DIR_LIGHT_SHADOWS > 0
+    DirectionalLightShadow keyShadow = directionalLightShadows[0];
+    open = receiveShadow ? getShadow(directionalShadowMap[0], keyShadow.shadowMapSize, keyShadow.shadowIntensity, keyShadow.shadowBias, keyShadow.shadowRadius, vDirectionalShadowCoord[0]) : 1.0;
+  #endif
+  float lightv = (ndl * 0.5 + 0.5) * mix(0.62, 1.0, open);
+  float edge = 1.0 - saturate(dot(normal, normalize(vViewPosition)));
+  vec3 base = diffuseColor.rgb;
+  vec3 drawn;
+  if (uShade < 1.5) {
+    // Cel: light and shade, a small highlight, and a cool tint in the shade.
+    float lit = smoothstep(0.6, 0.62, lightv);
+    float hot = smoothstep(0.9, 0.925, lightv);
+    drawn = mix(base * vec3(0.5, 0.48, 0.66), base, lit) + base * 0.14 * hot;
+    drawn += vec3(0.55, 0.72, 1.0) * smoothstep(0.62, 0.66, edge) * (1.0 - lit) * uRim * 0.5;
+  } else {
+    // Ink: black, a hatched middle tone, and bare paper where the light lands.
+    float mid = smoothstep(0.36, 0.375, lightv);
+    float lit = smoothstep(0.6, 0.615, lightv);
+    float hatch = step(0.5, fract((gl_FragCoord.x + gl_FragCoord.y) * 0.16));
+    float tone = mix(0.05, mix(0.34 + 0.2 * hatch, 1.0, lit), mid);
+    // The lines between muscles: wherever the surface folds inward.
+    vec3 px = -dFdx(vViewPosition), py = -dFdy(vViewPosition);
+    float bend = (dot(dFdx(normal), px) + dot(dFdy(normal), py)) / max(dot(px, px) + dot(py, py), 1e-9);
+    float groove = smoothstep(7.0, 22.0, -bend) * (1.0 - uCloth);
+    drawn = base * tone * (1.0 - 0.8 * groove);
+    drawn += vec3(1.0, 0.36, 0.24) * smoothstep(0.7, 0.74, edge) * (1.0 - mid) * 0.22;
+  }
+  outgoingLight = drawn + totalEmissiveRadiance;
+}
+`
+
+type Kind = 'skin' | 'cloth' | 'hair' | 'accent'
+
+function material(kind: Kind, look: Look, logo: { x: number; y: number; width: number; height: number }) {
   const mat = new MeshStandardMaterial(
     kind === 'cloth' ? { color: 0x121216, roughness: 0.78, metalness: 0 }
       : kind === 'hair' ? { color: 0xb9b9c2, roughness: 0.5, metalness: 0.3 }
+      : kind === 'accent' ? { color: 0xecc77f, roughness: 0.7, metalness: 0 }
       : { color: 0xc6c6ce, roughness: 0.4, metalness: 0.32 },
   )
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
       uAct: { value: look.act }, uMuscle: look.muscle, uGlowA: look.glowA, uGlowB: look.glowB,
       uCharge: look.charge, uChargeColor: look.chargeColor, uRim: look.rim,
-      uCloth: { value: kind === 'cloth' ? 1 : 0 },
+      uCloth: { value: kind === 'cloth' || kind === 'accent' ? 1 : 0 },
+      uShade: look.shade, uHair: { value: kind === 'hair' ? 1 : 0 }, uHairGlow: look.hairGlow, uHairCharge: look.hairCharge,
       uLogo: { value: logoTexture() }, uLogoRect: { value: [logo.x, logo.y, logo.width, logo.height] },
     })
     shader.vertexShader = shader.vertexShader
@@ -144,6 +205,7 @@ function material(kind: 'skin' | 'cloth' | 'hair', look: Look, logo: { x: number
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>\n${FRAG_DECL}`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>\n${FRAG_MAIN}`)
+      .replace('#include <opaque_fragment>', `${FRAG_SHADE}\n#include <opaque_fragment>`)
   }
   mat.customProgramCacheKey = () => `aura-${kind}`
   return mat
@@ -161,11 +223,17 @@ export class Actor {
     charge: { value: 0 },
     chargeColor: { value: new Color(0xa78bff) },
     rim: { value: 0.22 },
+    shade: { value: 0 },
+    hairGlow: { value: new Color(0xffffff) },
+    hairCharge: { value: 0 },
   }
+  style: CharacterStyle = STYLES.aura
   /** The skinned meshes, for effects that need to draw the body again (an outline of light). */
   readonly meshes: Mesh[] = []
   private readonly bones = {} as Record<BoneName, Bone>
   private readonly materials: MeshStandardMaterial[] = []
+  private readonly kinds = new Map<MeshStandardMaterial, Kind>()
+  private readonly outlines: SkinnedMesh[] = []
 
   constructor(id: CharacterId, gltf: GLTF) {
     this.id = id
@@ -176,8 +244,10 @@ export class Actor {
       if ((o as Bone).isBone && BONES.includes(o.name as BoneName)) this.bones[o.name as BoneName] = o as Bone
       const mesh = o as Mesh
       if (!mesh.isMesh) return
-      const kind = (mesh.material as MeshStandardMaterial).name as 'skin' | 'cloth' | 'hair'
+      const name = (mesh.material as MeshStandardMaterial).name
+      const kind: Kind = name === 'cloth' || name === 'hair' || name === 'accent' ? name : 'skin'
       const mat = material(kind, this.look, logo)
+      this.kinds.set(mat, kind)
       // Hair and anything without muscle data still runs the same shader: give it empty data.
       if (!mesh.geometry.getAttribute('_muscle')) {
         mesh.geometry = mesh.geometry.clone()
@@ -193,6 +263,55 @@ export class Actor {
     this.group.add(scene)
   }
 
+  /** Draws the character the way a universe does, in the colours the athlete chose. */
+  setStyle(spec: PerformerStyle | undefined) {
+    const style = STYLES[spec?.universe ?? 'aura']
+    this.style = style
+    const drawn = style.shading !== 'studio'
+    this.look.shade.value = style.shading === 'cel' ? 1 : style.shading === 'ink' ? 2 : 0
+    this.look.rim.value = style.rim
+    if (!style.hairGlow) this.look.hairCharge.value = 0
+    for (const mat of this.materials) {
+      const kind = this.kinds.get(mat)!
+      if (kind === 'skin') { mat.color.set(spec?.skin ?? '#c6c6ce'); mat.roughness = style.roughness; mat.metalness = style.metalness }
+      else if (kind === 'hair') { mat.color.set(spec?.hair ?? '#b9b9c2'); mat.roughness = drawn ? 1 : 0.5; mat.metalness = drawn ? 0 : 0.3 }
+      else if (kind === 'accent') mat.color.set(spec?.accent ?? '#ecc77f')
+      else mat.color.set(style.cloth)
+      mat.envMapIntensity = drawn ? 0 : 1
+    }
+    for (const m of this.meshes) m.receiveShadow = drawn
+
+    // The drawn line round the figure: the body again, slightly larger, seen from inside.
+    for (const o of this.outlines) { o.removeFromParent(); (o.material as ShaderMaterial).dispose() }
+    this.outlines.length = 0
+    if (style.outline > 0) {
+      for (const src of this.meshes as SkinnedMesh[]) {
+        const m = new SkinnedMesh(src.geometry, new ShaderMaterial({
+          side: BackSide,
+          uniforms: { uWidth: { value: style.outline * this.rig.body.scale }, uColour: { value: new Color(style.outlineColour) } },
+          vertexShader: /* glsl */ `
+            #include <common>
+            #include <skinning_pars_vertex>
+            uniform float uWidth;
+            void main() {
+              vec3 objectNormal = normal;
+              #include <skinbase_vertex>
+              #include <skinnormal_vertex>
+              vec3 transformed = position;
+              #include <skinning_vertex>
+              transformed += normalize(objectNormal) * uWidth;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(transformed, 1.0);
+            }`,
+          fragmentShader: 'uniform vec3 uColour; void main() { gl_FragColor = vec4(uColour, 1.0); }',
+        }))
+        m.bind(src.skeleton, src.bindMatrix)
+        m.frustumCulled = false
+        src.parent!.add(m)
+        this.outlines.push(m)
+      }
+    }
+  }
+
   pose(p: Pose) {
     const rig = this.rig
     rig.solve(p)
@@ -201,11 +320,12 @@ export class Actor {
   }
 
   dispose() {
+    for (const o of this.outlines) { o.removeFromParent(); (o.material as ShaderMaterial).dispose() }
     this.materials.forEach((m) => m.dispose())
     this.group.removeFromParent()
   }
 }
 
-export async function createActor(id: CharacterId): Promise<Actor> {
-  return new Actor(id, await loadCharacter(id))
+export async function createActor(id: CharacterId, build: BuildId = 'aura'): Promise<Actor> {
+  return new Actor(id, await loadCharacter(id, build))
 }

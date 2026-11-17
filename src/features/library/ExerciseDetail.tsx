@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router'
 import { AlertTriangle, ArrowLeft, ChevronLeft, ChevronRight, Play, Video } from 'lucide-react'
 import { EQUIPMENT, EXERCISES, MUSCLES, disciplineById, exerciseById, formatValue, placementsOf, skillsUsing, stepAt } from '@/domain/catalog'
@@ -16,9 +16,9 @@ import { useStartWorkout } from '@/features/workout/useStart'
 import { ExerciseRow } from './Library'
 import { cx, dvar } from '@/lib/format'
 import { publishedFor } from '@/domain/media'
+import { DemoSlot } from './DemoSlot'
 
 // The animated demonstration brings the 3D engine: fetched only for an exercise that has one published.
-const ExerciseDemos = lazy(() => import('./Demos'))
 
 /** Plays a coach-supplied demonstration from a YouTube, Vimeo or direct video link. */
 export function VideoEmbed({ url }: { url: string }) {
@@ -26,7 +26,7 @@ export function VideoEmbed({ url }: { url: string }) {
   const vimeo = url.match(/vimeo\.com\/(\d+)/)
   const src = yt ? `https://www.youtube-nocookie.com/embed/${yt[1]}` : vimeo ? `https://player.vimeo.com/video/${vimeo[1]}` : null
   return (
-    <div className="aspect-video w-full overflow-hidden rounded-[22px] border border-line bg-black">
+    <div className="aspect-video w-full overflow-hidden rounded-card border border-line bg-black">
       {src ? (
         <iframe src={src} title="Demonstration" className="h-full w-full" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
       ) : (
@@ -76,11 +76,7 @@ export function ExerciseDetail() {
 
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start lg:gap-10">
         <div className="space-y-4 lg:sticky lg:top-8">
-          {Object.keys(published.animations).length > 0 && (
-            <Suspense fallback={<div className="aspect-square w-full rounded-[22px] border border-line bg-[#08090d]" />}>
-              <ExerciseDemos animations={published.animations} />
-            </Suspense>
-          )}
+          <DemoSlot exerciseId={exerciseId} open />
           {published.videos.map((v) => (
             <figure key={v.id}>
               <VideoEmbed url={v.video!.url} />
@@ -108,7 +104,7 @@ export function ExerciseDetail() {
           </div>
 
           {!video && !coach && published.videos.length === 0 && Object.keys(published.animations).length === 0 && (
-            <div className="flex items-center gap-3 rounded-[22px] border border-dashed border-line-strong px-4 py-3.5 text-[13px] text-ink-3">
+            <div className="flex items-center gap-3 rounded-card border border-dashed border-line-strong px-4 py-3.5 text-[13px] text-ink-3">
               <Video size={16} className="shrink-0" /> No demonstration video yet. Your coach can attach one.
             </div>
           )}
@@ -227,7 +223,7 @@ export function ExerciseDetail() {
           </section>
 
           {ex.safety && (
-            <section className="flex gap-3 rounded-[22px] border border-warn/30 bg-warn/8 p-4">
+            <section className="flex gap-3 rounded-card border border-warn/30 bg-warn/8 p-4">
               <AlertTriangle size={17} className="mt-0.5 shrink-0 text-warn" />
               <div>
                 <div className="text-[13.5px] font-medium">Safety</div>
@@ -237,7 +233,7 @@ export function ExerciseDetail() {
           )}
 
           {ex.standard && (
-            <section className="rounded-[22px] bg-surface p-4">
+            <section className="rounded-card bg-surface p-4">
               <Eyebrow>Counts as evidence when</Eyebrow>
               <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-2">{ex.standard}</p>
             </section>

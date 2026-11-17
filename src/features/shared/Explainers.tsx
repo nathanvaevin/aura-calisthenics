@@ -61,7 +61,7 @@ export function RatingSheet({ rating, open, onClose, onLog }: { rating: Discipli
           )
         })}
         {Array.from({ length: empty }, (_, i) => (
-          <div key={i} className="rounded-[22px] border border-dashed border-line-strong p-4">
+          <div key={i} className="rounded-card border border-dashed border-line-strong p-4">
             <Eyebrow>Benchmark {rating.slots.length + i + 1} · {SCORING.slotWeights[rating.slots.length + i] * 100}%</Eyebrow>
             <div className="mt-1.5 text-[14px] text-ink-2">Nothing on record yet. Log another {d.short.toLowerCase()} benchmark to complete this rating.</div>
           </div>
@@ -242,7 +242,7 @@ export function RatingList({ ratings, onSelect }: { ratings: Record<DisciplineId
       {DISCIPLINE_IDS.map((d) => {
         const r = ratings[d]
         return (
-          <button key={d} onClick={() => onSelect?.(d)} className="flex w-full items-center gap-3.5 px-4 py-3.5 text-left transition-colors hover:bg-surface-2 first:rounded-t-[22px] last:rounded-b-[22px]">
+          <button key={d} onClick={() => onSelect?.(d)} className="flex w-full items-center gap-3.5 px-4 py-3.5 text-left transition-colors hover:bg-surface-2 first:rounded-t-card last:rounded-b-card">
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-2">
                 <span className="flex min-w-0 items-center gap-2 text-[14.5px] font-medium"><DisciplineDot id={d} /><span className="truncate">{disciplineById[d].name}</span></span>

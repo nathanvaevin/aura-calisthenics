@@ -96,7 +96,7 @@ async function expectDenied(label: string, user: string | null, sql: string, rol
 
 console.log('Applying schema')
 await db.exec(PRELUDE)
-for (const file of ['0001_core.sql', '0002_storage.sql', '0003_evidence_observed.sql', '0004_assessments.sql', '0005_places.sql', '0006_live.sql', '0007_coach_access.sql', '0008_course_weeks_and_station_mode.sql', '0009_visual_content.sql', '0010_start_over.sql']) {
+for (const file of ['0001_core.sql', '0002_storage.sql', '0003_evidence_observed.sql', '0004_assessments.sql', '0005_places.sql', '0006_live.sql', '0007_coach_access.sql', '0008_course_weeks_and_station_mode.sql', '0009_visual_content.sql', '0010_start_over.sql', '0011_personal_style.sql']) {
   await db.exec(read(`../supabase/migrations/${file}`))
   ok(`${file} applies cleanly`)
 }
@@ -472,6 +472,36 @@ const left = async (who: string) => (await count(`select 1 from public.evidence 
 ;(await left(S2)) === 3 ? ok('nobody else is touched') : bad('start_over', `the other athlete has ${await left(S2)} rows, expected 3`)
 const after = await one<{ handle: string | null; roles: string }>(`select handle, roles::text from public.profiles where id = '${S1}'`)
 after.handle === null && after.roles === '{athlete,coach}' ? ok('the account stays, with its roles, and is asked the welcome questions again') : bad('start_over', JSON.stringify(after))
+
+// ── Personal style and what is shared (0011) ─────────────────────────────
+console.log('\nPersonal style')
+const P1 = '00000000-0000-0000-0000-0000000000a1'
+const P2 = '00000000-0000-0000-0000-0000000000a2'
+const P3 = '00000000-0000-0000-0000-0000000000a3'
+await db.exec(`insert into auth.users (id) values ('${P1}'), ('${P2}'), ('${P3}');`)
+await expectOk('an athlete chooses a theme, a character and a form', P1, `insert into public.athlete_identity (athlete_id, theme, persona, form_power, intensity, interests, country, themed_at) values ('${P1}', 'power', 'female', 'awakened', 80, '{handstand,pull}', 'Portugal', now());`)
+await expectDenied('a theme that does not exist is refused', P1, `update public.athlete_identity set theme = 'neon' where athlete_id = '${P1}';`)
+await expectDenied('…and an intensity out of range', P1, `update public.athlete_identity set intensity = 140 where athlete_id = '${P1}';`)
+await as(P2, 'authenticated', () => db.exec(`update public.athlete_identity set theme = 'iron' where athlete_id = '${P1}';`))
+;(await count(`select 1 from public.athlete_identity where athlete_id = '${P1}' and theme = 'power'`)) === 1 ? ok('nobody else can change it') : bad('athlete_identity', 'another athlete changed a theme')
+await expectCount('their look is visible to others by default', P2, `select 1 from public.style_of('${P1}') where theme = 'power' and persona = 'female' and form_power = 'awakened'`, 1)
+await expectOk('…until they keep it to themselves', P1, `update public.athlete_identity set style_audience = 'me', interests_audience = 'me' where athlete_id = '${P1}';`)
+await expectCount('then nobody else sees the look', P2, `select 1 from public.style_of('${P1}')`, 0)
+await expectCount('…nor the favourite disciplines, while the country follows the city', P2, `select 1 from public.about_of('${P1}') where interests = '{}' and country = 'Portugal'`, 1)
+await expectCount('they still see their own', P1, `select 1 from public.style_of('${P1}')`, 1)
+
+await expectOk('the athlete has results', P1, `insert into public.evidence (athlete_id, exercise_id, value, tier, source) values ('${P1}', 'pushup', 20, 'self', 'manual');`)
+await expectCount('results are private by default, as before', P2, `select 1 from public.evidence where athlete_id = '${P1}'`, 0)
+await expectOk('they open their ratings to the people they follow', P1, `update public.athlete_identity set ratings_audience = 'following' where athlete_id = '${P1}'; insert into public.follows (follower_id, followee_id) values ('${P1}', '${P2}');`)
+await expectCount('someone they follow can now read them', P2, `select 1 from public.evidence where athlete_id = '${P1}'`, 1)
+await expectCount('a stranger still cannot', P3, `select 1 from public.evidence where athlete_id = '${P1}'`, 0)
+await expectOk('they open them to everyone', P1, `update public.athlete_identity set ratings_audience = 'everyone' where athlete_id = '${P1}';`)
+await expectCount('then a stranger can', P3, `select 1 from public.evidence where athlete_id = '${P1}'`, 1)
+await expectDenied('reading is all it opens: nobody else can add to them', P3, `insert into public.evidence (athlete_id, exercise_id, value, tier, source) values ('${P1}', 'pushup', 99, 'self', 'manual');`)
+await expectOk('they hide their profile from discovery', P1, `update public.profiles set is_public = false where id = '${P1}';`)
+await expectCount('a hidden profile shares no results, whatever the setting', P3, `select 1 from public.evidence where athlete_id = '${P1}'`, 0)
+await expectCount('…and no look', P3, `select 1 from public.style_of('${P1}')`, 0)
+await expectDenied('someone signed out reads none of this', null, `select * from public.style_of('${P1}');`, 'anon')
 
 console.log(`\n${passed} passed, ${failed} failed`)
 await db.close()

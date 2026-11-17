@@ -22,7 +22,7 @@ const stay = (athleteId: string, placeId: string, startAgoMin: number, minutes: 
 
 describe('privacy', () => {
   it('opens declared facts and closes behaviour by default', () => {
-    expect(privacyOf({})).toEqual({ origin: 'everyone', base: 'everyone', places: 'following', visits: 'me' })
+    expect(privacyOf({})).toEqual({ origin: 'everyone', base: 'everyone', places: 'following', visits: 'me', style: 'everyone', ratings: 'me', interests: 'everyone' })
   })
 
   it('treats "people I follow" as the owner\'s list, not their followers', () => {
@@ -38,7 +38,7 @@ describe('privacy', () => {
 
   it('removes what a viewer may not see instead of masking it', () => {
     const a = athlete('a', { from: 'Porto', city: 'Lisbon', homePlaceId: 'p1', favouritePlaces: ['p2'], environments: ['outdoor'], privacy: { origin: 'me', base: 'everyone', places: 'following', visits: 'me' } })
-    expect(identityFor(a, 'stranger')).toEqual({ from: undefined, city: 'Lisbon', environments: [], homePlaceId: undefined, favouritePlaces: [], openToTrain: false })
+    expect(identityFor(a, 'stranger')).toEqual({ from: undefined, city: 'Lisbon', country: undefined, interests: [], environments: [], homePlaceId: undefined, favouritePlaces: [], openToTrain: false })
     expect(identityFor(a, 'followed').homePlaceId).toBe('p1')
     expect(identityFor(a, 'followed').from).toBeUndefined()
     expect(identityFor(a, 'self').from).toBe('Porto')

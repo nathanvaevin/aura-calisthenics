@@ -18,9 +18,9 @@ const TABS = [
 
 export function Wordmark({ size = 26 }: { size?: number }) {
   return (
-    <span className="display inline-flex items-baseline" style={{ fontSize: size }}>
+    <span className="wordmark inline-flex items-baseline leading-none" style={{ fontSize: size }}>
       Aura
-      <span className="ml-[3px] inline-block rounded-full bg-accent" style={{ width: size * 0.19, height: size * 0.19 }} />
+      <span className="ml-[3px] inline-block rounded-full" style={{ width: size * 0.19, height: size * 0.19, background: '#ecc77f' }} />
     </span>
   )
 }

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { Plus, Upload } from 'lucide-react'
-import { STATUS_LABEL, canMove, historyOf, type DemoAsset, type VideoSource, type WorkoutVideo } from '@/domain/media'
+import { STATUS_LABEL, canMove, historyOf, type DemoAsset, type VideoSource, type WorkoutVideo, canBeOfficial } from '@/domain/media'
 import type { DisciplineId } from '@/domain/types'
 import { DISCIPLINES, EXERCISES, exerciseById } from '@/domain/catalog'
 import { useStore } from '@/data/store'
@@ -145,6 +145,7 @@ function VideoSheet({ open, from, onClose, onSaved }: { open: boolean; from: { e
 
 function VideoDetail({ asset, all, onClose, onReplace }: { asset: DemoAsset | null; all: DemoAsset[]; onClose: () => void; onReplace: (a: DemoAsset) => void }) {
   const moveDemo = useStore((s) => s.moveDemo)
+  const approveDemo = useStore((s) => s.approveDemo)
   const patchDemo = useStore((s) => s.patchDemo)
   const removeDemo = useStore((s) => s.removeDemo)
   if (!asset) return <Sheet open={false} onClose={onClose}>{null}</Sheet>
@@ -158,9 +159,8 @@ function VideoDetail({ asset, all, onClose, onReplace }: { asset: DemoAsset | nu
         <Field label="Title"><input className="field" defaultValue={asset.title} placeholder={ex.name} onBlur={(e) => e.target.value !== asset.title && patchDemo(asset.id, { title: e.target.value.trim() })} /></Field>
         <Field label="Technique notes"><textarea className="field" rows={3} defaultValue={asset.description} onBlur={(e) => e.target.value !== asset.description && patchDemo(asset.id, { description: e.target.value.trim() })} /></Field>
         <div className="flex flex-wrap gap-2">
-          {asset.status === 'draft' && <button className="btn btn-primary btn-sm" onClick={() => moveDemo(asset.id, 'pending')}>Ready for review</button>}
-          {can('approved') && asset.status !== 'published' && <button className="btn btn-primary btn-sm" onClick={() => moveDemo(asset.id, 'approved')}>Approve</button>}
-          {can('published') && <button className="btn btn-accent btn-sm" onClick={() => moveDemo(asset.id, 'published')}>Publish to athletes</button>}
+          {/* Your own video: one decision shows it on the exercise, wherever the exercise appears. */}
+          {canBeOfficial(asset.status) && <button className="btn btn-primary btn-sm" onClick={() => approveDemo(asset.id)}>{asset.status === 'archived' ? 'Show it again' : 'Approve and show'}</button>}
           {asset.status === 'published' && <button className="btn btn-outline btn-sm" onClick={() => moveDemo(asset.id, 'approved')}>Take down</button>}
           <button className="btn btn-outline btn-sm" onClick={() => onReplace(asset)}>Replace with a new video</button>
           {can('archived') && <button className="btn btn-quiet btn-sm" onClick={() => moveDemo(asset.id, 'archived')}>Archive</button>}

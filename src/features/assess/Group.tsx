@@ -31,13 +31,13 @@ export function GroupProfile({ session, participants, viewerId, coach }: { sessi
 
   if (members.length < 3 && !coach)
     return (
-      <div className="rounded-[22px] border border-dashed border-line-strong p-6 text-center">
+      <div className="rounded-card border border-dashed border-line-strong p-6 text-center">
         <div className="display text-[24px]">The group is still forming</div>
         <p className="mt-2 text-[13.5px] leading-relaxed text-ink-2">A group profile appears once three people have finished, so that no single person can be picked out of the totals.</p>
       </div>
     )
   if (members.length === 0)
-    return <p className="rounded-[22px] border border-dashed border-line-strong p-5 text-[13.5px] text-ink-3">The group profile builds itself as results come in.</p>
+    return <p className="rounded-card border border-dashed border-line-strong p-5 text-[13.5px] text-ink-3">The group profile builds itself as results come in.</p>
 
   const visiblePairs = pairs.filter((p) => coach || p.a.id === viewerId || p.b.id === viewerId).filter((p) => named(p.a) && named(p.b))
   const sharing = members.filter((m) => m.id !== viewerId && named(m))
@@ -120,7 +120,7 @@ export function GroupProfile({ session, participants, viewerId, coach }: { sessi
         <section>
           <Eyebrow className="mb-3">Who you train with</Eyebrow>
           {sharing.length === 0 ? (
-            <p className="rounded-[22px] border border-dashed border-line-strong p-5 text-[13.5px] text-ink-3">Nobody else has chosen to share their shape yet.</p>
+            <p className="rounded-card border border-dashed border-line-strong p-5 text-[13.5px] text-ink-3">Nobody else has chosen to share their shape yet.</p>
           ) : (
             <div className="grid grid-cols-2 gap-2.5">
               {sharing.map((m) => (
@@ -184,7 +184,7 @@ export function GroupPage() {
           <h1 className="display text-[38px] leading-[1.02]">{session.groupName}</h1>
         </header>
         {alone ? (
-          <div className="rounded-[22px] border border-dashed border-line-strong p-6">
+          <div className="rounded-card border border-dashed border-line-strong p-6">
             <div className="display text-[24px]">Not on this phone yet</div>
             <p className="mt-2 text-[13.5px] leading-relaxed text-ink-2">
               The group profile is built from everyone’s results, and for now those only come together on {first(session.coachName)}’s screen. Ask to see it there. Showing it on each participant’s phone is not built yet.

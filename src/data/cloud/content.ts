@@ -72,7 +72,7 @@ export function workoutFromRow(r: Row): WorkoutVideo {
 export function settingsFromRow(r: Row | null): AuraSettings | null {
   const v = r?.value as Partial<AuraSettings> | undefined
   if (!r || !v || typeof v !== 'object') return null
-  return { defaultTheme: text(v.defaultTheme) || DEFAULT_AURA_SETTINGS.defaultTheme, themes: v.themes && typeof v.themes === 'object' ? v.themes : {}, updatedAt: orNull(r.updated_at) }
+  return { defaultTheme: text(v.defaultTheme) || DEFAULT_AURA_SETTINGS.defaultTheme, themes: v.themes && typeof v.themes === 'object' ? v.themes : {}, universes: v.universes && typeof v.universes === 'object' ? v.universes : {}, updatedAt: orNull(r.updated_at) }
 }
 
 // ── Fetching ─────────────────────────────────────────────────────────────
@@ -144,7 +144,7 @@ async function send(): Promise<void> {
     if (demos.length) await must(supabase.from('demo_assets').upsert(demos.map(demoToRow), { onConflict: 'id' }))
     if (workouts.length) await must(supabase.from('workout_videos').upsert(workouts.map(workoutToRow), { onConflict: 'id' }))
     if (settings) {
-      await must(supabase.from('app_settings').upsert({ key: 'aura', value: { defaultTheme: settings.defaultTheme, themes: settings.themes }, updated_by: s.cloudUid, updated_at: settings.updatedAt ?? new Date().toISOString() }, { onConflict: 'key' }))
+      await must(supabase.from('app_settings').upsert({ key: 'aura', value: { defaultTheme: settings.defaultTheme, themes: settings.themes, universes: settings.universes }, updated_by: s.cloudUid, updated_at: settings.updatedAt ?? new Date().toISOString() }, { onConflict: 'key' }))
     }
     for (const [prefix, table] of [['demo', 'demo_assets'], ['workout', 'workout_videos']] as const) {
       const ids = gone(prefix)

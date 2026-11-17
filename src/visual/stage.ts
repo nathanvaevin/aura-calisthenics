@@ -8,6 +8,7 @@ import {
   PCFSoftShadowMap, PerspectiveCamera, PMREMGenerator, Scene, ShaderMaterial, ShadowMaterial, SRGBColorSpace, Vector3, WebGLRenderer,
 } from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
+import { STYLES, type StageLook } from './styles'
 
 export type CameraAngle = 'front' | 'side' | 'three-quarter' | 'back'
 
@@ -30,6 +31,11 @@ export class Stage {
   readonly camera = new PerspectiveCamera(26, 1, 0.05, 60)
   readonly view: View = { azimuth: 0, elevation: 6, distance: 5, target: new Vector3(0, 0.95, 0) }
   private readonly key: DirectionalLight
+  private readonly rims: [DirectionalLight, DirectionalLight]
+  private readonly fill: HemisphereLight
+  private readonly shadow: ShadowMaterial
+  private readonly sheen: ShaderMaterial
+  private look: StageLook = STYLES.aura.stage
 
   constructor(canvas: HTMLCanvasElement, opts: { shadows?: boolean } = {}) {
     const renderer = new WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' })
@@ -52,9 +58,9 @@ export class Stage {
     key.position.set(1.6, 4.2, 3.2)
     key.castShadow = true
     key.shadow.mapSize.set(1024, 1024)
-    key.shadow.camera.left = -2.2; key.shadow.camera.right = 2.2
-    key.shadow.camera.top = 2.6; key.shadow.camera.bottom = -1.2
-    key.shadow.camera.near = 0.5; key.shadow.camera.far = 12
+    key.shadow.camera.left = -2.8; key.shadow.camera.right = 2.8
+    key.shadow.camera.top = 3; key.shadow.camera.bottom = -2.4
+    key.shadow.camera.near = 0.5; key.shadow.camera.far = 14
     key.shadow.bias = -0.0006
     key.shadow.normalBias = 0.02
     key.shadow.radius = 5
@@ -64,17 +70,22 @@ export class Stage {
     rimL.position.set(-3, 2.4, -3)
     const rimR = new DirectionalLight(0xd9ccff, 1.2)
     rimR.position.set(3, 2, -2.6)
-    scene.add(rimL, rimR, new HemisphereLight(0xdfe6ff, 0x14141c, 0.35))
+    this.rims = [rimL, rimR]
+    this.fill = new HemisphereLight(0xdfe6ff, 0x14141c, 0.35)
+    scene.add(rimL, rimR, this.fill)
 
     // Floor: catches the shadow, and fades into the backdrop so it has no edge.
-    const shadow = new Mesh(new CircleGeometry(7, 48), new ShadowMaterial({ opacity: 0.42 }))
+    this.shadow = new ShadowMaterial({ opacity: 0.42 })
+    const shadow = new Mesh(new CircleGeometry(7, 48), this.shadow)
     shadow.rotation.x = -Math.PI / 2
     shadow.receiveShadow = true
-    const sheen = new Mesh(new CircleGeometry(7, 48), new ShaderMaterial({
+    this.sheen = new ShaderMaterial({
       transparent: true, depthWrite: false,
+      uniforms: { uColour: { value: new Color(0x9ea8d9) } },
       vertexShader: 'varying vec2 vP; void main(){ vP = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-      fragmentShader: 'varying vec2 vP; void main(){ float r = length(vP); gl_FragColor = vec4(vec3(0.62, 0.66, 0.85), 0.085 * exp(-r * r * 0.42)); }',
-    }))
+      fragmentShader: 'uniform vec3 uColour; varying vec2 vP; void main(){ float r = length(vP); gl_FragColor = vec4(uColour, 0.085 * exp(-r * r * 0.42)); }',
+    })
+    const sheen = new Mesh(new CircleGeometry(7, 48), this.sheen)
     sheen.rotation.x = -Math.PI / 2
     sheen.position.y = -0.001
     sheen.renderOrder = -2
@@ -83,6 +94,22 @@ export class Stage {
   }
 
   add(...objects: Parameters<Scene['add']>) { this.scene.add(...objects) }
+
+  /** Lights the stage the way a universe is lit. */
+  setLook(look: StageLook) {
+    this.look = look
+    ;(this.scene.background as Color).set(look.backdrop)
+    this.key.color.set(look.key.colour)
+    this.key.intensity = look.key.power
+    look.rims.forEach((r, i) => { this.rims[i].color.set(r.colour); this.rims[i].intensity = r.power })
+    this.fill.color.set(look.fill.sky)
+    this.fill.groundColor.set(look.fill.ground)
+    this.fill.intensity = look.fill.power
+    this.scene.environmentIntensity = look.room
+    this.renderer.toneMappingExposure = look.exposure
+    this.shadow.opacity = look.floor.shadow
+    ;(this.sheen.uniforms.uColour.value as Color).set(look.floor.colour)
+  }
 
   resize(width: number, height: number) {
     this.renderer.setSize(width, height, false)
@@ -103,7 +130,8 @@ export class Stage {
     this.camera.position.set(target.x + Math.sin(a) * Math.cos(e) * distance, target.y + Math.sin(e) * distance, target.z + Math.cos(a) * Math.cos(e) * distance)
     this.camera.lookAt(target)
     this.key.target.position.set(target.x, 0, target.z)
-    this.key.position.set(target.x + 1.6, 4.2, target.z + 3.2)
+    const [kx, ky, kz] = this.look.key.from
+    this.key.position.set(target.x + kx, ky, target.z + kz)
     this.renderer.render(this.scene, this.camera)
   }
 

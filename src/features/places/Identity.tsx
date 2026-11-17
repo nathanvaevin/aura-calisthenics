@@ -5,7 +5,8 @@ import type { Athlete, AthletePrivacy, Audience, TrainingEnvironment } from '@/d
 import { AUDIENCES, ENVIRONMENTS, historyAt, identityFor, isLive, liveVisit, privacyOf, visitVisible, type Relation } from '@/domain/places'
 import { useStore } from '@/data/store'
 import { useClock } from '@/data/hooks'
-import { Eyebrow, SectionTitle, Segmented, Sheet, Toggle } from '@/ui/primitives'
+import { disciplineById } from '@/domain/catalog'
+import { DisciplineDot, Eyebrow, SectionTitle, Segmented, Sheet, Toggle } from '@/ui/primitives'
 import { cx, relativeDay } from '@/lib/format'
 import { AudienceTag, timeOf, useViewer } from './shared'
 
@@ -49,7 +50,8 @@ function IdentityLines({ athlete, relation, now, showAudience }: { athlete: Athl
     )
   }
   if (id.from) rows.push(<div key="from" className="flex items-baseline gap-3 px-4 py-3"><Eyebrow className="w-[74px] shrink-0">From</Eyebrow><span className="min-w-0 flex-1 text-[14px]">{id.from}</span>{tag(privacy.origin)}</div>)
-  if (id.city) rows.push(<div key="city" className="flex items-baseline gap-3 px-4 py-3"><Eyebrow className="w-[74px] shrink-0">Based in</Eyebrow><span className="min-w-0 flex-1 text-[14px]">{id.city}</span>{tag(privacy.base)}</div>)
+  if (id.city || id.country) rows.push(<div key="city" className="flex items-baseline gap-3 px-4 py-3"><Eyebrow className="w-[74px] shrink-0">Based in</Eyebrow><span className="min-w-0 flex-1 text-[14px]">{[id.city, id.country].filter(Boolean).join(', ')}</span>{tag(privacy.base)}</div>)
+  if (id.interests.length) rows.push(<div key="int" className="flex items-baseline gap-3 px-4 py-3"><Eyebrow className="w-[74px] shrink-0">Loves</Eyebrow><span className="flex min-w-0 flex-1 flex-wrap gap-x-3 gap-y-1 text-[14px]">{id.interests.map((d) => <span key={d} className="inline-flex items-center gap-1.5"><DisciplineDot id={d} size={6} />{disciplineById[d].short}</span>)}</span>{tag(privacy.interests)}</div>)
   if (id.environments.length) rows.push(<div key="env" className="flex items-baseline gap-3 px-4 py-3"><Eyebrow className="w-[74px] shrink-0">Trains</Eyebrow><span className="min-w-0 flex-1 text-[14px]">{id.environments.map((e) => ENVIRONMENTS[e]).join(' · ')}</span>{tag(privacy.places)}</div>)
   if (id.homePlaceId && places[id.homePlaceId]) rows.push(<div key="home" className="flex items-center gap-3 px-4 py-2.5"><Eyebrow className="w-[74px] shrink-0">Home spot</Eyebrow><span className="min-w-0 flex-1"><PlaceLink id={id.homePlaceId} icon={<House size={13} />} /></span>{tag(privacy.places)}</div>)
   const favourites = id.favouritePlaces.filter((p) => places[p])
@@ -74,12 +76,12 @@ export function MyIdentity({ athlete, onEdit }: { athlete: Athlete; onEdit: () =
   const [as, setAs] = useState<Relation>('self')
   const updateMe = useStore((s) => s.updateMe)
   const id = identityFor(athlete, 'self')
-  const nothing = !id.from && !id.city && !id.environments.length && !id.homePlaceId && !id.favouritePlaces.length
+  const nothing = !id.from && !id.city && !id.country && !id.interests.length && !id.environments.length && !id.homePlaceId && !id.favouritePlaces.length
   return (
     <section>
       <SectionTitle action={<button onClick={onEdit} className="text-[12.5px] font-medium text-ink-2 underline decoration-line-strong underline-offset-4 hover:text-ink">Edit</button>}>Where you belong</SectionTitle>
       {nothing ? (
-        <button onClick={onEdit} className="w-full rounded-[22px] border border-dashed border-line-strong p-5 text-left text-[13.5px] leading-relaxed text-ink-3 hover:bg-surface">
+        <button onClick={onEdit} className="w-full rounded-card border border-dashed border-line-strong p-5 text-left text-[13.5px] leading-relaxed text-ink-3 hover:bg-surface">
           Add where you are from, where you are based and where you train. All of it is optional, and you decide who sees each part.
         </button>
       ) : (
@@ -89,7 +91,7 @@ export function MyIdentity({ athlete, onEdit }: { athlete: Athlete; onEdit: () =
           </div>
           <IdentityLines athlete={athlete} relation={as} now={now} showAudience={as === 'self'} />
           {as !== 'self' && !identityFor(athlete, as).from && !identityFor(athlete, as).city && !identityFor(athlete, as).homePlaceId && !identityFor(athlete, as).favouritePlaces.length && !identityFor(athlete, as).environments.length && (
-            <p className="rounded-[22px] border border-dashed border-line-strong p-4 text-[13px] text-ink-3">Nothing about where you are from or where you train.</p>
+            <p className="rounded-card border border-dashed border-line-strong p-4 text-[13px] text-ink-3">Nothing about where you are from or where you train.</p>
           )}
         </>
       )}
@@ -102,15 +104,49 @@ export function MyIdentity({ athlete, onEdit }: { athlete: Athlete; onEdit: () =
 }
 
 const PRIVACY_ROWS: { key: keyof AthletePrivacy; title: string; sub: string }[] = [
+  { key: 'style', title: 'Your character and theme', sub: 'The character, Aura form and theme you chose' },
+  { key: 'ratings', title: 'Your Aura and ratings', sub: 'Aura, discipline ratings and the benchmarks behind them. Your coach always sees these' },
+  { key: 'interests', title: 'Favourite disciplines', sub: 'The ones you named as yours' },
+  { key: 'base', title: 'Where you are based', sub: 'Your city and country. Also what the “My city” filter uses' },
   { key: 'origin', title: 'Where you are from', sub: 'The line you wrote yourself' },
-  { key: 'base', title: 'Where you are based', sub: 'Your city. Also what the “My city” filter uses' },
   { key: 'places', title: 'Your places', sub: 'Home spot, favourites and where you like to train' },
   { key: 'visits', title: 'Where you have been', sub: 'Recent check-ins and being listed as a regular' },
 ]
 
-/** Who sees what. One row per kind of information, plus the check-in history itself. */
-export function PrivacyCard({ athlete }: { athlete: Athlete }) {
+/**
+ * What other athletes may see, one choice per kind of information. Nothing
+ * here is required, and an email address or other account detail is never
+ * part of a profile.
+ */
+export function SharingRows({ athlete, only }: { athlete: Athlete; only?: (keyof AthletePrivacy)[] }) {
   const setPrivacy = useStore((s) => s.setPrivacy)
+  const updateMe = useStore((s) => s.updateMe)
+  const privacy = privacyOf(athlete)
+  const found = athlete.discoverable !== false
+  return (
+    <div className="card divide-y divide-line">
+      <div className="flex items-center justify-between gap-3 px-4 py-3.5">
+        <span className="text-[14px]">Let other athletes find you<span className="block text-[12px] leading-snug text-ink-3">{found ? 'Your name and what you share below can be found by others' : 'Hidden: only you and your coach see your profile'}</span></span>
+        <Toggle on={found} onChange={(discoverable) => updateMe({ discoverable })} label="Let other athletes find your profile" />
+      </div>
+      {PRIVACY_ROWS.filter((r) => !only || only.includes(r.key)).map((row) => (
+        <div key={row.key} data-sharing={row.key} className={cx('px-4 py-3.5 transition-opacity', !found && 'opacity-45')}>
+          <div className="text-[14px]">{row.title}<span className="block text-[12px] leading-snug text-ink-3">{row.sub}</span></div>
+          <div className="mt-2.5 grid grid-cols-3 gap-1.5">
+            {(Object.keys(AUDIENCES) as Audience[]).map((a) => (
+              <button key={a} aria-pressed={privacy[row.key] === a} onClick={() => setPrivacy({ [row.key]: a })} className={cx('pressable h-9 rounded-(--r-pill) border text-[12px]', privacy[row.key] === a ? 'border-ink bg-ink text-bg' : 'border-line text-ink-2 hover:bg-surface-2')}>
+                {AUDIENCES[a].label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** Who sees what, plus the check-in history itself. */
+export function PrivacyCard({ athlete }: { athlete: Athlete }) {
   const visits = useStore((s) => s.visits)
   const places = useStore((s) => s.places)
   const clearMyVisits = useStore((s) => s.clearMyVisits)
@@ -118,31 +154,17 @@ export function PrivacyCard({ athlete }: { athlete: Athlete }) {
   const checkOut = useStore((s) => s.checkOut)
   const now = useClock(30000)
   const [historyOpen, setHistoryOpen] = useState(false)
-  const privacy = privacyOf(athlete)
   const mine = visits.filter((v) => v.athleteId === athlete.id).sort((a, b) => b.startedAt.localeCompare(a.startedAt))
   const live = liveVisit(visits, athlete.id, now)
 
   return (
     <section>
       <SectionTitle>Privacy</SectionTitle>
-      <div className="card divide-y divide-line">
-        {PRIVACY_ROWS.map((row) => (
-          <div key={row.key} className="px-4 py-3.5">
-            <div className="text-[14px]">{row.title}<span className="block text-[12px] text-ink-3">{row.sub}</span></div>
-            <div className="mt-2.5 grid grid-cols-3 gap-1.5">
-              {(Object.keys(AUDIENCES) as Audience[]).map((a) => (
-                <button key={a} aria-pressed={privacy[row.key] === a} onClick={() => setPrivacy({ [row.key]: a })} className={cx('pressable h-9 rounded-full border text-[12px]', privacy[row.key] === a ? 'border-ink bg-ink text-bg' : 'border-line text-ink-2 hover:bg-surface-2')}>
-                  {AUDIENCES[a].label}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-        <button className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left last:rounded-b-[22px] hover:bg-surface-2" onClick={() => setHistoryOpen(true)}>
-          <span className="text-[14px]">Check-in history<span className="block text-[12px] text-ink-3">{mine.length ? `${mine.length} on this device${live ? ' · checked in now' : ''}` : 'Nothing recorded'}</span></span>
-          <span className="text-[12.5px] text-ink-3">Review</span>
-        </button>
-      </div>
+      <SharingRows athlete={athlete} />
+      <button className="card mt-2.5 flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-surface-2" onClick={() => setHistoryOpen(true)}>
+        <span className="text-[14px]">Check-in history<span className="block text-[12px] text-ink-3">{mine.length ? `${mine.length} on this device${live ? ' · checked in now' : ''}` : 'Nothing recorded'}</span></span>
+        <span className="text-[12.5px] text-ink-3">Review</span>
+      </button>
       <p className="mt-2.5 text-[12px] leading-relaxed text-ink-3">
         “People I follow” means athletes you have chosen to follow, so you control that list. Being at a place right now is decided separately each time you check in, and always ends on its own. Aura never reads your location in the background.
       </p>
