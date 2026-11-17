@@ -6,6 +6,7 @@ import type {
 } from '@/domain/types'
 import { PRESENCE, isLive, liveVisit, mergePlaces, privacyOf } from '@/domain/places'
 import { PROTOCOL, protocolKnown, resultsToEvidence, stationById, type HandIn, type Invite } from '@/domain/assessment'
+import { DEFAULT_AURA_SETTINGS, addNote, move, newAsset, revise, type AssetStatus, type AuraSettings, type DemoAsset, type NewDemo, type WorkoutVideo } from '@/domain/media'
 import { exerciseById, skillById, stepAt } from '@/domain/catalog'
 import { bestEvidence } from '@/domain/scoring/mastery'
 import { adaptTarget, skillStatuses } from '@/domain/scoring/skills'
@@ -79,6 +80,12 @@ export interface NewAssessment {
 
 export type ImportOutcome = 'added' | 'updated' | 'unknown-session' | 'wrong-protocol'
 
+/** A workout video as the admin fills it in. Without an id it is a new one. */
+export type WorkoutVideoInput = Omit<WorkoutVideo, 'id' | 'createdBy' | 'createdAt' | 'updatedAt' | 'publishedAt'> & { id?: string }
+
+/** What the server holds of the admin-managed content, as far as this account may see it. */
+export interface ServerContent { demos: DemoAsset[]; workoutVideos: WorkoutVideo[]; auraSettings: AuraSettings | null }
+
 export const shortId = () => {
   const bytes = crypto.getRandomValues(new Uint8Array(8))
   return Array.from(bytes, (b) => (b % 36).toString(36)).join('')
@@ -88,6 +95,8 @@ export const shortId = () => {
 const freshId = (s: { cloudUid: string | null }) => (s.cloudUid ? uid() : shortId())
 
 const slug = (name: string) => name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.|\.$/g, '') || 'athlete'
+
+const dirtied = (list: string[], ...keys: string[]) => [...list, ...keys.filter((k) => !list.includes(k))]
 
 /**
  * Keep the evidence table in step with one participant's assessment results.
@@ -126,6 +135,12 @@ interface State {
   feedback: Feedback[]
   /** Coach-supplied demonstration video per exercise. */
   media: Record<string, string>
+  /** Animated and filmed demonstrations, every version and status. Athletes are shown the published ones only. */
+  demos: DemoAsset[]
+  workoutVideos: WorkoutVideo[]
+  auraSettings: AuraSettings
+  /** Content changes the server has not got yet: `demo:<id>`, `workout:<id>`, `settings`, and `gone:demo:<id>` / `gone:workout:<id>`. */
+  contentDirty: string[]
   following: string[]
   assessments: AssessmentSession[]
   participants: AssessmentParticipant[]
@@ -185,6 +200,23 @@ interface State {
   verifyEvidence: (evidenceId: string) => void
   setMedia: (exerciseId: string, url: string) => void
 
+  // Demonstrations, workout videos and Aura themes: managed by an admin (src/domain/media.ts)
+  createDemo: (input: NewDemo) => string
+  /** Follows the review workflow; an illegal move does nothing. Publishing archives the version it replaces. */
+  moveDemo: (id: string, to: AssetStatus) => void
+  noteDemo: (id: string, note: { tags: string[]; text: string }) => void
+  /** A new pending version of the same demonstration, carrying its correction notes. */
+  reviseDemo: (id: string) => string | null
+  patchDemo: (id: string, patch: Partial<Pick<DemoAsset, 'title' | 'description' | 'video' | 'animation'>>) => void
+  /** Drafts and archived versions only. */
+  removeDemo: (id: string) => void
+  saveWorkoutVideo: (video: WorkoutVideoInput) => string
+  removeWorkoutVideo: (id: string) => void
+  setAuraSettings: (patch: Partial<Pick<AuraSettings, 'defaultTheme' | 'themes'>>) => void
+  /** Take in what the server holds. Changes still waiting to be sent win; owned by src/data/cloud/content.ts. */
+  applyContent: (server: ServerContent) => void
+  contentSent: (keys: string[]) => void
+
   // Assessments
   createAssessment: (input: NewAssessment) => string
   startSoloAssessment: () => string
@@ -233,6 +265,10 @@ const empty = {
   enrollments: [] as Enrollment[],
   feedback: [] as Feedback[],
   media: {} as Record<string, string>,
+  demos: [] as DemoAsset[],
+  workoutVideos: [] as WorkoutVideo[],
+  auraSettings: { ...DEFAULT_AURA_SETTINGS } as AuraSettings,
+  contentDirty: [] as string[],
   following: [] as string[],
   assessments: [] as AssessmentSession[],
   participants: [] as AssessmentParticipant[],
@@ -307,6 +343,12 @@ export function migrateStored(persisted: unknown, version: number) {
   if (!s?.athletes) return s
   // Version 3 added accounts: say whether a stored world is the sample one, and that nothing is synced yet.
   if (version < 3) s = { ...s, demo: s.meId === ME && s.athletes[ME]?.handle === 'alex', cloudUid: null, cloudShadow: {} }
+  // Version 4 added admin-managed content. The sample athlete becomes an admin, so the Studio can be explored in the demo.
+  if (version < 4) {
+    s = { ...s, demos: [], workoutVideos: [], auraSettings: { ...DEFAULT_AURA_SETTINGS }, contentDirty: [] }
+    const me = s.demo ? s.athletes[ME] : undefined
+    if (me && !me.roles.includes('admin')) s = { ...s, athletes: { ...s.athletes, [ME]: { ...me, roles: [...me.roles, 'admin'] } } }
+  }
   if (version >= 2) return s
   const demo = s.demo
   const c = sampleCommunity(new Date(), demo)
@@ -628,6 +670,95 @@ export const useStore = create<State>()(
           else delete media[exerciseId]
           return { media }
         }),
+
+      // ── Demonstrations, workout videos, Aura themes ──────────────────
+
+      createDemo: (input) => {
+        const s = get()
+        const id = freshId(s)
+        set({ demos: [...s.demos, newAsset(s.demos, input, id, new Date().toISOString(), s.meId)], contentDirty: dirtied(s.contentDirty, `demo:${id}`) })
+        return id
+      },
+
+      moveDemo: (id, to) =>
+        set((s) => {
+          const demos = move(s.demos, id, to, new Date().toISOString())
+          if (demos === s.demos) return s
+          // Publishing may have archived another version: that one changed too.
+          const changed = demos.filter((d, i) => d !== s.demos[i]).map((d) => `demo:${d.id}`)
+          return { demos, contentDirty: dirtied(s.contentDirty, ...changed) }
+        }),
+
+      noteDemo: (id, note) =>
+        set((s) => {
+          if (!note.text.trim() && note.tags.length === 0) return s
+          const full = { id: shortId(), at: new Date().toISOString(), by: s.meId, tags: note.tags, text: note.text.trim() }
+          return { demos: addNote(s.demos, id, full), contentDirty: dirtied(s.contentDirty, `demo:${id}`) }
+        }),
+
+      reviseDemo: (id) => {
+        const s = get()
+        if (!s.demos.some((d) => d.id === id)) return null
+        const next = freshId(s)
+        set({ demos: revise(s.demos, id, next, new Date().toISOString(), s.meId), contentDirty: dirtied(s.contentDirty, `demo:${next}`) })
+        return next
+      },
+
+      patchDemo: (id, patch) =>
+        set((s) => ({
+          demos: s.demos.map((d) => (d.id === id ? { ...d, ...patch, updatedAt: new Date().toISOString() } : d)),
+          contentDirty: dirtied(s.contentDirty, `demo:${id}`),
+        })),
+
+      removeDemo: (id) =>
+        set((s) => {
+          const d = s.demos.find((x) => x.id === id)
+          if (!d || (d.status !== 'draft' && d.status !== 'archived')) return s
+          return { demos: s.demos.filter((x) => x.id !== id), contentDirty: dirtied(s.contentDirty.filter((k) => k !== `demo:${id}`), `gone:demo:${id}`) }
+        }),
+
+      saveWorkoutVideo: (video) => {
+        const s = get()
+        const now = new Date().toISOString()
+        const was = video.id ? s.workoutVideos.find((w) => w.id === video.id) : undefined
+        const id = was?.id ?? freshId(s)
+        const next: WorkoutVideo = {
+          ...video, id, createdBy: was?.createdBy ?? s.meId, createdAt: was?.createdAt ?? now, updatedAt: now,
+          publishedAt: video.status === 'published' ? was?.publishedAt ?? now : was?.publishedAt ?? null,
+        }
+        set({ workoutVideos: was ? s.workoutVideos.map((w) => (w.id === id ? next : w)) : [...s.workoutVideos, next], contentDirty: dirtied(s.contentDirty, `workout:${id}`) })
+        return id
+      },
+
+      removeWorkoutVideo: (id) =>
+        set((s) => ({
+          workoutVideos: s.workoutVideos.filter((w) => w.id !== id),
+          contentDirty: dirtied(s.contentDirty.filter((k) => k !== `workout:${id}`), `gone:workout:${id}`),
+        })),
+
+      setAuraSettings: (patch) =>
+        set((s) => ({ auraSettings: { ...s.auraSettings, ...patch, updatedAt: new Date().toISOString() }, contentDirty: dirtied(s.contentDirty, 'settings') })),
+
+      applyContent: (server) =>
+        set((s) => {
+          const dirty = new Set(s.contentDirty)
+          // Without an account there is no server to answer to: what is on the device stays.
+          const authoritative = !!s.cloudUid
+          const merge = <T extends { id: string }>(local: T[], remote: T[], prefix: string): T[] => {
+            const seen = new Set(remote.map((r) => r.id))
+            const mine = new Map(local.map((l) => [l.id, l]))
+            const out = remote.filter((r) => !dirty.has(`gone:${prefix}:${r.id}`)).map((r) => (dirty.has(`${prefix}:${r.id}`) ? mine.get(r.id) ?? r : r))
+            for (const l of local) if (!seen.has(l.id) && (dirty.has(`${prefix}:${l.id}`) || !authoritative)) out.push(l)
+            return out
+          }
+          return {
+            demos: merge(s.demos, server.demos, 'demo'),
+            workoutVideos: merge(s.workoutVideos, server.workoutVideos, 'workout'),
+            auraSettings: dirty.has('settings') || !server.auraSettings ? s.auraSettings : server.auraSettings,
+          }
+        }),
+
+      contentSent: (keys) => set((s) => ({ contentDirty: s.contentDirty.filter((k) => !keys.includes(k)) })),
 
       // ── Assessments ──────────────────────────────────────────────────
 
@@ -962,7 +1093,7 @@ export const useStore = create<State>()(
     }),
     {
       name: 'aura:v1',
-      version: 3,
+      version: 4,
       migrate: migrateStored,
       partialize: ({ celebrations: _c, ...rest }) =>
         Object.fromEntries(Object.entries(rest).filter(([, v]) => typeof v !== 'function')) as unknown as State,

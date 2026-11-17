@@ -147,6 +147,11 @@ describe('stored worlds from before places existed', () => {
     // Version 3 added accounts: a stored world learns whether it is the sample one, and that nothing is synced.
     expect(next).toMatchObject({ demo: true, cloudUid: null, cloudShadow: {} })
     expect(migrate(next, 2)).toMatchObject({ demo: true, cloudUid: null })
-    expect(migrate(next, 3)).toBe(next)
+    // Version 4 added admin-managed content, and made the sample athlete an admin.
+    expect(next).toMatchObject({ demos: [], workoutVideos: [], auraSettings: { defaultTheme: 'cosmic' }, contentDirty: [] })
+    expect(next.athletes[ME].roles).toContain('admin')
+    const own = migrate({ ...next, demo: false, athletes: { ...next.athletes, [ME]: { ...next.athletes[ME], roles: ['athlete'] } } }, 3) as typeof next
+    expect(own.athletes[ME].roles).toEqual(['athlete'])
+    expect(migrate(next, 4)).toBe(next)
   })
 })

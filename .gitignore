@@ -6,3 +6,4 @@ dist
 *.log
 .shots
 scripts/_*
+public/characters/*.draft.glb

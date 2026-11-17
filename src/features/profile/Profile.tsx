@@ -7,7 +7,7 @@ import { BANDS, isVerified } from '@/domain/scoring/config'
 import { curveRating } from '@/domain/scoring/curve'
 import { bestEvidence } from '@/domain/scoring/mastery'
 import { recentUnlocks } from '@/domain/insights'
-import { useIsCoach, useMe } from '@/data/hooks'
+import { useIsAdmin, useIsCoach, useMe } from '@/data/hooks'
 import { useStore } from '@/data/store'
 import { signInWithGoogle, signOut, useCloud } from '@/data/cloud'
 import { KeepProfile, Notice, SyncLine } from '@/features/account/Account'
@@ -25,6 +25,7 @@ import { cx, dvar, initials, num, relativeDay, shortDate } from '@/lib/format'
 export function Profile() {
   const me = useMe()
   const coach = useIsCoach()
+  const admin = useIsAdmin()
   const navigate = useNavigate()
   const settings = useStore((s) => s.settings)
   const setSettings = useStore((s) => s.setSettings)
@@ -256,6 +257,16 @@ export function Profile() {
           <KeepProfile />
 
           <CoachRequests />
+
+          {admin && (
+            <button onClick={() => navigate('/studio')} className="card pressable flex w-full items-center justify-between gap-4 p-4 text-left">
+              <span>
+                <span className="block text-[15px] font-medium">Studio</span>
+                <span className="mt-0.5 block text-[12.5px] text-ink-3">Characters, muscle activation, Aura themes, animations to review, your videos</span>
+              </span>
+              <span className="font-mono text-[10px] tracking-[0.12em] text-ink-3 uppercase">Admin</span>
+            </button>
+          )}
 
           {/* Settings */}
           <section>

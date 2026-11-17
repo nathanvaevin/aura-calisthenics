@@ -117,7 +117,8 @@ interface Pending extends CoachRequest { name: string; handle: string | null }
 
 /** For an admin: every open request, approve or decline in one tap. */
 export function CoachRequests() {
-  const isAdmin = useStore((s) => !!s.meId && !!s.athletes[s.meId]?.roles.includes('admin'))
+  // Requests live in the database: the sample world's admin has none to decide.
+  const isAdmin = useStore((s) => !!s.cloudUid && !!s.meId && !!s.athletes[s.meId]?.roles.includes('admin'))
   const [list, setList] = useState<Pending[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 

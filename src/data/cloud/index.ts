@@ -5,6 +5,7 @@ import type { Athlete, DisciplineId } from '@/domain/types'
 import { AUTH_STORAGE_KEY, authReturn, redirectTo, supabase } from '../supabase'
 import { uid as newId } from '../courseTemplates'
 import { emptyWorld, useStore } from '../store'
+import { flushContent, pullContent, startContent, useContent } from './content'
 import { createEngine, type Engine, type EngineStatus, type Scope } from './engine'
 import { SYNCED_KEYS, adopt, type Synced } from './mappers'
 import { supabaseRemote } from './remote'
@@ -265,6 +266,8 @@ export function startCloud() {
   started = true
   useCloud.setState({ joining: read(JOIN_KEY) !== null })
   if (authReturn) useCloud.setState({ notice: explain(authReturn.code, authReturn.description.replace(/\+/g, ' ') || 'Sign-in did not complete.'), canMove: authReturn.code === 'identity_already_exists' })
+  // Demonstrations and themes are everyone's: fetched whoever is or is not signed in.
+  startContent()
 
   supabase.auth.onAuthStateChange((event, session) => {
     // The client must not be called from inside its own callback.
@@ -423,5 +426,5 @@ export async function handleFree(handle: string): Promise<boolean> {
 
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   // For driving the app from a test without a Google account.
-  ;(window as unknown as Record<string, unknown>).__aura = { store: useStore, cloud: useCloud, continueAsGuest, joinAssessment, flush, ready, signOut, supabase }
+  ;(window as unknown as Record<string, unknown>).__aura = { store: useStore, cloud: useCloud, content: useContent, continueAsGuest, joinAssessment, flush, pullContent, flushContent, ready, signOut, supabase }
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router'
 import { AlertTriangle, ArrowLeft, ChevronLeft, ChevronRight, Play, Video } from 'lucide-react'
 import { EQUIPMENT, EXERCISES, MUSCLES, disciplineById, exerciseById, formatValue, placementsOf, skillsUsing, stepAt } from '@/domain/catalog'
@@ -15,6 +15,10 @@ import { SkillRow, SkillSheet } from '@/features/tree/SkillSheet'
 import { useStartWorkout } from '@/features/workout/useStart'
 import { ExerciseRow } from './Library'
 import { cx, dvar } from '@/lib/format'
+import { publishedFor } from '@/domain/media'
+
+// The animated demonstration brings the 3D engine: fetched only for an exercise that has one published.
+const ExerciseDemos = lazy(() => import('./Demos'))
 
 /** Plays a coach-supplied demonstration from a YouTube, Vimeo or direct video link. */
 export function VideoEmbed({ url }: { url: string }) {
@@ -40,6 +44,8 @@ export function ExerciseDetail() {
   const start = useStartWorkout()
   const video = useStore((s) => s.media[exerciseId])
   const setMedia = useStore((s) => s.setMedia)
+  const demos = useStore((s) => s.demos)
+  const published = useMemo(() => publishedFor(demos, exerciseId), [demos, exerciseId])
   const [logOpen, setLogOpen] = useState(false)
   const [skillOpen, setSkillOpen] = useState<string | null>(null)
   const [draft, setDraft] = useState<string | null>(null)
@@ -70,6 +76,22 @@ export function ExerciseDetail() {
 
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start lg:gap-10">
         <div className="space-y-4 lg:sticky lg:top-8">
+          {Object.keys(published.animations).length > 0 && (
+            <Suspense fallback={<div className="aspect-square w-full rounded-[22px] border border-line bg-[#08090d]" />}>
+              <ExerciseDemos animations={published.animations} />
+            </Suspense>
+          )}
+          {published.videos.map((v) => (
+            <figure key={v.id}>
+              <VideoEmbed url={v.video!.url} />
+              {(v.title || v.description) && (
+                <figcaption className="mt-2 px-1">
+                  {v.title && <div className="text-[14px] font-medium">{v.title}</div>}
+                  {v.description && <p className="mt-0.5 text-[13px] leading-relaxed text-ink-2">{v.description}</p>}
+                </figcaption>
+              )}
+            </figure>
+          ))}
           {video && <VideoEmbed url={video} />}
 
           <div className="rise rise-1 card p-5">
@@ -85,7 +107,7 @@ export function ExerciseDetail() {
             </dl>
           </div>
 
-          {!video && !coach && (
+          {!video && !coach && published.videos.length === 0 && Object.keys(published.animations).length === 0 && (
             <div className="flex items-center gap-3 rounded-[22px] border border-dashed border-line-strong px-4 py-3.5 text-[13px] text-ink-3">
               <Video size={16} className="shrink-0" /> No demonstration video yet. Your coach can attach one.
             </div>

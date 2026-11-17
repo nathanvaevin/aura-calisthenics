@@ -32,7 +32,7 @@ On a **fresh** project:
 
 You should see *Success. No rows returned*. That one file created every table, every access rule, and the exercise/skill catalog plus demo data.
 
-> `apply.sql` is generated from the six migration files and the seed (`npm run db:bundle`). Run it **once** on an empty project — re-running it on a project that already has the schema will error on the first `create type`, which is expected. To start over, delete the project and make a new one, or run the migrations individually with the CLI (see the end).
+> `apply.sql` is generated from the migration files and the seed (`npm run db:bundle`). Run it **once** on an empty project — re-running it on a project that already has the schema will error on the first `create type`, which is expected. To start over, delete the project and make a new one, or run the migrations individually with the CLI (see the end).
 
 **Check it worked:** sidebar → **Table Editor**. You should see tables including `profiles`, `exercises`, `places`, `assessment_sessions`. The `exercises` table should have 116 rows.
 
@@ -188,6 +188,20 @@ where id = (select id from auth.users where email = 'YOUR-EMAIL');
 ```
 
 *Success. 1 row affected.* Reopen the app: Coach Studio appears, and Profile shows **Coach requests**, where you approve or decline people.
+
+---
+
+## 9 · Demonstrations, workout videos and theme settings
+
+Paste **all of `supabase/migrations/0009_visual_content.sql`** into the SQL editor and run it once (only if you created the database before this update; a project made from today's `apply.sql` already has it). *Success. No rows returned.* It only adds three tables:
+
+- `demo_assets` — every version of every animated or filmed demonstration of an exercise, with its review status and correction notes.
+- `workout_videos` — complete follow-along workouts.
+- `app_settings` — app-wide choices, such as the default Aura theme.
+
+Anyone, signed in or not, reads what is **published**. Only an account with the `admin` role (step 8) sees the rest and can write. One exercise has at most one published version per character or video slot; the database refuses a second.
+
+Until it is pasted the app works as before: nothing is published, and what an admin prepares stays on their device, waiting to be sent.
 
 ---
 

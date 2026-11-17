@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router'
 import { useStore } from '@/data/store'
 import { Shell } from './Shell'
@@ -26,6 +26,9 @@ import { landing } from './landing'
 import { AssessmentSession } from '@/features/coach/AssessmentSession'
 import { Places } from '@/features/places/Places'
 import { SpotLanding } from '@/features/places/Spot'
+
+// The Studio brings the 3D engine with it: only admins open it, so only they load it.
+const Studio = lazy(() => import('@/features/studio/Studio'))
 
 function ScrollReset() {
   const { pathname } = useLocation()
@@ -128,6 +131,7 @@ export function App() {
             <Route path="coach" element={<CoachStudio />} />
             <Route path="coach/course/:courseId" element={<CourseEditor />} />
             <Route path="coach/assessment/:sessionId" element={<AssessmentSession />} />
+            <Route path="studio" element={<Suspense fallback={null}><Studio /></Suspense>} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

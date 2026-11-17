@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router'
-import { BookOpen, ClipboardCheck, House, MapPin, Play, ScanLine, User, Waypoints, Zap } from 'lucide-react'
+import { BookOpen, ClipboardCheck, Clapperboard, House, MapPin, Play, ScanLine, User, Waypoints, Zap } from 'lucide-react'
 import { useStore } from '@/data/store'
-import { useClock, useIsCoach, useMe } from '@/data/hooks'
+import { useClock, useIsAdmin, useIsCoach, useMe } from '@/data/hooks'
 import { liveVisit } from '@/domain/places'
 import { exerciseById } from '@/domain/catalog'
 import { AuraDot } from '@/ui/AuraField'
@@ -83,6 +83,7 @@ function PresenceBar() {
 export function Shell() {
   const me = useMe()
   const coach = useIsCoach()
+  const admin = useIsAdmin()
   const navigate = useNavigate()
 
   return (
@@ -121,6 +122,15 @@ export function Shell() {
             >
               <ClipboardCheck size={18} strokeWidth={1.8} />
               Coach Studio
+            </NavLink>
+          )}
+          {admin && (
+            <NavLink
+              to="/studio"
+              className={({ isActive }) => cx('flex h-11 items-center gap-3 rounded-xl px-3 text-[14.5px] transition-colors', isActive ? 'bg-surface-2 font-medium text-ink' : 'text-ink-2 hover:bg-surface hover:text-ink')}
+            >
+              <Clapperboard size={18} strokeWidth={1.8} />
+              Studio
             </NavLink>
           )}
         </nav>

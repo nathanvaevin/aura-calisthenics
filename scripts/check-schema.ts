@@ -96,7 +96,7 @@ async function expectDenied(label: string, user: string | null, sql: string, rol
 
 console.log('Applying schema')
 await db.exec(PRELUDE)
-for (const file of ['0001_core.sql', '0002_storage.sql', '0003_evidence_observed.sql', '0004_assessments.sql', '0005_places.sql', '0006_live.sql', '0007_coach_access.sql', '0008_course_weeks_and_station_mode.sql']) {
+for (const file of ['0001_core.sql', '0002_storage.sql', '0003_evidence_observed.sql', '0004_assessments.sql', '0005_places.sql', '0006_live.sql', '0007_coach_access.sql', '0008_course_weeks_and_station_mode.sql', '0009_visual_content.sql']) {
   await db.exec(read(`../supabase/migrations/${file}`))
   ok(`${file} applies cleanly`)
 }
@@ -393,6 +393,63 @@ await expectDenied('…but not in an unknown mode', C, `insert into public.asses
 await as(K, 'authenticated', () => db.exec(`select public.join_assessment('tok-808');`))
 await expectOk('the coach moves a participant to another group', C, `update public.assessment_participants set group_no = 2 where athlete_id = '${K}' and session_id = (select id from public.assessment_sessions where invite_token = 'tok-808');`)
 ;(await count(`select 1 from public.assessment_participants where athlete_id = '${K}' and group_no = 2`)) === 1 ? ok('…and the move is kept') : bad('group_no', 'not saved')
+
+// ── Demonstrations, workout videos and settings (0009) ───────────────────
+console.log('\nDemonstrations, workout videos and settings')
+const d1 = '40000000-0000-0000-0000-000000000001'
+const d2 = '40000000-0000-0000-0000-000000000002'
+const w1 = '50000000-0000-0000-0000-000000000001'
+const recipe = `'{"character":"male","motion":"pushup","camera":"side","theme":null}'`
+const addDemo = (id: string, version: number, extra = '') => `insert into public.demo_assets (id, exercise_id, kind, slot, version, status, recipe${extra ? ', replaces' : ''}) values ('${id}', 'pushup', 'animation', 'male', ${version}, 'pending', ${recipe}${extra});`
+const published = () => count(`select 1 from public.demo_assets where id = '${d1}' and status = 'published'`)
+await expectOk('an admin adds a generated animation, pending review', ADM, addDemo(d1, 1))
+await expectCount('an athlete does not see it before it is published', A, `select 1 from public.demo_assets`, 0)
+await expectCount('…nor a coach', C, `select 1 from public.demo_assets`, 0)
+await expectCount('…nor someone signed out', null, `select 1 from public.demo_assets`, 0, 'anon')
+await expectCount('the admin sees every version', ADM, `select 1 from public.demo_assets`, 1)
+await expectDenied('an athlete cannot add a demonstration', A, addDemo(d2, 2))
+await expectDenied('a coach cannot either', C, addDemo(d2, 2))
+await expectDenied('nor can someone signed out', null, addDemo(d2, 2), 'anon')
+await expectDenied('a status outside the review workflow is refused', ADM, `update public.demo_assets set status = 'live' where id = '${d1}';`)
+await expectOk('the admin approves and publishes it', ADM, `update public.demo_assets set status = 'approved', reviewed_at = now() where id = '${d1}'; update public.demo_assets set status = 'published', published_at = now() where id = '${d1}';`)
+await expectCount('now an athlete sees it', A, `select 1 from public.demo_assets where status = 'published'`, 1)
+await expectCount('…and someone signed out', null, `select 1 from public.demo_assets where status = 'published'`, 1, 'anon')
+// A write the rules do not allow changes no rows rather than raising an error.
+await as(A, 'authenticated', () => db.exec(`update public.demo_assets set status = 'archived' where id = '${d1}'; delete from public.demo_assets where id = '${d1}';`))
+;(await published()) === 1 ? ok('an athlete cannot change or remove it') : bad('demo_assets', 'an athlete changed a published demonstration')
+await as(C, 'authenticated', () => db.exec(`update public.demo_assets set status = 'archived' where id = '${d1}'; delete from public.demo_assets where id = '${d1}';`))
+;(await published()) === 1 ? ok('a coach cannot change or remove it') : bad('demo_assets', 'a coach changed a published demonstration')
+await expectOk('the admin adds a corrected version', ADM, addDemo(d2, 2, `, '${d1}'`))
+await expectDenied('a version number is used once per slot', ADM, addDemo('40000000-0000-0000-0000-000000000003', 2))
+await expectDenied('a second published version in the same slot is refused', ADM, `update public.demo_assets set status = 'published' where id = '${d2}';`)
+await expectOk('…until the first one steps aside', ADM, `update public.demo_assets set status = 'archived' where id = '${d1}'; update public.demo_assets set status = 'published' where id = '${d2}';`)
+await expectCount('athletes then see only the new version', A, `select 1 from public.demo_assets where exercise_id = 'pushup'`, 1)
+await expectOk('the other character and a filmed video have slots of their own', ADM, `
+  insert into public.demo_assets (exercise_id, kind, slot, version, status, recipe) values ('pushup', 'animation', 'female', 1, 'published', '{"character":"female","motion":"pushup","camera":"side","theme":null}');
+  insert into public.demo_assets (exercise_id, kind, slot, version, status, recipe) values ('pushup', 'video', 'instructor', 1, 'published', '{"source":"link","url":"https://example.com/pushup.mp4"}');`)
+await expectCount('…all shown together', A, `select 1 from public.demo_assets where exercise_id = 'pushup'`, 3)
+await expectOk('the admin removes an archived version', ADM, `delete from public.demo_assets where id = '${d1}';`)
+;(await count(`select 1 from public.demo_assets where id = '${d2}' and replaces is null`)) === 1 ? ok('the version that replaced it stays') : bad('demo_assets', 'removing a version took its successor with it')
+
+await expectOk('an admin drafts a workout video', ADM, `insert into public.workout_videos (id, title, focus, level, minutes, equipment, exercise_ids, video, chapters) values ('${w1}', 'Beginner push', 'push', 'beginner', 20, '{floor}', '{pushup,knee-pushup}', '{"source":"link","url":"https://example.com/w.mp4"}', '[{"at":0,"label":"Warm-up","kind":"intro"}]');`)
+await expectCount('a draft is not shown to athletes', A, `select 1 from public.workout_videos`, 0)
+await expectDenied('a coach cannot add a workout video', C, `insert into public.workout_videos (title, status) values ('Mine', 'published');`)
+await expectDenied('a workout is about a discipline or the whole body', ADM, `update public.workout_videos set focus = 'cardio' where id = '${w1}';`)
+await expectOk('the admin publishes it', ADM, `update public.workout_videos set status = 'published', published_at = now() where id = '${w1}';`)
+await expectCount('then athletes see it', A, `select 1 from public.workout_videos`, 1)
+await expectCount('…and so does someone signed out', null, `select 1 from public.workout_videos`, 1, 'anon')
+await as(A, 'authenticated', () => db.exec(`update public.workout_videos set title = 'Hacked' where id = '${w1}'; delete from public.workout_videos where id = '${w1}';`))
+;(await count(`select 1 from public.workout_videos where id = '${w1}' and title = 'Beginner push'`)) === 1 ? ok('an athlete cannot change or remove it') : bad('workout_videos', 'an athlete changed a workout video')
+
+const setTheme = (theme: string) => `insert into public.app_settings (key, value) values ('aura', '{"defaultTheme":"${theme}","themes":{}}') on conflict (key) do update set value = excluded.value, updated_at = now();`
+await expectOk('the admin chooses the default Aura theme', ADM, setTheme('solar'))
+await expectOk('…and changes it', ADM, setTheme('cosmic'))
+await expectCount('everyone reads the settings', A, `select 1 from public.app_settings where value ->> 'defaultTheme' = 'cosmic'`, 1)
+await expectCount('…signed out too', null, `select 1 from public.app_settings`, 1, 'anon')
+await expectDenied('an athlete cannot change them', A, setTheme('primal'))
+await expectDenied('nor a coach', C, setTheme('primal'))
+await as(C, 'authenticated', () => db.exec(`update public.app_settings set value = '{"defaultTheme":"primal"}'; delete from public.app_settings;`))
+;(await count(`select 1 from public.app_settings where value ->> 'defaultTheme' = 'cosmic'`)) === 1 ? ok('…by any route') : bad('app_settings', 'a coach changed the settings')
 
 console.log(`\n${passed} passed, ${failed} failed`)
 await db.close()

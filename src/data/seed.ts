@@ -29,7 +29,7 @@ const everything: Athlete['equipment'] = ['floor', 'wall', 'bar', 'low_bar', 'di
 export const DEMO_ME: Persona = {
   athlete: {
     id: ME, name: 'Alex Rivera', handle: 'alex', bio: 'Chasing a thirty-second handstand and a first muscle-up.',
-    city: 'Lisbon', roles: ['athlete', 'coach'], goals: ['hs-free-30', 'pull-mu-1', 'core-lsit-30'], weeklyTarget: 4,
+    city: 'Lisbon', roles: ['athlete', 'coach', 'admin'], goals: ['hs-free-30', 'pull-mu-1', 'core-lsit-30'], weeklyTarget: 4,
     equipment: [...everything, 'rings', 'parallettes'],
   },
   shift: 0,
