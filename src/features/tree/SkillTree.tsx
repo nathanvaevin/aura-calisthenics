@@ -5,6 +5,8 @@ import { DISCIPLINES, SKILLS, disciplineById, skillById, skillsOf } from '@/doma
 import { BANDS, isVerified } from '@/domain/scoring/config'
 import { pathTo, type SkillStatuses } from '@/domain/scoring/skills'
 import { useMe } from '@/data/hooks'
+import { useStore } from '@/data/store'
+import { AscentLayer, type AscentPlan } from './Ascent'
 import { DisciplineDot, Eyebrow, PageHeader, StatusTag } from '@/ui/primitives'
 import { RatingSheet } from '@/features/shared/Explainers'
 import { SkillRow, SkillSheet } from './SkillSheet'
@@ -58,8 +60,26 @@ function layout(discipline: DisciplineId) {
   return { placed, height, yOf, byId: Object.fromEntries(placed.map((p) => [p.skill.id, p])) as Record<string, Placed> }
 }
 
+/**
+ * The route a level-up takes. From the node just completed to the landings it
+ * opens; if it opens none here, from the node below it up to itself; and for a
+ * node with nothing below either, straight up into open sky.
+ */
+function planAscent(skillId: string, placed: Placed[], byId: Record<string, Placed>, statuses: SkillStatuses): AscentPlan | null {
+  const node = byId[skillId]
+  if (!node) return null
+  const others = (skip: Placed[]) => placed.filter((p) => !skip.includes(p)).map((p) => ({ x: p.x, y: p.y }))
+  // The main beam follows the skill's own line upward: the same movement first, then whatever is most directly above.
+  const direct = (p: Placed) => (p.skill.exerciseId === node.skill.exerciseId ? 0 : 1000) + Math.abs(p.x - node.x)
+  const opened = placed.filter((p) => p.skill.requires.includes(skillId) && statuses[p.skill.id]?.state === 'available').sort((a, b) => direct(a) - direct(b)).slice(0, 3)
+  if (opened.length) return { skillId, origin: node, targets: opened.map((p) => ({ x: p.x, y: p.y, r: p.r, id: p.skill.id })), neighbours: others([node, ...opened]) }
+  const below = node.skill.requires.map((id) => byId[id]).filter((p) => p && statuses[p.skill.id]?.state === 'mastered').sort((a, b) => b.skill.rating - a.skill.rating)[0]
+  if (below) return { skillId, origin: below, targets: [{ x: node.x, y: node.y, r: node.r, id: skillId }], neighbours: others([node, below]) }
+  return { skillId, origin: node, targets: [{ x: node.x, y: Math.max(40, node.y - 150), r: node.r, id: null }], neighbours: others([node]) }
+}
+
 function Constellation({
-  discipline, statuses, rating, goalPath, goals, onOpen,
+  discipline, statuses, rating, goalPath, goals, onOpen, ascent, onAscended,
 }: {
   discipline: DisciplineId
   statuses: SkillStatuses
@@ -67,20 +87,56 @@ function Constellation({
   goalPath: Set<string>
   goals: string[]
   onOpen: (id: string) => void
+  /** A skill whose level-up should play now. */
+  ascent: string | null
+  onAscended: () => void
 }) {
   const { placed, height, yOf, byId } = useMemo(() => layout(discipline), [discipline])
   const color = dvar(discipline)
   const horizon = useRef<SVGRectElement>(null)
+  const wrap = useRef<HTMLDivElement>(null)
+  const sound = useStore((s) => s.settings.sound)
+  /** The landings that keep their light after a level-up, and the node the energy came from. */
+  const [lit, setLit] = useState<{ ids: (string | null)[]; at: { x: number; y: number; r: number }[]; key: number } | null>(null)
+
+  // The route is fixed when the level-up starts, so that syncing or logging during it cannot restart it.
+  const plan = useMemo(() => (ascent ? planAscent(ascent, placed, byId, statuses) : null), [ascent, placed, byId]) // eslint-disable-line react-hooks/exhaustive-deps
+  const still = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
   useEffect(() => {
+    if (!plan) return
+    if (!still) return
+    // No motion wanted: the landing simply takes its glow.
+    setLit({ ids: plan.targets.map((t) => t.id), at: plan.targets, key: Date.now() })
+    onAscended()
+  }, [plan, still]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (ascent) return
     const t = window.setTimeout(() => horizon.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 80)
     return () => window.clearTimeout(t)
-  }, [discipline])
+  }, [discipline]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!lit) return
+    const t = window.setTimeout(() => setLit(null), 9200)
+    return () => window.clearTimeout(t)
+  }, [lit])
 
   const maxRating = Math.max(...placed.map((p) => p.skill.rating))
   const horizonY = yOf(Math.min(rating, maxRating + 30) * SCALE)
 
   return (
+    <div ref={wrap} className="relative">
+    {plan && !still && (
+      <AscentLayer
+        key={plan.skillId}
+        plan={plan} discipline={discipline} wrap={wrap} unit={W} height={height} sound={sound}
+        level={Math.max(0, BANDS.findIndex((b) => b.id === skillById[plan.skillId]?.band))}
+        onImpact={() => setLit({ ids: plan.targets.map((t) => t.id), at: plan.targets, key: Date.now() })}
+        onDone={onAscended}
+      />
+    )}
     <svg viewBox={`0 0 ${W} ${height}`} className="block w-full" role="img" aria-label={`${disciplineById[discipline].name} skill tree`}>
       <defs>
         <filter id="node-glow" x="-120%" y="-120%" width="340%" height="340%">
@@ -155,6 +211,14 @@ function Constellation({
         }),
       )}
 
+      {/* A landing just reached keeps its light after the level-up has played. */}
+      {lit?.at.map((n, i) => (
+        <g key={`${lit.key}-${i}`} className="landing-halo">
+          <circle cx={n.x} cy={n.y} r={n.r * 2.3} fill={color} filter="url(#node-glow)" opacity="0.55" />
+          <circle cx={n.x} cy={n.y} r={n.r + 6} fill="none" stroke={color} strokeWidth="1.2" opacity="0.8" />
+        </g>
+      ))}
+
       {/* Nodes */}
       {placed.map(({ skill, x, y, r }) => {
         const st = statuses[skill.id]
@@ -220,6 +284,7 @@ function Constellation({
         )
       })}
     </svg>
+    </div>
   )
 }
 
@@ -230,6 +295,19 @@ export function SkillTree() {
   const [discipline, setDiscipline] = useState<DisciplineId>(DISCIPLINES.some((d) => d.id === initial) ? initial : 'handstand')
   const [open, setOpen] = useState<string | null>(params.get('s'))
   const [ratingOpen, setRatingOpen] = useState(false)
+
+  // A skill mastered since the tree was last open plays its level-up here, once.
+  const waiting = useStore((s) => (s.ascents ?? []).find((id) => skillById[id]))
+  const takeAscent = useStore((s) => s.takeAscent)
+  const [playing, setPlaying] = useState<string | null>(null)
+  useEffect(() => {
+    if (!waiting || playing || open || ratingOpen) return
+    const d = skillById[waiting].discipline
+    if (d !== discipline) return setDiscipline(d)
+    // Taken off the list as it starts: leaving the page mid-way must not make it loop.
+    takeAscent(waiting)
+    setPlaying(waiting)
+  }, [waiting, playing, open, ratingOpen, discipline, takeAscent])
 
   const openSkill = (id: string) => {
     const s = skillById[id]
@@ -287,7 +365,10 @@ export function SkillTree() {
               <span className="display num text-[32px]">{rating.rating || '—'}</span>
             </span>
           </button>
-          <Constellation discipline={discipline} statuses={me.statuses} rating={rating.rating} goalPath={goalPath} goals={me.athlete.goals} onOpen={openSkill} />
+          <Constellation
+            discipline={discipline} statuses={me.statuses} rating={rating.rating} goalPath={goalPath} goals={me.athlete.goals} onOpen={openSkill}
+            ascent={playing && skillById[playing]?.discipline === discipline ? playing : null} onAscended={() => setPlaying(null)}
+          />
           <Legend />
         </div>
 

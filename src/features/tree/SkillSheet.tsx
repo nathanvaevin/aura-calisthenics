@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { ArrowUpRight, Check, Lock, Play, Target } from 'lucide-react'
+import { ArrowUpRight, Check, Lock, Play, Sparkles, Target } from 'lucide-react'
 import type { Skill } from '@/domain/types'
 import { MUSCLES, disciplineById, exerciseById, formatValue, skillById, unlockedBy } from '@/domain/catalog'
 import { BANDS } from '@/domain/scoring/config'
@@ -52,6 +52,7 @@ export function SkillRow({ skill, status, onClick, note }: { skill: Skill; statu
 export function SkillSheet({ skillId, onClose, onOpenSkill }: { skillId: string | null; onClose: () => void; onOpenSkill: (id: string) => void }) {
   const me = useMe()
   const toggleGoal = useStore((s) => s.toggleGoal)
+  const queueAscent = useStore((s) => s.queueAscent)
   const media = useStore((s) => s.media)
   const navigate = useNavigate()
   const start = useStartWorkout()
@@ -108,6 +109,15 @@ export function SkillSheet({ skillId, onClose, onOpenSkill }: { skillId: string 
           <Bar value={status.progress} color={color} className="mt-3" height={4} />
           {ex.standard && <p className="mt-3 text-[12.5px] leading-snug text-ink-2"><span className="text-ink-3">Counts when: </span>{ex.standard}</p>}
           {status.implied && <p className="mt-2 text-[12.5px] leading-snug text-ink-3">You have demonstrated a skill that depends on this one, so it is treated as mastered. Log it directly to put it on record.</p>}
+          {mastered && !status.implied && (
+            <button
+              className="mt-3 inline-flex items-center gap-1.5 text-[12.5px] font-medium underline decoration-line-strong underline-offset-4 hover:text-ink"
+              style={{ color }}
+              onClick={() => { queueAscent(skill.id); onClose(); if (!window.location.pathname.endsWith('/tree')) navigate(`/tree?d=${skill.discipline}`) }}
+            >
+              <Sparkles size={13} /> Replay the level-up
+            </button>
+          )}
         </div>
 
         <div className="mt-3 grid grid-cols-2 gap-2.5">

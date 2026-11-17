@@ -105,6 +105,12 @@ A feature is only "Working" when its user journey has actually been run. An inte
 | F-97 | Rotation groups: the coach sets 1–6 groups; people are placed evenly as they join, can be moved with a tap, see their group and starting station on their phone; the full-screen timer shows where each group should be | Working (local); between phones **needs 0008** | Groups placed and shown (T-12); moving someone not clicked | – | 0008 |
 | F-98 | Re-test read against the baseline, benchmark by benchmark: improved, new variations, held, not retested, still developing. On the athlete's results and in the coach's participant sheet | Working (local) on the coach's device | Coach side on demo data; domain tests | On the athlete's phone it needs accounts (the baseline is linked through the server) and has not been run live yet | 0008 |
 
+### Level-up in the Skill Tree (added 2026-11-17)
+
+| ID | Feature | Status | Tested | Missing / limits | Depends on |
+| --- | --- | --- | --- | --- | --- |
+| F-99 | Level-up animation in the Skill Tree: energy gathers in the node just completed, builds, fires a thick Aura beam along the tree's own line to the landing it opens (lighter beams to other landings it opens), bursts there with fireworks and light across nearby nodes, and leaves a glow for about nine seconds. With sound when sounds are on. Plays once, the next time the tree is opened after a skill is mastered; "Replay the level-up" on any mastered skill | Working (local) | In headless Chrome at phone and desktop size, dark and light: each phase looked at frame by frame; steady 60 frames a second; started from a real logged best through the unlock card; taps pass through it; removed when done; reduced-motion setting gives the glow only (T-13) | Not seen on a real phone (speed on older phones unknown). The sound was not listened to: a headless browser has no speakers. Skills that arrive from a coach's assessment do not queue a level-up yet (only bests the athlete logs or claims) | – |
+
 ### Identity, places and presence (added 2026-11-14)
 
 | ID | Feature | Status | End to end? | What remains | Depends on |
@@ -248,6 +254,7 @@ A feature is only "Working" when its user journey has actually been run. An inte
 | ID | What was tested | Result | Environment | Limits |
 | --- | --- | --- | --- | --- |
 | T-12 | USC course and station assessment (2026-11-17, demo mode, two browsers): template opens with 9 weeks → week 1 is the initial assessment → week 4 shows focus, share of focus work, Focus/Support tags → assessment created from week 1 is by stations in 3 groups → coach Stations tab lists every pushing variation easiest first with ranges and standards → a phone joins by link → station menu grouped by movement → chose knee and pike push-ups → range shown, no limit → 30 knee push-ups typed, hint shown, recorded as 30 → offered push-ups, accepted → all three saved → station done, others open → rating from the existing curves → guided sequence available. Plus: a re-test of a demo baseline carries the group and shows Since the baseline | 15 of 15, no console errors | Local dev server, headless Chrome, desktop and phone size | Not run against accounts (needs 0008), not on real phones, moving a person between groups not clicked |
+| T-13 | Level-up animation (2026-11-17): logged a 10th pull-up in the demo → unlock card → "See it in your skill tree" → the animation plays on Pulling from Pull-up × 5… (the node completed) to the landings it opens; frames captured through ignition, build-up, flight, impact, fireworks and settle; frame times measured; overlay does not take taps; gone at the end with the glow left; replay from the skill sheet; light theme; desktop width; reduced motion | Pass, no console errors, median frame 16.7 ms | Local dev server, headless Chrome | No real phone; sound not heard |
 | T-11 | Live, after the dashboard steps (2026-11-16): a code opened in a never-used browser shows coach, group and course before sign-in → typed name → *Join as a guest* → lands in the assessment, on the coach's board under that name, enrolled in the course → the coach marks a result observed and it reaches the student's phone in 2.1 s **with that phone not asking** (pushed update) → finalising closes the code and the evidence arrives by itself → a guest is issued a Google link (manual linking on) → test data removed | 10 of 10 after the manual-linking fix | Local dev server against the live project, headless Chrome | Google sign-in and the Google round trip of keeping a profile: not run (need a person) |
 | T-01 | Unit tests: catalog, scoring and its invariants, assessment protocol, station menus, groups, re-test comparison, link encoding, group analysis, places and presence rules, store behaviour, and the sync engine with two simulated devices and a pretend server | 122 pass | Local, Vitest | – |
 | T-02 | All eight migrations and the seed apply; 184 checks on access rules, incl. invitation tokens, result privacy, observe/verify, finalise, identity/places/presence, the media bucket, `0006` (reading an invitation signed out, joining enrols, guest hand-over, evidence removed with its assessment) `0007` (coach access by request) and `0008` (week kinds and focus, focus exercises, assessment mode and groups) | 184 pass | In-process Postgres (PGlite) with stand-ins for Supabase auth and storage | Not a real Supabase project |
@@ -282,6 +289,10 @@ A feature is only "Working" when its user journey has actually been run. An inte
 | Data protection | Any real athletes | Privacy notice, deletion and export, consent for under-18s in classes |
 
 ## F · Change log
+
+**2026-11-17 · Level-up animation in the Skill Tree**
+- New: `src/ui/ascent.ts` (the animation, one canvas, no new dependency), `src/features/tree/Ascent.tsx`, `ascendSound` in `src/lib/sound.ts`; the store keeps a short list of level-ups waiting to be shown (device only, not synced). F-99, T-13.
+- The unlock card's "See it in your skill tree" now opens the tree itself (where the level-up plays) instead of the skill's sheet.
 
 **2026-11-17 · USC Calisthenics Beginner and station-based assessment**
 - New course template (F-90); week kind and focus, focus/support exercises (F-91); assessment weeks wired to sessions (F-92).

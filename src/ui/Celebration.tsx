@@ -83,7 +83,7 @@ export function Celebrations() {
               className="btn btn-outline"
               onClick={() => {
                 dismiss(current.id)
-                navigate(`/tree?d=${skill.discipline}&s=${skill.id}`)
+                navigate(`/tree?d=${skill.discipline}`)
               }}
             >
               See it in your skill tree

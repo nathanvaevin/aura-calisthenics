@@ -138,6 +138,8 @@ interface State {
   active: ActiveWorkout | null
   settings: Settings
   celebrations: Celebration[]
+  /** Skills mastered since the athlete last looked at the tree: each plays its level-up there, once. */
+  ascents: string[]
   /** The sample world is loaded. Nothing in it is anyone's real data. */
   demo: boolean
   /** The signed-in account this device's data belongs to; null when everything is local. */
@@ -156,6 +158,9 @@ interface State {
   addEvidence: (e: { exerciseId: string; value: number; source: Evidence['source']; logId?: string; note?: string }) => void
   removeEvidence: (id: string) => void
   dismissCelebration: (id: string) => void
+  /** Play (or replay) a skill's level-up the next time its part of the tree is on screen. */
+  queueAscent: (skillId: string) => void
+  takeAscent: (skillId: string) => void
 
   startWorkout: (source: WorkoutSource, title: string, blocks: WorkoutBlock[]) => void
   setVariation: (index: number, level: number, exerciseId?: string) => void
@@ -237,6 +242,7 @@ const empty = {
   mapView: null as { lat: number; lon: number; zoom: number } | null,
   active: null as ActiveWorkout | null,
   celebrations: [] as Celebration[],
+  ascents: [] as string[],
   demo: false,
   cloudUid: null as string | null,
   cloudShadow: {} as Record<string, string>,
@@ -405,11 +411,14 @@ export const useStore = create<State>()(
           celebrations: unlocked.length
             ? [...s.celebrations, { id: uid(), skillId: unlocked[0], tier: 'self' }]
             : s.celebrations,
+          ascents: unlocked.length ? [...(s.ascents ?? []).filter((id) => id !== unlocked[0]), unlocked[0]] : (s.ascents ?? []),
         })
       },
 
       removeEvidence: (id) => set((s) => ({ evidence: s.evidence.filter((e) => e.id !== id) })),
       dismissCelebration: (id) => set((s) => ({ celebrations: s.celebrations.filter((c) => c.id !== id) })),
+      queueAscent: (skillId) => set((s) => ({ ascents: [...(s.ascents ?? []).filter((id) => id !== skillId), skillId] })),
+      takeAscent: (skillId) => set((s) => ({ ascents: (s.ascents ?? []).filter((id) => id !== skillId) })),
 
       startWorkout: (source, title, blocks) => {
         const s = get()
