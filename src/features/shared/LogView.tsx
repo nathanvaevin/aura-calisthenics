@@ -45,9 +45,9 @@ export function BlockList({ blocks }: { blocks: WorkoutBlock[] }) {
               {b.level ? `L${b.level}` : '·'}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[13.5px] font-medium">{ex.name}</span>
+              <span className="flex items-center gap-2 truncate text-[13.5px] font-medium">{ex.name}{b.primary && <span className="shrink-0 rounded-full bg-ink px-1.5 py-px font-mono text-[8.5px] tracking-[0.1em] text-bg uppercase">Focus</span>}</span>
               <span className="block truncate text-[11.5px] text-ink-3">
-                {KIND_LABEL[b.kind]}{adjustable ? ` · adjustable L${b.minLevel}–${b.maxLevel}` : b.level ? ' · level fixed' : ''}
+                {b.note ? `${b.note} · ` : ''}{KIND_LABEL[b.kind]}{adjustable ? ` · adjustable L${b.minLevel}–${b.maxLevel}` : b.level ? ' · level fixed' : ''}
               </span>
             </span>
             <span className="num shrink-0 text-[12.5px] text-ink-2">{b.sets} × {formatValue(ex, b.target)}</span>

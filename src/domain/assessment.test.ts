@@ -4,7 +4,7 @@ import { DISCIPLINE_IDS, exerciseById } from './catalog'
 import {
   ALL_TESTS, PROTOCOL, STATIONS, compareProfiles, decodeHandIn, decodeInvite, encodeHandIn, encodeInvite, groupInsights, ladderAdvice,
   needsAttention, nextTest, overallProgress, profileOf, resultsToEvidence, startingStation, stationById, stationProgress, suggestPairs,
-  testById, toMember, visibleTests, type Results,
+  testById, toMember, visibleTests, type Results, menuOf, harderThan, beyondTarget, protocolKnown, groupOf, rotationOf, compareResults,
 } from './assessment'
 import { allRatings } from './scoring/mastery'
 
@@ -125,8 +125,9 @@ describe('assessment results', () => {
 
 describe('invitation and hand-in links', () => {
   it('round-trip an invitation', () => {
-    const invite = { id: 'k3x9', protocol: PROTOCOL, title: 'Baseline', groupName: 'Handstand Foundations · Tuesday', coachName: 'Zoë Müller', courseId: 'c1', stations: ['handstand', 'push', 'core'] as DisciplineId[], kind: 'retest' as const, stationMinutes: 7 }
+    const invite = { id: 'k3x9', protocol: PROTOCOL, title: 'Baseline', groupName: 'Handstand Foundations · Tuesday', coachName: 'Zoë Müller', courseId: 'c1', stations: ['handstand', 'push', 'core'] as DisciplineId[], kind: 'retest' as const, stationMinutes: 7, mode: 'stations' as const }
     expect(decodeInvite(encodeInvite(invite))).toEqual(invite)
+    expect(decodeInvite(encodeInvite({ ...invite, mode: undefined }))?.mode).toBe('guided')
     expect(encodeInvite(invite)).toMatch(/^[A-Za-z0-9_-]+$/)
     expect(decodeInvite('not-a-link')).toBeNull()
   })
@@ -143,8 +144,85 @@ describe('invitation and hand-in links', () => {
   })
 
   it('stay short enough to scan from a phone screen', () => {
-    const full: Results = Object.fromEntries(ALL_TESTS.map((t) => [t.id, r(t.kind === 'choice' ? 1 : 120)]))
+    // Everything the guided path can show, plus a few variations chosen from the menus.
+    const guided = STATIONS.flatMap((s) => s.tests)
+    const full: Results = Object.fromEntries([...guided, ...STATIONS.flatMap((s) => s.extra.slice(0, 2))].map((t) => [t.id, r(t.kind === 'choice' ? 1 : 120)]))
     expect(encodeHandIn(participant('p123456789', 'A Fairly Long Participant Name', full, { submittedAt: '2026-01-05T11:00:00.000Z' }), PROTOCOL).length).toBeLessThan(900)
+  })
+
+  it('keep baseline-1 links readable: guided tests kept their positions', () => {
+    expect(protocolKnown('baseline-1')).toBe(true)
+    expect(protocolKnown('baseline-0')).toBe(false)
+    expect(ALL_TESTS.slice(0, 3).map((t) => t.id)).toEqual(['dead-hang', 'pull-up', 'incline-row'])
+    expect(ALL_TESTS.findIndex((t) => t.id === 'bridge')).toBe(STATIONS.flatMap((s) => s.tests).length - 1)
+  })
+})
+
+describe('station menus', () => {
+  it('offer every guided benchmark plus rated variations, each with a target and nothing unrated', () => {
+    for (const s of STATIONS) {
+      const menu = menuOf(s).flatMap((x) => x.tests)
+      expect(menu.length, s.id).toBe(s.tests.length + s.extra.length)
+      for (const t of s.extra) {
+        expect(t.when, t.id).toBeUndefined()
+        expect(exerciseById[t.exerciseId].curve, t.id).toBeDefined()
+        expect(exerciseById[t.exerciseId].discipline, t.id).toBe(s.id)
+      }
+      for (const t of menu) if (t.kind === 'max') expect(t.target![0] < t.target![1], t.id).toBe(true)
+    }
+  })
+
+  it('order variations of one movement from easiest to hardest, by the scoring curves', () => {
+    const push = menuOf(stationById.push).find((x) => x.category === 'Horizontal push')!.tests.map((t) => t.id)
+    expect(push.slice(0, 5)).toEqual(['wall-pushup', 'incline-pushup', 'low-incline-pushup', 'knee-pushup', 'pushup'])
+    const dips = menuOf(stationById.push).find((x) => x.category === 'Dip')!.tests.map((t) => t.id)
+    expect(dips).toEqual(['bench-dip', 'negative-dip', 'dip'])
+    // Different movements are not forced onto one ladder.
+    expect(menuOf(stationById.push).map((x) => x.category)).toEqual(expect.arrayContaining(['Horizontal push', 'Vertical push', 'Dip']))
+  })
+
+  it('point past a comfortable result to the next variation, without limiting it', () => {
+    expect(harderThan(testById['knee-pushup'])?.id).toBe('pushup')
+    expect(harderThan(testById['bench-dip'])?.id).toBe('negative-dip')
+    expect(beyondTarget(testById['knee-pushup'], 15)).toBe(false)
+    expect(beyondTarget(testById['knee-pushup'], 30)).toBe(true)
+    // Whatever was done is what is recorded, and rated: 45 s is worth more than 30 s.
+    const at = (v: number) => profileOf({ 'plank': r(v) }).ratings.core
+    expect(at(150)).toBeGreaterThan(at(120))
+  })
+
+  it('call a station done in station mode once anything is recorded there', () => {
+    const results = { 'knee-pushup': r(12) }
+    expect(stationProgress(stationById.push, results, [], 'stations').state).toBe('done')
+    // The guided path only reaches knee push-ups after push-ups were tried.
+    expect(stationProgress(stationById.push, results, [], 'guided').state).toBe('todo')
+    expect(overallProgress(['push', 'core'], results, [], 'stations')).toMatchObject({ done: 1, complete: false, started: true })
+  })
+})
+
+describe('groups', () => {
+  const people = ['a', 'b', 'c', 'd', 'e'].map((id, i) => participant(id, id, {}, { joinedAt: `2026-01-05T09:0${i}:00.000Z` }))
+  it('fill evenly in joining order, unless the coach placed someone', () => {
+    expect(people.map((p) => groupOf(p, people, 3))).toEqual([0, 1, 2, 0, 1])
+    expect(groupOf({ ...people[0], group: 2 }, people, 3)).toBe(2)
+  })
+  it('start each group at a different station and rotate through all of them', () => {
+    const stations: DisciplineId[] = ['pull', 'push', 'core', 'legs', 'handstand', 'mobility']
+    const starts = [0, 1, 2].map((g) => rotationOf(g, 3, stations)[0])
+    expect(starts).toEqual(['pull', 'core', 'handstand'])
+    for (const g of [0, 1, 2]) expect([...rotationOf(g, 3, stations)].sort()).toEqual([...stations].sort())
+  })
+})
+
+describe('a re-test against its baseline', () => {
+  it('names what improved, what is new, what held, and what was not retested', () => {
+    const before = { 'knee-pushup': r(10), 'dead-hang': r(20), plank: r(30) }
+    const after = { 'knee-pushup': r(12), pushup: r(3), 'dead-hang': r(20) }
+    const c = compareResults(before, after)
+    expect(c.improved.map((x) => [x.exerciseId, x.before, x.after])).toEqual([['knee-pushup', 10, 12]])
+    expect(c.added.map((x) => x.exerciseId)).toEqual(['pushup'])
+    expect(c.held.map((x) => x.exerciseId)).toEqual(['dead-hang'])
+    expect(c.notRetested.map((x) => x.exerciseId)).toEqual(['plank'])
   })
 })
 

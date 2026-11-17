@@ -304,7 +304,7 @@ function simulateResults(rows: Ev[], stations: DisciplineId[], at: string, facto
     for (let guard = 0; guard < 12; guard++) {
       const t = nextTest(stationById[station], results)
       if (!t) break
-      const value = t.kind === 'choice' ? choice(t.id) : Math.min(t.cap ?? 999, Math.round((best.get(t.exerciseId) ?? floor[t.id] ?? 0) * factor))
+      const value = t.kind === 'choice' ? choice(t.id) : Math.round((best.get(t.exerciseId) ?? floor[t.id] ?? 0) * factor)
       results[t.id] = { value, tier: roll < 0.12 ? 'coach' : roll < 0.5 ? 'observed' : 'self', at }
     }
   }

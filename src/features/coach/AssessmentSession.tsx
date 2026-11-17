@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router'
 import { AlertTriangle, ArrowLeft, BadgeCheck, Check, Copy, Eye, Hand, Lock, Pencil, Play, RotateCcw, Trash2, UserPlus, Users, X } from 'lucide-react'
 import type { AssessmentParticipant, AssessmentSession as Session, DisciplineId, ResultTier } from '@/domain/types'
 import {
-  compareProfiles, decodeHandIn, estimateMinutes, groupInsights, ladderAdvice, needsAttention, overallProgress, profileOf, startingStation,
-  stationById, stationProgress, toMember, visibleTests,
+  compareProfiles, compareResults, decodeHandIn, estimateMinutes, groupCount, groupInsights, groupOf, ladderAdvice, needsAttention, overallProgress, profileOf,
+  rotationOf, stationById, stationProgress, toMember, visibleTests,
 } from '@/domain/assessment'
 import { disciplineById, exerciseById } from '@/domain/catalog'
 import { TIER_LABEL } from '@/domain/scoring/config'
@@ -12,6 +12,8 @@ import { useIsCoach, useNow } from '@/data/hooks'
 import { useStore } from '@/data/store'
 import { useLive, useOnServer } from '@/data/cloud'
 import { SyncLine } from '@/features/account/Account'
+import { StationOverview } from '@/features/assess/StationMenu'
+import { SinceBaseline } from '@/features/assess/Progress'
 import { QrCode } from '@/ui/QrCode'
 import { DisciplineDot, Empty, Eyebrow, SectionTitle, Segmented, Sheet, Stepper, TierTag } from '@/ui/primitives'
 import { resultLabel } from '@/features/assess/Assess'
@@ -19,13 +21,13 @@ import { GroupProfile, assessed } from '@/features/assess/Group'
 import { copyText, inviteUrl, isLocalOnly, readLink } from '@/features/assess/links'
 import { clock, cx, dvar, num, shortDate } from '@/lib/format'
 
-type Tab = 'invite' | 'board' | 'group'
+type Tab = 'invite' | 'board' | 'stations' | 'group'
 const first = (name: string) => name.split(' ')[0]
 const RANK: Record<ResultTier, number> = { self: 0, observed: 1, coach: 2 }
 
 /** The lowest tier among a station's recorded results: a station is only as known as its least-known result. */
 function stationTier(p: AssessmentParticipant, station: DisciplineId): ResultTier | null {
-  const tiers = stationById[station].tests.map((t) => p.results[t.id]).filter((r) => r && !r.skipped).map((r) => r.tier)
+  const tiers = [...stationById[station].tests, ...stationById[station].extra].map((t) => p.results[t.id]).filter((r) => r && !r.skipped).map((r) => r.tier)
   return tiers.length ? tiers.reduce((a, b) => (RANK[b] < RANK[a] ? b : a)) : null
 }
 
@@ -47,6 +49,15 @@ export function AssessmentSession() {
   useLive('assess', 4000)
 
   const participants = useMemo(() => all.filter((p) => p.sessionId === sessionId), [all, sessionId])
+  const patchParticipant = useStore((s) => s.patchParticipant)
+
+  // Place everyone who joined in a group as they arrive, so their phone can show it. The coach can move them after.
+  const groups = session ? groupCount(session) : 1
+  useEffect(() => {
+    if (!session || session.status !== 'open' || session.coachId !== meId || groups < 2) return
+    for (const p of participants) if (p.group === undefined) patchParticipant(p.id, { group: groupOf(p, participants, groups) })
+  }, [session, participants, groups, meId, patchParticipant])
+
   if (!coach || !session || session.origin !== 'local' || session.coachId !== meId) return <Navigate to="/coach" replace />
 
   const tab = (params.get('tab') as Tab) || (participants.length ? 'board' : 'invite')
@@ -66,19 +77,20 @@ export function AssessmentSession() {
         <input aria-label="Assessment title" className="display w-full bg-transparent text-[36px] outline-none lg:text-[48px]" value={session.title} onChange={(e) => patch(session.id, { title: e.target.value })} />
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
           <span className={cx('rounded-full px-2 py-0.5 font-mono text-[9.5px] tracking-[0.1em] uppercase', open ? 'bg-good/15 text-good' : 'border border-line text-ink-3')}>{open ? 'Open' : `Finalised ${shortDate(session.finalisedAt!)}`}</span>
-          <span className="num text-[12.5px] text-ink-3">{participants.length} joined · {done} finished · {session.stations.length} stations · about {estimateMinutes(session.stations)} min</span>
+          <span className="num text-[12.5px] text-ink-3">{participants.length} joined · {done} finished · {session.stations.length} stations · about {estimateMinutes(session.stations)} min · {session.mode === 'stations' ? 'by stations' : 'guided'}</span>
           {session.sample && <span className="rounded-full border border-dashed border-line-strong px-2 py-0.5 font-mono text-[9.5px] tracking-[0.1em] text-ink-3 uppercase">Sample data</span>}
         </div>
       </header>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Segmented<Tab> value={tab} onChange={(t) => setParams({ tab: t }, { replace: true })} options={[{ value: 'invite', label: 'Invite' }, { value: 'board', label: 'Board' }, { value: 'group', label: 'Group' }]} />
+        <Segmented<Tab> value={tab} onChange={(t) => setParams({ tab: t }, { replace: true })} options={[{ value: 'invite', label: 'Invite' }, { value: 'board', label: 'Board' }, { value: 'stations', label: 'Stations' }, { value: 'group', label: 'Group' }]} />
         {open && <button className="btn btn-primary btn-sm" disabled={assessed(participants).length === 0} onClick={() => setConfirm(true)}><Check size={15} /> Finalise</button>}
       </div>
 
       <div className="mt-6">
         {tab === 'invite' && <Invite session={session} participants={participants} />}
         {tab === 'board' && <Board session={session} participants={participants} />}
+        {tab === 'stations' && <StationOverview stations={session.stations} />}
         {tab === 'group' && <Group session={session} participants={participants} />}
       </div>
 
@@ -227,24 +239,23 @@ function Invite({ session, participants }: { session: Session; participants: Ass
         </section>
 
         <section>
-          <SectionTitle>Where each person starts</SectionTitle>
-          <div className="card divide-y divide-line">
-            {session.stations.map((s) => {
-              const here = participants.filter((p) => startingStation(p.id, session.stations) === s)
-              return (
-                <div key={s} className="flex items-start gap-3 px-4 py-3">
-                  <span className="mt-1"><DisciplineDot id={s} /></span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[14px] font-medium">{disciplineById[s].short}<span className="ml-2 text-[12px] font-normal text-ink-3">{stationById[s].minutes} min</span></span>
-                    <span className="block text-[12px] leading-snug text-ink-3">{stationById[s].setup}</span>
-                    {here.length > 0 && <span className="mt-1 block text-[12.5px] text-ink-2">{here.map((p) => first(p.name)).join(', ')}</span>}
-                  </span>
-                </div>
-              )
-            })}
+          <SectionTitle>Format</SectionTitle>
+          <div className="card p-4">
+            <Segmented<'stations' | 'guided'>
+              value={session.mode ?? 'guided'}
+              onChange={(mode) => patch(session.id, { mode })}
+              options={[{ value: 'stations', label: 'By stations' }, { value: 'guided', label: 'Guided' }]}
+            />
+            <p className="mt-3 text-[12.5px] leading-relaxed text-ink-2">
+              {(session.mode ?? 'guided') === 'stations'
+                ? 'Each person opens a station and chooses the variations that match their level, easiest to hardest, with a suggested range for each. Best for a class sharing equipment in groups.'
+                : 'Each station walks the person through its benchmarks in a fixed order, choosing the next one from their last result. Best for someone testing on their own.'}
+            </p>
+            {participants.some((p) => Object.keys(p.results).length) && <p className="mt-2 text-[12px] text-ink-3">Results already recorded stay as they are when you switch.</p>}
           </div>
-          <p className="mt-2 text-[12px] text-ink-3">Each phone suggests a different first station, so the group spreads out instead of queueing at the bar.</p>
         </section>
+
+        <Groups session={session} participants={participants} />
       </div>
 
       {present && (
@@ -255,9 +266,64 @@ function Invite({ session, participants }: { session: Session; participants: Ass
           <div className="mt-8"><QrCode value={url} size={Math.min(window.innerHeight * 0.5, window.innerWidth * 0.8)} /></div>
           <p className="mt-6 text-[17px] text-ink-2">Point your phone camera at the code to begin.</p>
           {running && !over && <p className="display num mt-4 text-[44px]">Round {round + 1} · {clock(left)}</p>}
+          {running && !over && groupCount(session) > 1 && (
+            <div className="mt-3 flex flex-wrap justify-center gap-x-6 gap-y-2 text-[18px]">
+              {Array.from({ length: groupCount(session) }, (_, g) => {
+                const at = rotationOf(g, groupCount(session), session.stations)[round % session.stations.length]
+                return <span key={g} className="flex items-center gap-2">Group {g + 1} <DisciplineDot id={at} /> {disciplineById[at].short}</span>
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>
+  )
+}
+
+// ── Groups ───────────────────────────────────────────────────────────────
+
+/** Split the class so groups start at different stations and rotate. Tap a name to move them. */
+function Groups({ session, participants }: { session: Session; participants: AssessmentParticipant[] }) {
+  const patch = useStore((s) => s.patchAssessment)
+  const patchParticipant = useStore((s) => s.patchParticipant)
+  const groups = groupCount(session)
+  return (
+    <section>
+      <SectionTitle>Groups</SectionTitle>
+      <div className="card p-4">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[13.5px] text-ink-2">Groups rotating between stations</span>
+          <Stepper value={groups} min={1} max={Math.min(6, Math.max(1, session.stations.length))} onChange={(v) => patch(session.id, { groups: v })} />
+        </div>
+        {groups > 1 && (
+          <div className="mt-4 space-y-3">
+            {Array.from({ length: groups }, (_, g) => {
+              const order = rotationOf(g, groups, session.stations)
+              const members = participants.filter((p) => groupOf(p, participants, groups) === g)
+              return (
+                <div key={g} className="rounded-[16px] bg-surface-2 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[14px] font-medium">Group {g + 1}</span>
+                    <span className="flex items-center gap-1.5 text-[12px] text-ink-3">starts at <DisciplineDot id={order[0]} size={6} />{disciplineById[order[0]].short}</span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {members.length === 0 && <span className="text-[12px] text-ink-3">Nobody yet</span>}
+                    {members.map((p) => (
+                      <button key={p.id} title="Move to the next group" className="rounded-full border border-line bg-surface px-2.5 py-1 text-[12.5px] hover:border-line-strong" onClick={() => patchParticipant(p.id, { group: (g + 1) % groups })}>
+                        {first(p.name)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+        <p className="mt-3 text-[12px] leading-relaxed text-ink-3">
+          {groups > 1 ? 'People are placed as they join, filling the groups evenly. Tap a name to move them to the next group; their phone shows their group and where to start.' : 'One group: everyone starts wherever there is space.'} With the station timer running, the full-screen code also shows where each group should be.
+        </p>
+      </div>
+    </section>
   )
 }
 
@@ -274,7 +340,8 @@ function Board({ session, participants }: { session: Session; participants: Asse
   const [cell, setCell] = useState<{ pid: string; station: DisciplineId } | null>(null)
   const [person, setPerson] = useState<string | null>(null)
 
-  const attention = useMemo(() => needsAttention(participants, session.stations), [participants, session.stations])
+  const mode = session.mode ?? 'guided'
+  const attention = useMemo(() => needsAttention(participants, session.stations, mode), [participants, session.stations, mode])
   const students = session.courseId
     ? enrollments.filter((e) => e.courseId === session.courseId && athletes[e.athleteId] && !participants.some((p) => p.athleteId === e.athleteId))
     : []
@@ -302,7 +369,7 @@ function Board({ session, participants }: { session: Session; participants: Asse
                 <tr className="border-b border-line">
                   <th className="px-3 py-3 font-mono text-[9.5px] font-medium tracking-[0.12em] text-ink-3 uppercase lg:px-4">Participant</th>
                   {session.stations.map((s) => {
-                    const n = participants.filter((p) => stationProgress(stationById[s], p.results, p.skipped).state === 'done').length
+                    const n = participants.filter((p) => stationProgress(stationById[s], p.results, p.skipped, mode).state === 'done').length
                     return (
                       <th key={s} className="px-0.5 py-3 text-center lg:px-1">
                         <span className="mx-auto block h-2 w-2 rounded-full" style={{ background: dvar(s) }} />
@@ -319,11 +386,11 @@ function Board({ session, participants }: { session: Session; participants: Asse
                     <td className="max-w-[104px] px-3 py-2 lg:max-w-[180px] lg:px-4">
                       <button className="block w-full text-left" onClick={() => setPerson(p.id)}>
                         <span className="flex items-center gap-1.5 truncate text-[14px] font-medium">{p.name}{p.flags.length > 0 && <Hand size={12} className="shrink-0 text-warn" />}</span>
-                        <span className="block truncate text-[11px] text-ink-3">{p.submittedAt ? 'Finished' : overallProgress(session.stations, p.results, p.skipped).started ? 'In progress' : 'Not started'}{p.via === 'import' ? ' · handed in' : p.via === 'coach' ? ' · added by you' : ''}</span>
+                        <span className="block truncate text-[11px] text-ink-3">{groupCount(session) > 1 ? `G${groupOf(p, participants, groupCount(session)) + 1} · ` : ''}{p.submittedAt ? 'Finished' : overallProgress(session.stations, p.results, p.skipped, mode).started ? 'In progress' : 'Not started'}{p.via === 'import' ? ' · handed in' : p.via === 'coach' ? ' · added by you' : ''}</span>
                       </button>
                     </td>
                     {session.stations.map((s) => {
-                      const sp = stationProgress(stationById[s], p.results, p.skipped)
+                      const sp = stationProgress(stationById[s], p.results, p.skipped, mode)
                       const tier = stationTier(p, s)
                       const flagged = p.flags.includes(s)
                       return (
@@ -410,7 +477,7 @@ function CellSheet({ session, participant: p, station, onClose }: { session: Ses
   const toggleFlag = useStore((s) => s.toggleFlag)
   if (!p || !station) return <Sheet open={false} onClose={onClose}>{null}</Sheet>
   const st = stationById[station]
-  const recorded = visibleTests(st, p.results).filter((t) => p.results[t.id])
+  const recorded = [...st.tests, ...st.extra].filter((t) => p.results[t.id] && ((session.mode ?? 'guided') === 'stations' || !st.tests.includes(t) || visibleTests(st, p.results).includes(t)))
   const tier = stationTier(p, station)
   const own = p.athleteId === meId
 
@@ -467,8 +534,10 @@ function CellSheet({ session, participant: p, station, onClose }: { session: Ses
 
 function PersonSheet({ session, participant: p, onClose, onOpen }: { session: Session; participant?: AssessmentParticipant; onClose: () => void; onOpen: (station: DisciplineId) => void }) {
   const removeParticipant = useStore((s) => s.removeParticipant)
+  const all = useStore((s) => s.participants)
   if (!p) return <Sheet open={false} onClose={onClose}>{null}</Sheet>
   const profile = profileOf(p.results, session.stations)
+  const before = session.baselineId ? all.find((b) => b.sessionId === session.baselineId && (p.athleteId ? b.athleteId === p.athleteId : b.name === p.name)) : undefined
   const counts = { self: 0, observed: 0, coach: 0 }
   for (const r of Object.values(p.results)) if (!r.skipped) counts[r.tier]++
 
@@ -482,6 +551,12 @@ function PersonSheet({ session, participant: p, onClose, onOpen }: { session: Se
           </button>
         ))}
       </div>
+      {before && (
+        <div className="mt-3">
+          <Eyebrow className="mb-2">Since the baseline</Eyebrow>
+          <SinceBaseline c={compareResults(before.results, p.results)} still={profile.weakest} who={first(p.name)} />
+        </div>
+      )}
       <div className="card mt-3 divide-y divide-line text-[13.5px]">
         {(['self', 'observed', 'coach'] as const).map((t) => (
           <div key={t} className="flex items-center justify-between px-4 py-2.5"><span className="flex items-center gap-2.5"><TierTag tier={t} compact />{TIER_LABEL[t]}</span><span className="num font-medium">{counts[t]}</span></div>

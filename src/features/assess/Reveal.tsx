@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router'
 import { ArrowRight, Check, Copy, Share2, Target, Users } from 'lucide-react'
 import type { DisciplineId } from '@/domain/types'
-import { compareProfiles, overallProgress, profileOf, resultsToEvidence } from '@/domain/assessment'
+import { compareProfiles, compareResults, overallProgress, profileOf, resultsToEvidence } from '@/domain/assessment'
 import { DISCIPLINE_IDS, SKILLS, disciplineById } from '@/domain/catalog'
 import { TIER_LABEL } from '@/domain/scoring/config'
 import { skillStatuses } from '@/domain/scoring/skills'
@@ -10,6 +10,7 @@ import { useMe } from '@/data/hooks'
 import { useStore } from '@/data/store'
 import { useLive } from '@/data/cloud'
 import { KeepProfile, SyncLine } from '@/features/account/Account'
+import { SinceBaseline } from './Progress'
 import { AuraField } from '@/ui/AuraField'
 import { CountUp } from '@/ui/CountUp'
 import { DnaSigil } from '@/ui/DnaSigil'
@@ -43,16 +44,20 @@ export function Reveal() {
     const tiers = { self: 0, observed: 0, coach: 0 }
     for (const r of Object.values(mine.results)) if (!r.skipped) tiers[r.tier]++
     const before = session.baselineId ? allParticipants.find((p) => p.sessionId === session.baselineId && p.athleteId === mine.athleteId) : undefined
-    return { profile, shown, within, tiers, change: before ? compareProfiles(profileOf(before.results, session.stations), profile, session.stations) : null }
+    return {
+      profile, shown, within, tiers,
+      change: before ? compareProfiles(profileOf(before.results, session.stations), profile, session.stations) : null,
+      benchmarks: before ? compareResults(before.results, mine.results) : null,
+    }
   }, [session, mine, allParticipants])
 
   if (!session || !mine || !view) return <Navigate to="/train" replace />
   if (!mine.submittedAt) return <Navigate to={`/assess/${session.id}`} replace />
 
-  const { profile, shown, within, tiers, change } = view
+  const { profile, shown, within, tiers, change, benchmarks } = view
   const total = profile.aura > 0 ? Object.values(profile.ratings).reduce((a, b) => a + b, 0) : 0
   const mix = total ? (Object.fromEntries(DISCIPLINE_IDS.map((d) => [d, profile.ratings[d] / total])) as Record<DisciplineId, number>) : EVEN
-  const progress = overallProgress(session.stations, mine.results, mine.skipped)
+  const progress = overallProgress(session.stations, mine.results, mine.skipped, session.origin === 'solo' ? 'guided' : (session.mode ?? 'guided'))
   const solo = session.origin === 'solo'
   const coach = session.coachName.split(' ')[0]
   // Without accounts, a code carries the results to the coach. With them, they are already there.
@@ -114,6 +119,13 @@ export function Reveal() {
           </p>
         )}
         <KeepProfile className="mt-6" />
+
+        {benchmarks && (
+          <section className="rise rise-4 mt-7">
+            <Eyebrow className="mb-3">Since your baseline</Eyebrow>
+            <SinceBaseline c={benchmarks} still={profile.weakest} />
+          </section>
+        )}
 
         <section className="rise rise-4 mt-7">
           <Eyebrow className="mb-3">Your shape</Eyebrow>

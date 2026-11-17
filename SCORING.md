@@ -95,7 +95,7 @@ One piece of evidence is one performance on one exercise: `(athlete, exercise x,
 | Onboarding answers | `estimated` | Each answer is a range ("5–9"); the **low end** is recorded | `features/onboarding/Onboarding.tsx` (`QUESTIONS`) |
 | A workout | `self` | Only sets that beat the athlete's record are offered, and only the ones the athlete chooses to put on record are saved. Finishing a workout alone changes nothing | `store.finishWorkout`, `candidatesIn` |
 | Logged by hand | `self` | Any rated exercise | `store.addEvidence` |
-| An assessment | `self`, `observed` or `coach` | Each result becomes evidence at the tier the coach gave it, when the athlete submits or the coach finalises | `assessment.resultsToEvidence` |
+| An assessment | `self`, `observed` or `coach` | Each result becomes evidence at the tier the coach gave it, when the athlete submits or the coach finalises. Since protocol `baseline-2` the recorded value is never capped; each station also offers a menu of easier and harder variations, each scored on its own curve (§2.3) | `assessment.resultsToEvidence` |
 | A coach verifying a claim | `self` → `coach` | The coach confirms an existing record against the written standard | `store.verifyEvidence` |
 
 Tiers, weakest to strongest: `estimated` < `self` < `observed` < `coach` < `video`. **The tier never changes what a performance is worth.** It changes the label on the result, and it decides whether the evidence counts toward the separate verified rating (§4.3).
@@ -111,6 +111,16 @@ Consequences worth stating plainly:
 - Repeating a performance, or logging a weaker one, changes nothing.
 - There is no decay. A result from two years ago counts exactly as one from yesterday. A rating falls only if evidence is removed.
 - A higher self-reported value replaces a lower verified one as "the best" (see §4.4 for what that does to labels).
+
+### 2.3 Variations from the assessment are never interchangeable
+
+The station menus (protocol `baseline-2`, `assessment.menuOf`) let an athlete record the variation that fits them: ten knee push-ups, or six push-ups. Each is evidence **on its own exercise** and is read off **its own curve**, so ten knee push-ups (≈150) are worth far less than ten push-ups (300), and the discipline rating still takes the best three different benchmarks (§4). Nothing new was added to the model for this:
+
+- **Difficulty** is the curve: the menu's order and its level labels are read from the same curves at the bottom of each variation's suggested range (`difficultyOf`), so the menu cannot disagree with the rating.
+- **Quantity** is the value, recorded as performed. Former per-test maximums (for example a 90-second hang) are gone; past the last calibrated anchor the curve's damped continuation applies, capped at 1.25× the last anchor (§3.2), so endurance on an easy variation still cannot imitate a harder one.
+- **Execution quality** is the written standard ("counts when") plus the tier: a coach marks what they watched as observed and what met the standard as verified.
+- **Progression** is suggested, not enforced: a result above a variation's suggested range prompts the next harder variation of the same movement.
+- **Reliability** is the tier, unchanged.
 
 ---
 
@@ -673,6 +683,8 @@ Reference, generated: what each benchmark must be to read 200 / 400 / 600 / 800 
 ---
 
 ## 12 · Change log
+
+**2026-11-17** · No change to the model (`provisional-0.1` unchanged, `SCORING.version` not bumped). The assessment protocol became `baseline-2`: per-test maximums replaced by suggested ranges, and station menus added 29 variations that already had curves. Recorded in §2.1 and §2.3. Effect on ratings: an assessment result above a former maximum now counts as performed instead of being cut off.
 
 **2026-11-14** · Document created against `provisional-0.1`. No scoring behaviour changed. Added `src/domain/scoring/audit.ts` (read-only analysis and the admission checks), `scripts/scoring-audit.ts`, and `src/domain/scoring/scoring.test.ts` (invariants and the document check). Proposals P1–P7 recorded, none implemented.
 

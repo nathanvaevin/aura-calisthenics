@@ -5,7 +5,7 @@ import type {
   Place, ResultTier, Visit, WorkoutBlock, WorkoutLog, WorkoutSource,
 } from '@/domain/types'
 import { PRESENCE, isLive, liveVisit, mergePlaces, privacyOf } from '@/domain/places'
-import { PROTOCOL, resultsToEvidence, stationById, type HandIn, type Invite } from '@/domain/assessment'
+import { PROTOCOL, protocolKnown, resultsToEvidence, stationById, type HandIn, type Invite } from '@/domain/assessment'
 import { exerciseById, skillById, stepAt } from '@/domain/catalog'
 import { bestEvidence } from '@/domain/scoring/mastery'
 import { adaptTarget, skillStatuses } from '@/domain/scoring/skills'
@@ -72,6 +72,9 @@ export interface NewAssessment {
   stations: DisciplineId[]
   kind: 'baseline' | 'retest'
   baselineId?: string
+  /** Defaults to stations for a group: athletes choose their variations, and groups rotate. */
+  mode?: AssessmentSession['mode']
+  groups?: number
 }
 
 export type ImportOutcome = 'added' | 'updated' | 'unknown-session' | 'wrong-protocol'
@@ -184,7 +187,7 @@ interface State {
   acceptInvite: (invite: Invite, who: { name: string; sharing: 'coach' | 'group' }) => string
   recordResult: (participantId: string, testId: string, value: number, opts?: { tier?: ResultTier; skipped?: boolean }) => void
   clearResult: (participantId: string, testId: string) => void
-  patchParticipant: (participantId: string, patch: Partial<Pick<AssessmentParticipant, 'name' | 'sharing' | 'partner'>>) => void
+  patchParticipant: (participantId: string, patch: Partial<Pick<AssessmentParticipant, 'name' | 'sharing' | 'partner' | 'group'>>) => void
   toggleStationSkip: (participantId: string, station: DisciplineId) => void
   toggleFlag: (participantId: string, station: DisciplineId) => void
   submitAssessment: (participantId: string) => void
@@ -192,7 +195,7 @@ interface State {
   removeParticipant: (participantId: string) => void
   importHandIn: (handIn: HandIn) => ImportOutcome
   setStationTier: (participantId: string, station: DisciplineId, tier: ResultTier) => void
-  patchAssessment: (sessionId: string, patch: Partial<Pick<AssessmentSession, 'title' | 'groupName' | 'stationMinutes' | 'rotationStartedAt' | 'stations'>>) => void
+  patchAssessment: (sessionId: string, patch: Partial<Pick<AssessmentSession, 'title' | 'groupName' | 'stationMinutes' | 'rotationStartedAt' | 'stations' | 'mode' | 'groups'>>) => void
   finaliseAssessment: (sessionId: string) => void
   deleteAssessment: (sessionId: string) => void
 
@@ -626,12 +629,13 @@ export const useStore = create<State>()(
           id: freshId(s), ...(s.cloudUid ? { inviteToken: inviteToken() } : {}), protocol: PROTOCOL, title: input.title.trim() || 'Baseline', kind: input.kind, groupName: input.groupName.trim() || 'My group',
           coachId: s.meId, coachName: me?.name ?? 'Coach', courseId: input.courseId, baselineId: input.baselineId, stations: input.stations,
           status: 'open', origin: 'local', createdAt: new Date().toISOString(), stationMinutes: 6,
+          mode: input.mode ?? 'stations', groups: input.groups ?? Math.min(3, input.stations.length),
         }
         // A re-test starts with the people who took the baseline, so nobody has to rejoin.
         const carried: AssessmentParticipant[] = input.baselineId
           ? s.participants
               .filter((p) => p.sessionId === input.baselineId)
-              .map((p) => ({ id: freshId(s), sessionId: session.id, athleteId: p.athleteId, name: p.name, joinedAt: session.createdAt, via: 'coach', sharing: p.sharing, results: {}, skipped: [], flags: [] }))
+              .map((p) => ({ id: freshId(s), sessionId: session.id, athleteId: p.athleteId, name: p.name, joinedAt: p.joinedAt, via: 'coach', sharing: p.sharing, results: {}, skipped: [], flags: [], ...(p.group !== undefined ? { group: p.group } : {}) }))
           : []
         set({ assessments: [...s.assessments, session], participants: [...s.participants, ...carried] })
         return session.id
@@ -671,7 +675,7 @@ export const useStore = create<State>()(
           assessments = [...assessments, {
             id: invite.id, protocol: invite.protocol, title: invite.title, kind: invite.kind, groupName: invite.groupName, coachId: null,
             coachName: invite.coachName, courseId: invite.courseId, stations: invite.stations, status: 'open', origin: 'invite', createdAt: now,
-            stationMinutes: invite.stationMinutes,
+            stationMinutes: invite.stationMinutes, mode: invite.mode ?? 'guided',
           }]
         }
         let participants = s.participants
@@ -753,7 +757,7 @@ export const useStore = create<State>()(
         const s = get()
         const session = s.assessments.find((a) => a.id === h.sessionId && a.origin === 'local')
         if (!session) return 'unknown-session'
-        if (session.protocol !== h.protocol) return 'wrong-protocol'
+        if (!protocolKnown(h.protocol)) return 'wrong-protocol'
         const inSession = s.participants.filter((p) => p.sessionId === session.id)
         // Same phone handing in again, or someone the coach had already added by name.
         const match = inSession.find((p) => p.id === h.participantId) ?? inSession.find((p) => p.via === 'coach' && Object.keys(p.results).length === 0 && p.name.trim().toLowerCase() === h.name.trim().toLowerCase())
@@ -777,7 +781,7 @@ export const useStore = create<State>()(
 
       setStationTier: (participantId, station, tier) =>
         set((s) => {
-          const ids = new Set(stationById[station].tests.map((t) => t.id))
+          const ids = new Set([...stationById[station].tests, ...stationById[station].extra].map((t) => t.id))
           const participants = s.participants.map((p) =>
             p.id === participantId
               ? { ...p, results: Object.fromEntries(Object.entries(p.results).map(([k, r]) => [k, ids.has(k) && !r.skipped ? { ...r, tier } : r])) }

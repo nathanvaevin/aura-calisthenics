@@ -96,7 +96,7 @@ async function expectDenied(label: string, user: string | null, sql: string, rol
 
 console.log('Applying schema')
 await db.exec(PRELUDE)
-for (const file of ['0001_core.sql', '0002_storage.sql', '0003_evidence_observed.sql', '0004_assessments.sql', '0005_places.sql', '0006_live.sql', '0007_coach_access.sql']) {
+for (const file of ['0001_core.sql', '0002_storage.sql', '0003_evidence_observed.sql', '0004_assessments.sql', '0005_places.sql', '0006_live.sql', '0007_coach_access.sql', '0008_course_weeks_and_station_mode.sql']) {
   await db.exec(read(`../supabase/migrations/${file}`))
   ok(`${file} applies cleanly`)
 }
@@ -373,6 +373,26 @@ await expectOk('…and save their profile with the role in it', K, `update publi
 await expectDenied('only an admin revokes', C, `select public.revoke_coach('${K}');`)
 await expectOk('the admin revokes coaching', ADM, `select public.revoke_coach('${K}');`)
 ;(await count(`select 1 from public.profiles where id = '${K}' and 'coach' = any (roles)`)) === 0 && (await count(`select 1 from public.courses where coach_id = '${K}'`)) === 1 ? ok('the role goes; their course stays') : bad('revoke_coach', 'role or course wrong')
+
+// ── Structured courses and station mode (0008) ───────────────────────────
+console.log('\nStructured courses and station mode')
+const course8 = '10000000-0000-0000-0000-000000000008'
+const wk8 = '20000000-0000-0000-0000-000000000008'
+await db.exec(`update public.profiles set roles = '{athlete,coach}' where id = '${C}';`)
+await expectOk('a coach saves an assessment week and a focused training week', C, `
+  insert into public.courses (id, coach_id, title, status, start_date) values ('${course8}', '${C}', 'USC', 'active', '2026-11-23');
+  insert into public.course_weeks (id, course_id, position, title, kind) values (gen_random_uuid(), '${course8}', 0, 'Initial assessment', 'baseline');
+  insert into public.course_weeks (id, course_id, position, title, focus) values ('${wk8}', '${course8}', 1, 'Pulling', 'pull');`)
+await expectDenied('a week cannot be of an unknown kind', C, `insert into public.course_weeks (course_id, position, title, kind) values ('${course8}', 2, 'x', 'holiday');`)
+await expectDenied('…or focus on something that is not a discipline', C, `insert into public.course_weeks (course_id, position, title, focus) values ('${course8}', 2, 'x', 'cardio');`)
+;(await count(`select 1 from public.course_weeks where course_id = '${course}' and kind = 'training' and focus is null`)) >= 1 ? ok('weeks saved before this update read as training weeks with no focus') : bad('course_weeks', 'defaults missing')
+const cs8 = '30000000-0000-0000-0000-000000000008'
+await expectOk('an exercise is marked as part of the week’s focus', C, `insert into public.course_sessions (id, week_id, day, title) values ('${cs8}', '${wk8}', 0, 'A'); insert into public.course_blocks (session_id, position, kind, exercise_id, sets, target, is_primary) values ('${cs8}', 0, 'strength', 'scap-pull', 3, 8, true);`)
+await expectOk('a coach opens a station-based assessment in three groups', C, `insert into public.assessment_sessions (owner_id, protocol, stations, mode, groups, invite_token) values ('${C}', 'baseline-2', '{pull,push,core}', 'stations', 3, 'tok-808');`)
+await expectDenied('…but not in an unknown mode', C, `insert into public.assessment_sessions (owner_id, protocol, stations, mode) values ('${C}', 'baseline-2', '{pull}', 'freestyle');`)
+await as(K, 'authenticated', () => db.exec(`select public.join_assessment('tok-808');`))
+await expectOk('the coach moves a participant to another group', C, `update public.assessment_participants set group_no = 2 where athlete_id = '${K}' and session_id = (select id from public.assessment_sessions where invite_token = 'tok-808');`)
+;(await count(`select 1 from public.assessment_participants where athlete_id = '${K}' and group_no = 2`)) === 1 ? ok('…and the move is kept') : bad('group_no', 'not saved')
 
 console.log(`\n${passed} passed, ${failed} failed`)
 await db.close()

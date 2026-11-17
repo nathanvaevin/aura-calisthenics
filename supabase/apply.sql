@@ -5,7 +5,7 @@
 -- once. It creates the schema, the access rules and the catalog + demo data.
 -- See supabase/README.md for the full setup, including Google sign-in.
 --
--- Contents: 0001_core.sql, 0002_storage.sql, 0003_evidence_observed.sql, 0004_assessments.sql, 0005_places.sql, 0006_live.sql, 0007_coach_access.sql, then seed.sql.
+-- Contents: 0001_core.sql, 0002_storage.sql, 0003_evidence_observed.sql, 0004_assessments.sql, 0005_places.sql, 0006_live.sql, 0007_coach_access.sql, 0008_course_weeks_and_station_mode.sql, then seed.sql.
 
 
 -- ════════════════════════════════════════════════════════════════════════
@@ -1512,6 +1512,39 @@ revoke execute on function public.request_coach(text), public.withdraw_coach_req
 --
 --   update public.profiles set roles = '{athlete,coach,admin}'
 --   where id = (select id from auth.users where email = 'YOUR-EMAIL');
+
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 0008_course_weeks_and_station_mode.sql
+-- ════════════════════════════════════════════════════════════════════════
+
+-- Aura · structured courses and station-based assessments
+--
+--   1. A course week can be an assessment week (the baseline at the start, the
+--      re-test at the end) and can name the capability it focuses on.
+--   2. An exercise in a course can be marked as part of the week's primary
+--      focus, as opposed to support work.
+--   3. An assessment runs guided (each station walks through its benchmarks
+--      in order) or by stations (athletes choose the variations that fit
+--      them), and the class can be split into rotation groups.
+--
+-- Only adds columns, each with a default. Run once, after 0007.
+
+alter table public.course_weeks add column kind text not null default 'training'
+  check (kind in ('training', 'baseline', 'retest'));
+alter table public.course_weeks add column focus text
+  check (focus is null or focus in ('handstand', 'pull', 'push', 'core', 'legs', 'mobility', 'full'));
+
+alter table public.course_blocks add column is_primary boolean not null default false;
+
+alter table public.assessment_sessions add column mode text not null default 'guided'
+  check (mode in ('guided', 'stations'));
+alter table public.assessment_sessions add column groups smallint not null default 1
+  check (groups between 1 and 12);
+
+-- Unset: placed by joining order. Set by the coach to move someone to another group.
+alter table public.assessment_participants add column group_no smallint
+  check (group_no is null or group_no between 0 and 11);
 
 
 -- ════════════════════════════════════════════════════════════════════════

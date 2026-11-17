@@ -45,11 +45,11 @@ export const TABLES: TableDef[] = [
   { name: 'follows', key: ['follower_id', 'followee_id'], cols: ['follower_id', 'followee_id'] },
   { name: 'courses', key: ['id'], cols: ['id', 'coach_id', 'title', 'tagline', 'description', 'focus', 'format', 'status', 'start_date'] },
   { name: 'course_milestones', key: ['course_id', 'skill_id'], cols: ['course_id', 'skill_id'] },
-  { name: 'course_weeks', key: ['id'], cols: ['id', 'course_id', 'position', 'title', 'objective'] },
+  { name: 'course_weeks', key: ['id'], cols: ['id', 'course_id', 'position', 'title', 'objective', 'kind', 'focus'] },
   { name: 'course_sessions', key: ['id'], cols: ['id', 'week_id', 'day', 'title'] },
   {
     name: 'course_blocks', key: ['id'],
-    cols: ['id', 'session_id', 'position', 'kind', 'exercise_id', 'progression_id', 'level', 'min_level', 'max_level', 'sets', 'target', 'rest', 'note'],
+    cols: ['id', 'session_id', 'position', 'kind', 'exercise_id', 'progression_id', 'level', 'min_level', 'max_level', 'sets', 'target', 'rest', 'note', 'is_primary'],
   },
   // Keyed by the pair, not the id: the server creates enrolments too (joining, finalising).
   { name: 'course_enrollments', key: ['course_id', 'athlete_id'], cols: ['course_id', 'athlete_id', 'status'], extra: ['joined_at'] },
@@ -71,12 +71,12 @@ export const TABLES: TableDef[] = [
   { name: 'feedback', key: ['id'], cols: ['id', 'log_id', 'coach_id', 'athlete_id', 'body', 'created_at'], ts: ['created_at'] },
   {
     name: 'assessment_sessions', key: ['id'],
-    cols: ['id', 'owner_id', 'solo', 'protocol', 'kind', 'title', 'group_name', 'course_id', 'baseline_id', 'stations', 'station_minutes', 'rotation_started_at', 'invite_token', 'created_at'],
+    cols: ['id', 'owner_id', 'solo', 'protocol', 'kind', 'title', 'group_name', 'course_id', 'baseline_id', 'stations', 'station_minutes', 'rotation_started_at', 'invite_token', 'created_at', 'mode', 'groups'],
     ts: ['rotation_started_at', 'created_at'],
   },
   {
     name: 'assessment_participants', key: ['id'],
-    cols: ['id', 'session_id', 'athlete_id', 'display_name', 'sharing', 'partner_name', 'skipped', 'flags', 'joined_at', 'submitted_at'],
+    cols: ['id', 'session_id', 'athlete_id', 'display_name', 'sharing', 'partner_name', 'skipped', 'flags', 'joined_at', 'submitted_at', 'group_no'],
     ts: ['joined_at', 'submitted_at'],
   },
   {

@@ -10,7 +10,7 @@ import { COURSE_TEMPLATES } from '@/data/courseTemplates'
 import { courseClock, sessionsOf, useAthleteModel, useIsCoach } from '@/data/hooks'
 import { useStore } from '@/data/store'
 import { AuraDot } from '@/ui/AuraField'
-import { Bar, DisciplineDot, Empty, Eyebrow, PageHeader, SectionTitle, Segmented, Sheet } from '@/ui/primitives'
+import { Bar, DisciplineDot, Empty, Eyebrow, PageHeader, SectionTitle, Segmented, Sheet, Stepper } from '@/ui/primitives'
 import { LogRow, LogSheet, levelShifts } from '@/features/shared/LogView'
 import { cx, dvar, initials, num, relativeDay } from '@/lib/format'
 
@@ -364,6 +364,8 @@ function NewAssessmentSheet({ open, onClose }: { open: boolean; onClose: () => v
   const [group, setGroup] = useState('')
   const [baselineId, setBaselineId] = useState('')
   const [stations, setStations] = useState<DisciplineId[]>(STATIONS.map((s) => s.id))
+  const [mode, setMode] = useState<'stations' | 'guided'>('stations')
+  const [groups, setGroups] = useState(3)
 
   const course = mine.find((c) => c.id === courseId)
   const baseline = earlier.find((a) => a.id === baselineId)
@@ -417,9 +419,22 @@ function NewAssessmentSheet({ open, onClose }: { open: boolean; onClose: () => v
           </div>
         </div>
 
+        <div>
+          <Eyebrow className="mb-2">Format</Eyebrow>
+          <Segmented<'stations' | 'guided'> value={mode} onChange={setMode} options={[{ value: 'stations', label: 'By stations' }, { value: 'guided', label: 'Guided' }]} />
+          <span className="mt-1.5 block text-[12px] leading-snug text-ink-3">
+            {mode === 'stations' ? 'Everyone chooses the variations that fit their level at each station. Groups rotate between stations, so equipment is shared.' : 'Each station leads people through its benchmarks in a fixed order, adapting to every result.'}
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between gap-3">
+          <span><Eyebrow>Groups</Eyebrow><span className="mt-1 block text-[12px] text-ink-3">Each starts at a different station. Changeable later.</span></span>
+          <Stepper value={Math.min(groups, Math.max(1, ordered.length))} min={1} max={Math.min(6, Math.max(1, ordered.length))} onChange={setGroups} />
+        </div>
+
         <button
           className="btn btn-primary btn-lg w-full" disabled={ordered.length === 0 || !groupName}
-          onClick={() => navigate(`/coach/assessment/${create({ title: baseline ? 'Re-test' : 'Baseline', groupName, courseId: courseId || undefined, stations: ordered, kind: baseline ? 'retest' : 'baseline', baselineId: baselineId || undefined })}?tab=invite`)}
+          onClick={() => navigate(`/coach/assessment/${create({ title: baseline ? 'Re-test' : 'Baseline', groupName, courseId: courseId || undefined, stations: ordered, kind: baseline ? 'retest' : 'baseline', baselineId: baselineId || undefined, mode, groups: Math.min(groups, ordered.length) })}?tab=invite`)}
         >
           Create and show the code
         </button>

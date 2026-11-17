@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router'
-import { ArrowLeft, Check, Play, RotateCcw } from 'lucide-react'
-import { skillById } from '@/domain/catalog'
+import { ArrowLeft, ArrowRight, Check, ClipboardCheck, Play, RotateCcw } from 'lucide-react'
+import { disciplineById, skillById } from '@/domain/catalog'
 import { courseClock, courseProgress, sessionsOf, useMe } from '@/data/hooks'
 import { useStore } from '@/data/store'
 import { Bar, Eyebrow, SectionTitle } from '@/ui/primitives'
@@ -21,6 +21,8 @@ export function CourseView() {
   const allFeedback = useStore((s) => s.feedback)
   const joinCourse = useStore((s) => s.joinCourse)
   const leaveCourse = useStore((s) => s.leaveCourse)
+  const assessments = useStore((s) => s.assessments)
+  const participants = useStore((s) => s.participants)
 
   const clock = course ? courseClock(course) : null
   const [week, setWeek] = useState(clock?.weekIndex ?? 0)
@@ -93,20 +95,39 @@ export function CourseView() {
                   <span className="flex items-center gap-1.5 text-[13.5px] font-medium">
                     {isNow && <span className="h-1.5 w-1.5 rounded-full" style={{ background: i === week ? 'var(--bg)' : color }} />}Week {i + 1}
                   </span>
-                  <span className={cx('num text-[10.5px]', i === week ? 'opacity-70' : 'text-ink-3')}>{total ? `${done}/${total}` : 'empty'}</span>
+                  <span className={cx('num text-[10.5px]', i === week ? 'opacity-70' : 'text-ink-3')}>{w.kind && w.kind !== 'training' ? 'Assessment' : total ? `${done}/${total}` : 'empty'}</span>
                 </button>
               )
             })}
           </div>
 
           <div className="mt-5">
-            <Eyebrow>Week {week + 1} objective</Eyebrow>
+            <Eyebrow>Week {week + 1}{current.focus ? ` · focus: ${current.focus === 'full' ? 'full body' : disciplineById[current.focus].name.toLowerCase()}` : current.kind && current.kind !== 'training' ? ' · assessment week' : ' objective'}</Eyebrow>
             <h2 className="display mt-1.5 text-[28px]">{current.title}</h2>
             {current.objective && <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">{current.objective}</p>}
           </div>
 
+          {current.kind && current.kind !== 'training' && (() => {
+            const session = assessments.filter((a) => a.courseId === course.id && a.kind === current.kind).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).find((a) => participants.some((p) => p.sessionId === a.id && p.athleteId === me.athlete.id))
+            const mine = session && participants.find((p) => p.sessionId === session.id && p.athleteId === me.athlete.id)
+            return (
+              <div className="card mt-5 flex items-start gap-3.5 p-4">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-2"><ClipboardCheck size={18} /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[16px] font-medium">{current.kind === 'baseline' ? 'Your starting point' : 'Your re-test'}</span>
+                  <span className="mt-0.5 block text-[12.5px] leading-snug text-ink-2">
+                    {mine
+                      ? mine.submittedAt ? 'Done. Your results are on your profile.' : 'In progress. Pick up where you left off.'
+                      : `${coach?.name.split(' ')[0] ?? 'Your coach'} runs this in class: scan the code on the wall to join. ${current.kind === 'retest' ? 'You will see exactly what changed since week 1.' : 'Every station has a variation for your level.'}`}
+                  </span>
+                  {mine && session && <button className="btn btn-outline btn-sm mt-3" onClick={() => navigate(mine.submittedAt ? `/assess/${session.id}/reveal` : `/assess/${session.id}`)}>{mine.submittedAt ? 'See my results' : 'Continue'} <ArrowRight size={14} /></button>}
+                </span>
+              </div>
+            )
+          })()}
+
           <div className="mt-5 space-y-3">
-            {weekSessions.length === 0 && <p className="rounded-[22px] border border-dashed border-line-strong p-5 text-[13.5px] text-ink-3">No sessions planned for this week yet.</p>}
+            {weekSessions.length === 0 && !(current.kind && current.kind !== 'training') && <p className="rounded-[22px] border border-dashed border-line-strong p-5 text-[13.5px] text-ink-3">No sessions planned for this week yet.</p>}
             {weekSessions.map((s) => {
               const diff = dayDiff(s.date)
               const state = s.log ? 'done' : diff === 0 ? 'today' : diff < 0 ? 'missed' : 'upcoming'

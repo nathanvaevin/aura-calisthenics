@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router'
-import { ArrowDown, ArrowLeft, ArrowUp, ChevronDown, Copy, Plus, Repeat2, Trash2, UserPlus, X } from 'lucide-react'
-import type { BlockKind, Course, CourseSession, Exercise, WorkoutBlock } from '@/domain/types'
-import { DISCIPLINES, exerciseById, formatValue, progressionById, skillById, stepAt } from '@/domain/catalog'
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ChevronDown, ClipboardCheck, Copy, Plus, Repeat2, Trash2, UserPlus, X } from 'lucide-react'
+import type { BlockKind, Course, CourseSession, CourseWeek, DisciplineId, Exercise, WeekKind, WorkoutBlock } from '@/domain/types'
+import { STATIONS } from '@/domain/assessment'
+import { DISCIPLINES, DISCIPLINE_IDS, disciplineById, exerciseById, formatValue, progressionById, skillById, stepAt } from '@/domain/catalog'
 import { auraFor } from '@/domain/scoring/aura'
 import { adaptTarget, makeBlock } from '@/domain/scoring/skills'
 import { estimateMinutes } from '@/domain/training'
@@ -150,8 +151,8 @@ function Program({ course, mutate }: { course: Course; mutate: Mutate }) {
           >
             <span className="text-[13.5px] font-medium">Week {i + 1}</span>
             <span className={cx('truncate text-[11px]', i === index ? 'opacity-70' : 'text-ink-3')}>
-              <span className="lg:hidden">{w.sessions.length} sessions</span>
-              <span className="hidden lg:inline">{w.title || `${w.sessions.length} sessions`}</span>
+              <span className="lg:hidden">{w.kind && w.kind !== 'training' ? 'Assessment' : w.focus ? focusLabel(w.focus) : `${w.sessions.length} sessions`}</span>
+              <span className="hidden lg:inline">{w.title || (w.kind && w.kind !== 'training' ? 'Assessment' : `${w.sessions.length} sessions`)}</span>
             </span>
           </button>
         ))}
@@ -186,7 +187,9 @@ function Program({ course, mutate }: { course: Course; mutate: Mutate }) {
           </div>
           <input className="display mt-2 w-full bg-transparent text-[26px] outline-none placeholder:text-ink-3" placeholder="Week title" value={week.title} onChange={(e) => mutate((c) => { c.weeks[index].title = e.target.value })} />
           <textarea className="mt-1 w-full resize-none bg-transparent text-[14px] leading-relaxed text-ink-2 outline-none placeholder:text-ink-3" rows={2} placeholder="Weekly objective: what should students achieve this week?" value={week.objective} onChange={(e) => mutate((c) => { c.weeks[index].objective = e.target.value })} />
+          <WeekShape week={week} onKind={(kind) => mutate((c) => { const w = c.weeks[index]; if (kind === 'training') delete w.kind; else { w.kind = kind; delete w.focus } })} onFocus={(focus) => mutate((c) => { const w = c.weeks[index]; if (focus) w.focus = focus; else delete w.focus })} />
         </div>
+        {week.kind && week.kind !== 'training' && <AssessmentWeek course={course} kind={week.kind} />}
 
         {/* Sessions */}
         <div className="mt-3 space-y-3">
@@ -211,6 +214,7 @@ function Program({ course, mutate }: { course: Course; mutate: Mutate }) {
                   <BlockEditor
                     key={b.id}
                     block={b}
+                    focus={week.focus}
                     open={openBlock === b.id}
                     onToggle={() => setOpenBlock(openBlock === b.id ? null : b.id)}
                     onEdit={(fn) => editBlock(s.id, b.id, fn)}
@@ -263,9 +267,10 @@ function Program({ course, mutate }: { course: Course; mutate: Mutate }) {
 }
 
 function BlockEditor({
-  block: b, open, onToggle, onEdit, onMove, onDuplicate, onDelete, onReplace, first, last,
+  block: b, focus, open, onToggle, onEdit, onMove, onDuplicate, onDelete, onReplace, first, last,
 }: {
   block: WorkoutBlock
+  focus?: CourseWeek['focus']
   open: boolean
   onToggle: () => void
   onEdit: (fn: (b: WorkoutBlock) => void) => void
@@ -291,9 +296,9 @@ function BlockEditor({
           {b.level ? `L${b.level}` : '·'}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[14px] font-medium">{ex.name}</span>
+          <span className="flex items-center gap-2 truncate text-[14px] font-medium">{ex.name}{focus && <RoleTag primary={!!b.primary} />}</span>
           <span className="block truncate text-[11.5px] text-ink-3">
-            {KIND_LABEL[b.kind]} · {b.sets} × {formatValue(ex, b.target)} · rest {b.rest}s{ladder ? (adjustable ? ` · L${b.minLevel}–${b.maxLevel}` : ' · locked') : ''}
+            {b.note ? `${b.note} · ` : ''}{KIND_LABEL[b.kind]} · {b.sets} × {formatValue(ex, b.target)} · rest {b.rest}s{ladder ? (adjustable ? ` · L${b.minLevel}–${b.maxLevel}` : ' · locked') : ''}
           </span>
         </span>
         <ChevronDown size={15} className={cx('shrink-0 text-ink-3 transition-transform', open && 'rotate-180')} />
@@ -362,7 +367,15 @@ function BlockEditor({
             ))}
           </div>
 
-          <input className="field !h-11 !rounded-xl text-[13.5px]" placeholder="Coaching note shown to students during this exercise" value={b.note ?? ''} onChange={(e) => onEdit((x) => { x.note = e.target.value || undefined })} />
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-surface p-3">
+            <span className="min-w-0">
+              <span className="block text-[13px] font-medium">Part of the week’s focus</span>
+              <span className="block text-[11.5px] text-ink-3">{b.primary ? 'Primary work: builds this week’s focus' : 'Support work: balance, shoulder health, mobility, the rest of the body'}</span>
+            </span>
+            <Toggle on={!!b.primary} label="Part of the week’s focus" onChange={(on) => onEdit((x) => { if (on) x.primary = true; else delete x.primary })} />
+          </div>
+
+          <input className="field !h-11 !rounded-xl text-[13.5px]" placeholder="Purpose or coaching note, shown to students during this exercise" value={b.note ?? ''} onChange={(e) => onEdit((x) => { x.note = e.target.value || undefined })} />
 
           <div className="flex items-center justify-between">
             <div className="flex gap-0.5">
@@ -374,6 +387,82 @@ function BlockEditor({
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Week shape: kind, focus, balance ─────────────────────────────────────
+
+const focusLabel = (f: NonNullable<CourseWeek['focus']>) => (f === 'full' ? 'Full body' : disciplineById[f].short)
+
+export function RoleTag({ primary }: { primary: boolean }) {
+  return primary
+    ? <span className="shrink-0 rounded-full bg-ink px-1.5 py-px font-mono text-[8.5px] tracking-[0.1em] text-bg uppercase">Focus</span>
+    : <span className="shrink-0 rounded-full border border-line px-1.5 py-px font-mono text-[8.5px] tracking-[0.1em] text-ink-3 uppercase">Support</span>
+}
+
+function WeekShape({ week, onKind, onFocus }: { week: CourseWeek; onKind: (k: WeekKind) => void; onFocus: (f: CourseWeek['focus'] | undefined) => void }) {
+  const kind = week.kind ?? 'training'
+  const blocks = week.sessions.flatMap((s) => s.blocks).filter((b) => b.kind !== 'warmup' && b.kind !== 'cooldown')
+  const sets = blocks.reduce((n, b) => n + b.sets, 0)
+  const focusSets = blocks.filter((b) => b.primary).reduce((n, b) => n + b.sets, 0)
+  return (
+    <div className="mt-3 space-y-3 border-t border-line pt-3">
+      <Segmented<WeekKind> value={kind} onChange={onKind} options={[{ value: 'training', label: 'Training' }, { value: 'baseline', label: 'Initial assessment' }, { value: 'retest', label: 'Final re-test' }]} />
+      {kind === 'training' && (
+        <div>
+          <Eyebrow className="mb-2">Primary focus</Eyebrow>
+          <div className="flex flex-wrap gap-1.5">
+            {[...DISCIPLINE_IDS, 'full' as const].map((f) => (
+              <button key={f} className="chip" data-on={week.focus === f} onClick={() => onFocus(week.focus === f ? undefined : f)}>
+                {f !== 'full' && week.focus !== f && <DisciplineDot id={f as DisciplineId} size={6} />}{focusLabel(f)}
+              </button>
+            ))}
+          </div>
+          {week.focus && sets > 0 && (
+            <p className="mt-2 text-[12px] leading-relaxed text-ink-3">
+              <span className="num font-medium text-ink-2">{Math.round((focusSets / sets) * 100)}%</span> of this week’s working sets build the focus; the rest is support. Mark an exercise as focus or support by opening it.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** An assessment week: the group assessment it stands for, created from here and opened from here. */
+function AssessmentWeek({ course, kind }: { course: Course; kind: 'baseline' | 'retest' }) {
+  const navigate = useNavigate()
+  const meId = useStore((s) => s.meId)
+  const assessments = useStore((s) => s.assessments)
+  const create = useStore((s) => s.createAssessment)
+  const mine = assessments.filter((a) => a.courseId === course.id && a.origin === 'local' && a.coachId === meId).sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  const existing = mine.find((a) => a.kind === kind)
+  const baseline = mine.find((a) => a.kind === 'baseline' && a.status === 'finalised') ?? mine.find((a) => a.kind === 'baseline')
+  const open = () => {
+    const id = existing?.id ?? create({
+      title: kind === 'baseline' ? 'Initial assessment' : 'Final assessment', groupName: course.title, courseId: course.id,
+      stations: kind === 'retest' && baseline ? baseline.stations : STATIONS.map((s) => s.id), kind, baselineId: kind === 'retest' ? baseline?.id : undefined,
+      mode: 'stations', groups: 3,
+    })
+    navigate(`/coach/assessment/${id}?tab=invite`)
+  }
+  return (
+    <div className="card mt-3 flex items-start gap-3.5 p-4">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-ink text-bg"><ClipboardCheck size={18} /></span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[16px] font-medium">{kind === 'baseline' ? 'The initial assessment' : 'The final re-test'}</span>
+        <span className="mt-0.5 block text-[12.5px] leading-snug text-ink-2">
+          {existing
+            ? `${existing.status === 'finalised' ? 'Finalised' : 'Open'} · ${existing.title}. Students see it in this week of the course.`
+            : kind === 'baseline'
+              ? 'Create it when the class meets: one code on the wall, every station, by stations in three groups. Everyone who joins is enrolled in this course.'
+              : baseline
+                ? `Repeats ${baseline.title.toLowerCase()} with the same stations and people, so every result is compared with week 1.`
+                : 'No initial assessment for this course yet. A re-test can still be run, but there will be nothing to compare it with.'}
+        </span>
+        <button className="btn btn-primary btn-sm mt-3" onClick={open}>{existing ? 'Open the session' : kind === 'baseline' ? 'Create the initial assessment' : 'Create the re-test'} <ArrowRight size={14} /></button>
+      </span>
     </div>
   )
 }

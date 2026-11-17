@@ -3,7 +3,7 @@
 The single source of truth for what works, what only looks finished, and what still has to be connected.
 Update it in the same change as any feature, integration or dependency (rule in `CLAUDE.md`).
 
-Last updated: 2026-11-16 · after "Accounts and live sync"
+Last updated: 2026-11-17 · after "USC Calisthenics Beginner and station-based assessment"
 
 ## Read this first
 
@@ -25,6 +25,7 @@ Last updated: 2026-11-16 · after "Accounts and live sync"
 | 2 | **Finish going live in the dashboards** (`supabase/README.md` §6, about ten minutes): paste `supabase/migrations/0006_live.sql`; switch on *manual linking*; **publish** the Google consent screen; raise the sign-in rate limits | **You** | Until then: the scan-to-join screen cannot read an invitation (needs `peek_invite`), a guest cannot keep their profile with Google, **only Google accounts you listed as test users can sign in at all**, and more than ~30 guests from one Wi-Fi in an hour would be refused |
 | 3 | Publish the new build to the public address: `npm run deploy` | Codebase, on your word, after 2 | The public site still serves the device-only build. The script builds with the project keys, runs the tests and replaces the `gh-pages` branch |
 | 3b | ~~Build the data layer~~ **DONE 2026-11-16** — sync engine, accounts, guest join, live board (I-03, F-80 to F-86, T-10) | Codebase (done) | Was the blocker for F-10, F-11, F-25 to F-27, F-32 |
+| 3d | **Paste `supabase/migrations/0008_course_weeks_and_station_mode.sql`** into the SQL editor (adds columns only). Then I publish the USC course and station assessments | **You**, then codebase | Until it is pasted, publishing would make courses and assessments fail to save to accounts |
 | 3c | Try a group assessment **and a check-in at a real park** on real phones over the public address | **You** + codebase fixes | Verified in desktop Chrome only, with separate browser profiles standing in for phones (T-04, T-10). Camera scanning, real GPS, small screens, gym Wi-Fi and outdoor conditions are untested |
 | 4 | Review the assessment protocol as a coach: tests, gates, caps, order | **You** | The benchmarks and thresholds are my proposal (F-21). They decide what 20 people do in your class |
 | 6 | Read SCORING.md §9 and decide on proposals P1–P7 | **You** | Nothing in scoring was changed. Seven improvements are described with their measured effect; each changes numbers athletes have seen, so each is your call (A-10) |
@@ -74,7 +75,7 @@ A feature is only "Working" when its user journey has actually been run. An inte
 | ID | Feature | Status | End to end? | What remains | Depends on |
 | --- | --- | --- | --- | --- | --- |
 | F-20 | Solo assessment from Home, Train, or the end of onboarding | Working (local) | Yes | With an account it is saved and finalised through the same path as a group session; that path was run live for group sessions only | F-21 |
-| F-21 | Assessment protocol `baseline-1`: six stations, 42 adaptive benchmarks | Working (local) | Yes | Coach review of tests, gates and caps. No per-test demonstration media | F-02 |
+| F-21 | Assessment protocol **`baseline-2`**: six stations; the guided path of 42 adaptive benchmarks kept as it was, plus 29 menu-only variations; suggested ranges instead of maximums. `baseline-1` sessions and links still read | Working (local) | Yes | Coach review of tests, gates and caps. No per-test demonstration media | F-02 |
 | F-22 | Coach creates a group assessment for a course or a free-standing group | **Working (live)** | Yes (T-10) | Needs the coach role on the account (Coach mode sets it) | – |
 | F-23 | Invitation by QR code and link | With accounts: **Requires configuration** (action 2). Without: Working (link) | The token link is generated and a guest joined with the token (T-10). **The screen a scanned code opens was not run**: it reads the invitation with `peek_invite`, which arrives with migration `0006` | With accounts the code carries a 32-character token and nothing else; it stops working when the session is finalised. No expiry or revoke control in the UI (`invite_expires_at` exists). Real phone-camera scan untested (T-04) | 0006; I-13 for a reachable address |
 | F-24 | Participant joins without signing up and records on their own phone | **Working (live)** as a guest account | A guest joined, recorded through the station screens, and the results were on the server (T-10) | A guest is a real, private account that only that browser can open. Keeping it: F-82. Supabase allows ~30 new guests an hour from one network by default (action 2) | I-02 |
@@ -89,6 +90,20 @@ A feature is only "Working" when its user journey has actually been run. An inte
 | F-33 | Re-test compared with a baseline, per person and per group | Working (local) | Yes | With accounts a re-test starts with the baseline's participants already on the board; not run live | – |
 | F-34 | Station timer and suggested starting stations | Working (local) | Yes | The timer shows on the coach's screen only | I-03 for shared timer |
 | F-35 | Assessment history on Train, re-test on your own | Working (local) | Yes | – | – |
+
+### USC Calisthenics Beginner and station-based assessment (added 2026-11-17)
+
+| ID | Feature | Status | Tested | Missing / limits | Depends on |
+| --- | --- | --- | --- | --- | --- |
+| F-90 | Course template **USC Calisthenics Beginner**: 9 weeks. Week 1 initial assessment, weeks 2–8 one focus each (core, pushing, pulling, legs, handstand, mobility, all together), week 9 re-test. Two sessions a week plus an optional third; 55–70 % of each week's working sets build its focus. Every exercise carries its purpose. Calisthenics Fundamentals kept unchanged | Working (local) | Opened in the builder, weeks and focus checked (T-12) | Content is my programme proposal; review it as a coach. Week dates assume the course starts on a Monday | – |
+| F-91 | Course weeks have a kind (training, initial assessment, final re-test) and a focus; exercises are marked focus or support, with the share of focus work shown per week | Working (local); saving to your account **needs 0008** | T-12 | Students see the focus and the Focus tag; the percentage is coach-only | 0008 |
+| F-92 | Assessment weeks in the builder create or open the group assessment; the re-test is created from the course's baseline with the same stations and people | Working (local) | Initial assessment created from week 1 (T-12); re-test comparison checked on demo data | The re-test needs the baseline finalised to compare against; otherwise it says so | 0008 |
+| F-93 | Two assessment modes per session: **By stations** (choose variations from a menu) and **Guided** (the original sequence). Coach chooses at creation and can switch while open; "Let the station choose" offers the guided sequence inside station mode | Working (local) | T-12 | Solo assessments are always guided | 0008 |
+| F-94 | Station menu: every variation, grouped by movement pattern, easiest first, with level label, suggested range, instructions, what counts, cues, mistakes, safety; "Most start here"; choose one or several and do them in order | Working (local) | T-12, on a phone-sized screen | Negative push-up is not offered: the library has no such exercise. No demonstration videos (separate phase, I-08) | F-02 |
+| F-95 | Suggested ranges instead of maximums; any result can be recorded; past the range the athlete sees the next harder variation, as an offer they can decline | Working (local) | Recording 30 knee push-ups (range 8–15), offer, push-ups, pike push-ups (T-12) | Ranges are my proposal per variation; review them | – |
+| F-96 | Coach station overview: a Stations tab in the session with every variation of every station and how to explain it | Working (local) | T-12 | – | – |
+| F-97 | Rotation groups: the coach sets 1–6 groups; people are placed evenly as they join, can be moved with a tap, see their group and starting station on their phone; the full-screen timer shows where each group should be | Working (local); between phones **needs 0008** | Groups placed and shown (T-12); moving someone not clicked | – | 0008 |
+| F-98 | Re-test read against the baseline, benchmark by benchmark: improved, new variations, held, not retested, still developing. On the athlete's results and in the coach's participant sheet | Working (local) on the coach's device | Coach side on demo data; domain tests | On the athlete's phone it needs accounts (the baseline is linked through the server) and has not been run live yet | 0008 |
 
 ### Identity, places and presence (added 2026-11-14)
 
@@ -232,9 +247,10 @@ A feature is only "Working" when its user journey has actually been run. An inte
 
 | ID | What was tested | Result | Environment | Limits |
 | --- | --- | --- | --- | --- |
+| T-12 | USC course and station assessment (2026-11-17, demo mode, two browsers): template opens with 9 weeks → week 1 is the initial assessment → week 4 shows focus, share of focus work, Focus/Support tags → assessment created from week 1 is by stations in 3 groups → coach Stations tab lists every pushing variation easiest first with ranges and standards → a phone joins by link → station menu grouped by movement → chose knee and pike push-ups → range shown, no limit → 30 knee push-ups typed, hint shown, recorded as 30 → offered push-ups, accepted → all three saved → station done, others open → rating from the existing curves → guided sequence available. Plus: a re-test of a demo baseline carries the group and shows Since the baseline | 15 of 15, no console errors | Local dev server, headless Chrome, desktop and phone size | Not run against accounts (needs 0008), not on real phones, moving a person between groups not clicked |
 | T-11 | Live, after the dashboard steps (2026-11-16): a code opened in a never-used browser shows coach, group and course before sign-in → typed name → *Join as a guest* → lands in the assessment, on the coach's board under that name, enrolled in the course → the coach marks a result observed and it reaches the student's phone in 2.1 s **with that phone not asking** (pushed update) → finalising closes the code and the evidence arrives by itself → a guest is issued a Google link (manual linking on) → test data removed | 10 of 10 after the manual-linking fix | Local dev server against the live project, headless Chrome | Google sign-in and the Google round trip of keeping a profile: not run (need a person) |
-| T-01 | Unit tests: catalog, scoring and its invariants, assessment protocol, link encoding, group analysis, places and presence rules, store behaviour, **and the sync engine with two simulated devices and a pretend server** | 114 pass | Local, Vitest | – |
-| T-02 | All seven migrations and the seed apply; 174 checks on access rules, incl. invitation tokens, result privacy, observe/verify, finalise, identity/places/presence, the media bucket, `0006` (reading an invitation signed out, joining enrols, guest hand-over, evidence removed with its assessment) and `0007` (coach access by request) | 174 pass | In-process Postgres (PGlite) with stand-ins for Supabase auth and storage | Not a real Supabase project |
+| T-01 | Unit tests: catalog, scoring and its invariants, assessment protocol, station menus, groups, re-test comparison, link encoding, group analysis, places and presence rules, store behaviour, and the sync engine with two simulated devices and a pretend server | 122 pass | Local, Vitest | – |
+| T-02 | All eight migrations and the seed apply; 184 checks on access rules, incl. invitation tokens, result privacy, observe/verify, finalise, identity/places/presence, the media bucket, `0006` (reading an invitation signed out, joining enrols, guest hand-over, evidence removed with its assessment) `0007` (coach access by request) and `0008` (week kinds and focus, focus exercises, assessment mode and groups) | 184 pass | In-process Postgres (PGlite) with stand-ins for Supabase auth and storage | Not a real Supabase project |
 | T-03 | Coach creates a session → participant joins **in a separate browser context** by the invitation link → completes four adaptive stations, incl. choices and a help request → reload keeps progress → reveal → hand-in link → coach imports → records for a second person → observes and verifies → finalises → same hand-in again updates. Plus: re-test vs baseline, the demo participant's group view, onboarding into a solo assessment. Both QR codes decoded with macOS's detector to the exact links used | Pass, no console errors | Local dev server, headless desktop Chrome at phone and desktop sizes | Separate storage stands in for separate devices. No physical phone, no real camera scan |
 | T-04 | Physical phones, real class, real GPS, outdoors | **Not tested** | – | See A-3 |
 | T-05 | Earlier walkthroughs (workout, courses, coach studio, onboarding, library, profile) re-run after this change | Pass | As T-03 | – |
@@ -266,6 +282,12 @@ A feature is only "Working" when its user journey has actually been run. An inte
 | Data protection | Any real athletes | Privacy notice, deletion and export, consent for under-18s in classes |
 
 ## F · Change log
+
+**2026-11-17 · USC Calisthenics Beginner and station-based assessment**
+- New course template (F-90); week kind and focus, focus/support exercises (F-91); assessment weeks wired to sessions (F-92).
+- Assessment protocol `baseline-1` → `baseline-2` (F-21): maximums replaced by suggested ranges (F-95); 29 menu variations; two modes (F-93); station menu (F-94); coach station overview (F-96); rotation groups (F-97); re-test comparison (F-98). `baseline-1` sessions and hand-in links still work.
+- **Scoring model unchanged** (SCORING.md §2.3, change log): every variation already had its own curve, so an easier variation never counts as a harder one.
+- Migration `0008` (columns only) written and checked (T-02, 184); **not yet on the live project**. Verified in demo mode (T-12). Not published.
 
 **2026-11-16 · Coach request: confirmation and contact**
 - After sign-up with "I also coach": a card says the request has been sent, where to find it, and offers WhatsApp (+31 6 45 44 49 51, `src/app/contact.ts`). Profile shows the request as pending, with the same contact. The admin list hides requests from people who are already coaches.

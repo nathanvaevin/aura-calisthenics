@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { ArrowRight, Check, Eye, Lock, Users } from 'lucide-react'
 import type { DisciplineId } from '@/domain/types'
-import { PROTOCOL, decodeHandIn, decodeInvite, estimateMinutes, overallProgress } from '@/domain/assessment'
+import { decodeHandIn, decodeInvite, estimateMinutes, overallProgress, protocolKnown } from '@/domain/assessment'
 import { disciplineById } from '@/domain/catalog'
 import { useStore, type ImportOutcome } from '@/data/store'
 import { continueAsGuest, joinAssessment, peekInvite, rememberJoin, signInWithGoogle, useCloud, type InvitePreview } from '@/data/cloud'
@@ -48,7 +48,7 @@ export function JoinInvite({ data }: { data: string }) {
   const [sharing, setSharing] = useState<'coach' | 'group'>('coach')
 
   if (!invite) return <Problem title="This invitation can’t be read.">The link looks incomplete. Ask your coach to show the QR code again and scan it from the start.</Problem>
-  if (invite.protocol !== PROTOCOL)
+  if (!protocolKnown(invite.protocol))
     return <Problem title="This invitation is from a different version.">It was created with another version of the assessment ({invite.protocol}). Ask your coach to refresh Aura and share a new code.</Problem>
 
   const join = () => navigate(`/assess/${acceptInvite(invite, { name, sharing })}`, { replace: true })
@@ -172,7 +172,7 @@ export function CloudJoin({ token }: { token: string }) {
         </div>
       </Frame>
     )
-  if (invite.protocol !== PROTOCOL)
+  if (!protocolKnown(invite.protocol))
     return <Problem title="This invitation is from a different version.">It was created with another version of the assessment ({invite.protocol}). Reload this page; if it stays, ask your coach to refresh Aura and share a new code.</Problem>
 
   const join = async (as: 'me' | 'guest') => {
@@ -253,7 +253,7 @@ export function HandInImport({ data }: { data: string }) {
         {handIn.name}’s results belong to an assessment that was created somewhere else. Open this link on the phone or computer where the coach created the session.
       </Problem>
     )
-  if (session.protocol !== handIn.protocol) return <Problem title="These results are from a different version.">They were recorded with another version of the assessment and can’t be merged into this session.</Problem>
+  if (!protocolKnown(handIn.protocol)) return <Problem title="These results are from a different version.">They were recorded with another version of the assessment and can’t be merged into this session.</Problem>
 
   const count = Object.values(handIn.results).filter((r) => !r.skipped).length
   const progress = overallProgress(session.stations, handIn.results, handIn.skipped)

@@ -63,7 +63,7 @@ export function project(s: Synced, uid: string): RowSet {
     put(set, 'courses', { id: c.id, coach_id: c.coachId, title: c.title, tagline: c.tagline, description: c.description, focus: c.focus, format: c.format, status: c.status, start_date: c.startDate })
     for (const skill_id of c.milestones) put(set, 'course_milestones', { course_id: c.id, skill_id })
     c.weeks.forEach((w, wi) => {
-      put(set, 'course_weeks', { id: w.id, course_id: c.id, position: wi, title: w.title, objective: w.objective })
+      put(set, 'course_weeks', { id: w.id, course_id: c.id, position: wi, title: w.title, objective: w.objective, kind: w.kind ?? 'training', focus: orNull(w.focus) })
       for (const cs of w.sessions) {
         sessions.add(cs.id)
         put(set, 'course_sessions', { id: cs.id, week_id: w.id, day: clamp(cs.day, 0, 6), title: cs.title })
@@ -72,7 +72,7 @@ export function project(s: Synced, uid: string): RowSet {
           put(set, 'course_blocks', {
             id: b.id, session_id: cs.id, position: bi, kind: b.kind, exercise_id: b.exerciseId, progression_id: orNull(b.progressionId), level: orNull(b.level),
             min_level: orNull(b.minLevel), max_level: orNull(b.maxLevel), sets: Math.max(1, Math.round(b.sets)), target: Math.max(1, Math.round(b.target)),
-            rest: Math.max(0, Math.round(b.rest)), note: orNull(b.note),
+            rest: Math.max(0, Math.round(b.rest)), note: orNull(b.note), is_primary: !!b.primary,
           })
         })
       }
@@ -128,6 +128,7 @@ export function project(s: Synced, uid: string): RowSet {
       id: a.id, owner_id: owner, solo: a.origin === 'solo', protocol: a.protocol, kind: a.kind, title: a.title, group_name: a.groupName,
       course_id: a.courseId && set.courses.has(a.courseId) ? a.courseId : null, baseline_id: null, stations: a.stations,
       station_minutes: clamp(a.stationMinutes, 1, 60), rotation_started_at: orNull(a.rotationStartedAt), invite_token: a.inviteToken ?? null, created_at: a.createdAt,
+      mode: a.origin === 'solo' ? 'guided' : (a.mode ?? 'guided'), groups: clamp(a.groups ?? 1, 1, 12),
     })
     put(set, 'assessment_status', { id: a.id, status: a.status, finalised_at: a.finalisedAt ?? null })
   }
@@ -142,6 +143,7 @@ export function project(s: Synced, uid: string): RowSet {
     put(set, 'assessment_participants', {
       id: p.id, session_id: p.sessionId, athlete_id: isUuid(p.athleteId) ? p.athleteId : null, display_name: p.name.trim().slice(0, 80) || 'Participant',
       sharing: p.sharing, partner_name: orNull(p.partner), skipped: p.skipped, flags: p.flags, joined_at: p.joinedAt, submitted_at: orNull(p.submittedAt),
+      group_no: p.group === undefined ? null : clamp(p.group, 0, 11),
     })
     for (const [test_id, r] of Object.entries(p.results)) {
       const test = testById[test_id]
@@ -245,11 +247,17 @@ export function build(set: RowSet, uid: string, prev: Synced): Synced {
         blocks: (blocksOf.get(String(cs.id)) ?? []).sort(byPosition).map((b): WorkoutBlock => ({
           id: String(b.id), kind: b.kind as WorkoutBlock['kind'], exerciseId: String(b.exercise_id), progressionId: opt<string>(b.progression_id), level: opt<number>(b.level),
           minLevel: opt<number>(b.min_level), maxLevel: opt<number>(b.max_level), sets: Number(b.sets), target: Number(b.target), rest: Number(b.rest), note: opt<string>(b.note),
+          ...(b.is_primary ? { primary: true } : {}),
         })),
       }))
       // Sessions have no order of their own in the database: keep the device's, else by day.
       built.sort((a, b) => a.day - b.day || a.id.localeCompare(b.id))
-      return { id: wid, title: String(w.title ?? ''), objective: String(w.objective ?? ''), sessions: ordered(built, (x) => x.id, wasWeek.get(wid)?.sessions.map((x) => x.id)) }
+      return {
+        id: wid, title: String(w.title ?? ''), objective: String(w.objective ?? ''),
+        ...(w.kind && w.kind !== 'training' ? { kind: w.kind as CourseWeek['kind'] } : {}),
+        ...(w.focus ? { focus: w.focus as CourseWeek['focus'] } : {}),
+        sessions: ordered(built, (x) => x.id, wasWeek.get(wid)?.sessions.map((x) => x.id)),
+      }
     })
     const next: Course = {
       ...was,
@@ -328,6 +336,7 @@ export function build(set: RowSet, uid: string, prev: Synced): Synced {
       stations: r.stations as DisciplineId[], status: finalised ? 'finalised' : 'open', origin: solo ? 'solo' : owner === uid ? 'local' : 'invite',
       createdAt: instant(r.created_at) ?? was?.createdAt ?? now, finalisedAt: finalised ? (instant(status?.finalised_at) ?? was?.finalisedAt ?? now) : undefined,
       stationMinutes: Number(r.station_minutes ?? 6), rotationStartedAt: instant(r.rotation_started_at) ?? undefined, inviteToken: opt<string>(r.invite_token),
+      mode: r.mode === 'stations' ? 'stations' : 'guided', groups: Number(r.groups ?? 1),
     }))
   }
   assessments.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
@@ -348,6 +357,7 @@ export function build(set: RowSet, uid: string, prev: Synced): Synced {
       id, sessionId: String(r.session_id), athleteId, name: String(r.display_name ?? 'Participant'), joinedAt: instant(r.joined_at) ?? was?.joinedAt ?? now,
       via: was?.via ?? (athleteId ? 'self' : 'coach'), sharing: r.sharing as AssessmentParticipant['sharing'], partner: opt<string>(r.partner_name), results,
       skipped: (r.skipped as DisciplineId[]) ?? [], flags: (r.flags as DisciplineId[]) ?? [], submittedAt: instant(r.submitted_at) ?? undefined,
+      group: r.group_no === null || r.group_no === undefined ? undefined : Number(r.group_no),
     }))
   }
   participants.sort((a, b) => a.joinedAt.localeCompare(b.joinedAt) || a.id.localeCompare(b.id))

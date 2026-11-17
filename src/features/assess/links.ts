@@ -14,7 +14,7 @@ const root = () => `${window.location.origin}${import.meta.env.BASE_URL}`
  */
 export const inviteUrl = (s: AssessmentSession) =>
   s.inviteToken ? `${root()}#j=${s.inviteToken}` :
-  `${root()}#join=${encodeInvite({ id: s.id, protocol: s.protocol, title: s.title, groupName: s.groupName, coachName: s.coachName, courseId: s.courseId, stations: s.stations, kind: s.kind, stationMinutes: s.stationMinutes })}`
+  `${root()}#join=${encodeInvite({ id: s.id, protocol: s.protocol, title: s.title, groupName: s.groupName, coachName: s.coachName, courseId: s.courseId, stations: s.stations, kind: s.kind, stationMinutes: s.stationMinutes, mode: s.mode })}`
 
 export const handInUrl = (p: AssessmentParticipant, s: AssessmentSession) => `${root()}#handin=${encodeHandIn(p, s.protocol)}`
 

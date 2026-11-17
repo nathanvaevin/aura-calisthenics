@@ -159,6 +159,8 @@ export interface WorkoutBlock {
   target: number
   rest: number
   note?: string
+  /** Part of the week's primary focus, as opposed to support work. Set by the coach. */
+  primary?: boolean
 }
 
 export interface Workout {
@@ -223,10 +225,21 @@ export interface CourseSession {
   blocks: WorkoutBlock[]
 }
 
+/**
+ * training: sessions to follow · baseline / retest: the week the group is
+ * assessed, at the start and at the end. An assessment week may still hold
+ * sessions; its main event is the assessment itself.
+ */
+export type WeekKind = 'training' | 'baseline' | 'retest'
+
 export interface CourseWeek {
   id: string
   title: string
   objective: string
+  /** Unset means a training week (courses made before weeks had kinds). */
+  kind?: WeekKind
+  /** The capability most of the week's work builds. Exercises from other disciplines are its support. */
+  focus?: DisciplineId | 'full'
   sessions: CourseSession[]
 }
 
@@ -408,6 +421,14 @@ export interface AssessmentSession {
   inviteToken?: string
   /** Seeded demonstration data. */
   sample?: boolean
+  /**
+   * guided: each station walks the athlete through its benchmarks in order,
+   * adapting to each result · stations: the athlete opens any station and
+   * chooses the variations that match their level. Unset means guided.
+   */
+  mode?: 'guided' | 'stations'
+  /** How many groups the coach splits the class into for rotating between stations. */
+  groups?: number
 }
 
 export interface AssessmentParticipant {
@@ -428,4 +449,6 @@ export interface AssessmentParticipant {
   /** Stations where the participant asked for the coach. */
   flags: DisciplineId[]
   submittedAt?: string
+  /** Rotation group (0-based), when the coach placed them. Otherwise assigned by joining order. */
+  group?: number
 }

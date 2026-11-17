@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router'
 import { ArrowLeft, ArrowRight, Check, Hand, Minus, Pause, Play, Plus, X } from 'lucide-react'
 import type { DisciplineId } from '@/domain/types'
 import {
-  demonstrated, estimateMinutes, nextTest, overallProgress, startingStation, stationById, stationProgress, testById, visibleTests,
-  type AssessmentTest,
+  beyondTarget, demonstrated, estimateMinutes, groupCount, harderThan, nextTest, overallProgress, rotationOf, startingStation, stationById, stationOfTest, stationProgress,
+  testById, visibleTests, type AssessmentMode, type AssessmentTest,
 } from '@/domain/assessment'
 import { disciplineById, exerciseById } from '@/domain/catalog'
 import { bandOf } from '@/domain/scoring/config'
@@ -13,6 +13,7 @@ import { useNow } from '@/data/hooks'
 import { useStore } from '@/data/store'
 import { useLive } from '@/data/cloud'
 import { SyncLine } from '@/features/account/Account'
+import { StationMenu, targetLabel } from './StationMenu'
 import { DisciplineDot, Eyebrow, Ring, TierTag } from '@/ui/primitives'
 import { tick } from '@/lib/sound'
 import { cx, dvar } from '@/lib/format'
@@ -28,7 +29,8 @@ export function useAssessment(sessionId: string | undefined, participantId?: str
   const coaching = !!session && session.origin === 'local' && session.coachId === meId
   // A coach's session that has been finalised: a participant can read their results, not change them.
   const closed = !!session && session.origin === 'invite' && session.status === 'finalised'
-  return { session, participants, mine, target, coaching, closed, meId }
+  const mode: AssessmentMode = !session || session.origin === 'solo' ? 'guided' : (session.mode ?? 'guided')
+  return { session, participants, mine, target, coaching, closed, meId, mode }
 }
 
 const unitOf = (t: AssessmentTest) => {
@@ -58,7 +60,7 @@ const STATE_COPY = { todo: 'To do', active: 'In progress', done: 'Done', skipped
 export function AssessHub() {
   const { sessionId } = useParams()
   const navigate = useNavigate()
-  const { session, mine, coaching, closed } = useAssessment(sessionId)
+  const { session, mine, coaching, closed, mode } = useAssessment(sessionId)
   const patchParticipant = useStore((s) => s.patchParticipant)
   const toggleStationSkip = useStore((s) => s.toggleStationSkip)
   const submit = useStore((s) => s.submitAssessment)
@@ -68,12 +70,16 @@ export function AssessHub() {
   if (!session) return <Navigate to="/train" replace />
   if (!mine) return <Navigate to={coaching ? `/coach/assessment/${session.id}` : '/train'} replace />
 
-  const progress = overallProgress(session.stations, mine.results, mine.skipped)
+  const progress = overallProgress(session.stations, mine.results, mine.skipped, mode)
   const recorded = Object.values(mine.results).filter((r) => !r.skipped).length
-  const start = session.origin === 'solo' ? null : startingStation(mine.id, session.stations)
-  const open = session.stations.filter((s) => ['todo', 'active'].includes(stationProgress(stationById[s], mine.results, mine.skipped).state))
-  const suggested = start && open.includes(start) ? start : open[0]
   const solo = session.origin === 'solo'
+  // With groups, the coach's placement decides where to start and the order to rotate in.
+  const groups = groupCount(session)
+  const group = !solo && groups > 1 && mine.group !== undefined ? mine.group % groups : null
+  const order = group !== null ? rotationOf(group, groups, session.stations) : session.stations
+  const start = solo ? null : group !== null ? order[0] : startingStation(mine.id, session.stations)
+  const open = order.filter((s) => ['todo', 'active'].includes(stationProgress(stationById[s], mine.results, mine.skipped, mode).state))
+  const suggested = start && open.includes(start) ? start : open[0]
 
   return (
     <div className="relative mx-auto min-h-dvh w-full max-w-[560px] px-5 pb-40">
@@ -98,8 +104,16 @@ export function AssessHub() {
         <p className="rise rise-1 text-[14px] leading-relaxed text-ink-2">
           {progress.started
             ? `${recorded} ${recorded === 1 ? 'benchmark' : 'benchmarks'} recorded. Pick up wherever there is space.`
-            : `${session.stations.length} stations, about ${estimateMinutes(session.stations)} minutes. Take them in any order; each one adapts to your last result.`}
+            : mode === 'stations'
+              ? `${session.stations.length} stations, about ${estimateMinutes(session.stations)} minutes. At each one you choose the variations that match your level.`
+              : `${session.stations.length} stations, about ${estimateMinutes(session.stations)} minutes. Take them in any order; each one adapts to your last result.`}
         </p>
+        {group !== null && (
+          <p className="rise rise-1 mt-3 rounded-[18px] border border-line-strong bg-surface px-4 py-3 text-[13.5px] leading-relaxed">
+            <span className="font-medium">You are in group {group + 1}.</span>{' '}
+            <span className="text-ink-2">Start at {disciplineById[order[0]].short}, then {order.slice(1).map((d) => disciplineById[d].short).join(', ')}.</span>
+          </p>
+        )}
 
         {closed && (
           <p className="rise rise-1 mt-4 rounded-[20px] border border-line-strong bg-surface px-4 py-3 text-[13.5px] leading-relaxed text-ink-2">
@@ -115,16 +129,16 @@ export function AssessHub() {
         )}
 
         <div className="rise rise-2 mt-5 space-y-2.5">
-          {session.stations.map((id) => {
+          {order.map((id) => {
             const station = stationById[id]
-            const p = stationProgress(station, mine.results, mine.skipped)
-            const done = visibleTests(station, mine.results).filter((t) => mine.results[t.id])
+            const p = stationProgress(station, mine.results, mine.skipped, mode)
+            const done = [...station.tests, ...station.extra].filter((t) => mine.results[t.id] && (mode === 'stations' || visibleTests(station, mine.results).includes(t)))
             const here = id === suggested
             return (
               <div key={id} className={cx('card overflow-hidden', here && 'border-line-strong')}>
                 <button className="flex w-full items-center gap-3.5 p-4 text-left" onClick={() => navigate(`/assess/${session.id}/station/${id}`)} disabled={p.state === 'skipped' || closed}>
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full" style={{ background: p.state === 'done' ? dvar(id) : `color-mix(in oklab, ${dvar(id)} 16%, transparent)`, color: p.state === 'done' ? 'var(--bg)' : dvar(id) }}>
-                    {p.state === 'done' ? <Check size={18} strokeWidth={2.8} /> : <span className="num font-mono text-[11px] font-medium">{p.done}/{p.total}</span>}
+                    {p.state === 'done' ? <Check size={18} strokeWidth={2.8} /> : mode === 'stations' ? <span className="h-2 w-2 rounded-full bg-current" /> : <span className="num font-mono text-[11px] font-medium">{p.done}/{p.total}</span>}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
@@ -182,11 +196,13 @@ export function StationRunner() {
   const { sessionId, station } = useParams()
   const [params, setParams] = useSearchParams()
   const navigate = useNavigate()
-  const { session, target, coaching, closed, meId } = useAssessment(sessionId, params.get('p'))
+  const { session, target, coaching, closed, meId, mode } = useAssessment(sessionId, params.get('p'))
   useLive('assess', 10000)
   const recordResult = useStore((s) => s.recordResult)
   const toggleFlag = useStore((s) => s.toggleFlag)
   const sound = useStore((s) => s.settings.sound)
+  /** A result past the top of its range, and the variation it points to. */
+  const [nudge, setNudge] = useState<{ test: AssessmentTest; harder: AssessmentTest; value: number } | null>(null)
 
   const st = station ? stationById[station as DisciplineId] : undefined
   if (!session || !target || !st || !session.stations.includes(st.id)) return <Navigate to={session ? `/assess/${session.id}` : '/train'} replace />
@@ -196,17 +212,40 @@ export function StationRunner() {
   if ((forOther && !coaching) || closed) return <Navigate to={`/assess/${session.id}`} replace />
   const exit = forOther ? `/coach/assessment/${session.id}?tab=board` : `/assess/${session.id}`
   const editing = params.get('t')
-  const current = (editing && testById[editing]) || nextTest(st, target.results)
-  const visible = visibleTests(st, target.results)
+  const pOnly: Record<string, string> = params.get('p') ? { p: params.get('p')! } : {}
+  // Station mode: the athlete's own choice of variations, in the order they will do them.
+  const queue = params.get('q')?.split(',').filter((id) => testById[id] && stationOfTest[id] === st.id) ?? null
+  const guide = params.get('guide') === '1'
+
+  if (mode === 'stations' && !queue && !editing && !guide)
+    return (
+      <StationMenu
+        station={st.id}
+        results={target.results}
+        forName={forOther ? target.name : undefined}
+        onStart={(ids) => setParams({ ...pOnly, q: ids.join(',') })}
+        onEdit={(id) => setParams({ ...pOnly, t: id })}
+        onGuide={() => setParams({ ...pOnly, guide: '1' })}
+        onClose={() => navigate(exit)}
+      />
+    )
+
+  const queued = queue?.map((id) => testById[id]) ?? null
+  const current = (editing && testById[editing]) || (queued ? queued.find((t) => !target.results[t.id]) : nextTest(st, target.results))
+  const visible = queued ?? visibleTests(st, target.results)
   const recorded = visible.filter((t) => target.results[t.id])
   const color = dvar(st.id)
   const keep = params.get('p') ? `?p=${params.get('p')}` : ''
-  const nextStation = session.stations.find((s) => s !== st.id && ['todo', 'active'].includes(stationProgress(stationById[s], target.results, target.skipped).state))
+  const nextStation = session.stations.find((s) => s !== st.id && ['todo', 'active'].includes(stationProgress(stationById[s], target.results, target.skipped, mode).state))
+  const backToMenu = () => setParams(pOnly, { replace: true })
 
   const record = (test: AssessmentTest, value: number, skipped = false) => {
     recordResult(target.id, test.id, value, { tier: forOther ? 'observed' : 'self', skipped })
     if (sound && !skipped) tick()
-    if (editing) setParams(params.get('p') ? { p: params.get('p')! } : {}, { replace: true })
+    if (editing) setParams(queue ? { ...pOnly, q: queue.join(',') } : mode === 'stations' && !guide ? pOnly : { ...pOnly, ...(guide ? { guide: '1' } : {}) }, { replace: true })
+    // Past the range: suggest the next variation, once, without stopping anyone.
+    const harder = !skipped && beyondTarget(test, value) ? harderThan(test) : null
+    if (harder && !target.results[harder.id] && !queue?.includes(harder.id) && (queue || mode === 'stations')) setNudge({ test, harder, value })
   }
 
   return (
@@ -228,7 +267,27 @@ export function StationRunner() {
         </div>
       </header>
 
-      {current ? (
+      {nudge ? (
+        <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-5">
+          <div className="rise flex flex-1 flex-col justify-center">
+            <Eyebrow>Above the suggested range</Eyebrow>
+            <h1 className="display mt-2 text-[34px] leading-[1.06]">You may be ready for {exerciseById[nudge.harder.exerciseId].name}.</h1>
+            <p className="mt-3 text-[15px] leading-relaxed text-ink-2">
+              You recorded {resultLabel(nudge.test, nudge.value)} on {exerciseById[nudge.test.exerciseId].name}, past the suggested {targetLabel(nudge.test)}. It is saved as it is. A harder variation usually shows more of what you can do than more repetitions of this one.
+            </p>
+            <p className="mt-2 text-[13px] text-ink-3">{exerciseById[nudge.harder.exerciseId].name}: {targetLabel(nudge.harder)} suggested.</p>
+          </div>
+          <div className="space-y-2.5 pt-6">
+            <button className="btn btn-primary btn-lg w-full" onClick={() => {
+              const at = queue ? queue.indexOf(nudge.test.id) + 1 : 0
+              const next = queue ? [...queue.slice(0, at), nudge.harder.id, ...queue.slice(at)] : [nudge.harder.id]
+              setNudge(null)
+              setParams({ ...pOnly, q: next.join(',') }, { replace: true })
+            }}>Try {exerciseById[nudge.harder.exerciseId].name} <ArrowRight size={17} /></button>
+            <button className="btn btn-outline w-full" onClick={() => setNudge(null)}>Not now</button>
+          </div>
+        </div>
+      ) : current ? (
         <TestCard
           key={current.id}
           test={current}
@@ -239,6 +298,7 @@ export function StationRunner() {
           sound={sound}
           onRecord={(v) => record(current, v)}
           onSkip={() => record(current, 0, true)}
+          harder={harderThan(current)}
           footer={
             !forOther && session.origin !== 'solo' ? (
               <button className={cx('flex h-8 items-center gap-1.5', target.flags.includes(st.id) ? 'font-medium text-ink' : 'hover:text-ink')} onClick={() => toggleFlag(target.id, st.id)}>
@@ -252,7 +312,7 @@ export function StationRunner() {
           <div className="rise pt-8">
             <Eyebrow>Station complete</Eyebrow>
             <h1 className="display mt-2 text-[40px]">{disciplineById[st.id].name}</h1>
-            <p className="mt-2 text-[14px] text-ink-2">{recorded.length} benchmarks on record. Tap any of them to correct it.</p>
+            <p className="mt-2 text-[14px] text-ink-2">{recorded.length} {recorded.length === 1 ? 'benchmark' : 'benchmarks'} on record. Tap any of them to correct it.</p>
           </div>
           <div className="rise rise-1 card mt-5 divide-y divide-line">
             {recorded.map((t) => {
@@ -271,6 +331,7 @@ export function StationRunner() {
             })}
           </div>
           <div className="mt-auto space-y-2.5 pt-6">
+            {(queue || mode === 'stations') && <button className="btn btn-outline w-full" onClick={backToMenu}>Choose more variations at {disciplineById[st.id].short}</button>}
             {nextStation && (
               <button className="btn btn-primary btn-lg w-full" onClick={() => navigate(`/assess/${session.id}/station/${nextStation}${keep}`, { replace: true })}>
                 Next · {disciplineById[nextStation].short} <ArrowRight size={17} />
@@ -285,7 +346,7 @@ export function StationRunner() {
 }
 
 function TestCard({
-  test, index, total, initial, color, sound, onRecord, onSkip, footer,
+  test, index, total, initial, color, onRecord, onSkip, footer, harder,
 }: {
   test: AssessmentTest
   index: number
@@ -296,6 +357,7 @@ function TestCard({
   onRecord: (value: number) => void
   onSkip: () => void
   footer: React.ReactNode
+  harder?: AssessmentTest | null
 }) {
   const ex = exerciseById[test.exerciseId]
   const hold = test.kind === 'max' && ex.metric === 'hold'
@@ -305,15 +367,8 @@ function TestCard({
   const now = useNow(200, started !== null)
   const elapsed = started ? Math.max(0, Math.floor((now - started) / 1000)) : 0
   const shown = started ? elapsed : value
-  const limit = test.cap ?? 999
-
-  useEffect(() => {
-    if (started && test.cap && elapsed >= test.cap) {
-      if (sound) tick()
-      setValue(test.cap)
-      setStarted(null)
-    }
-  }, [elapsed, started, test.cap, sound])
+  // A sanity bound for typing, not a ceiling on performance.
+  const limit = hold ? 3600 : 1000
 
   const bump = (d: number) => setValue((v) => Math.max(0, Math.min(limit, v + d)))
   const reading = test.kind === 'max' && shown > 0 ? resultReading(test, shown) : null
@@ -326,7 +381,7 @@ function TestCard({
           <h1 className="display mt-2 text-[36px] leading-[1.04]">{ex.name}</h1>
           <p className="mt-3 text-[15.5px] leading-relaxed">{test.prompt}</p>
           {ex.standard && test.kind === 'max' && <p className="mt-2 border-l-2 pl-3 text-[13px] leading-snug text-ink-2" style={{ borderColor: color }}>Counts when: {ex.standard}</p>}
-          {test.cap && <p className="mt-2 text-[12.5px] text-ink-3">Stop at {test.cap}{unitOf(test)}. That is enough to place you, and saves you for the next station.</p>}
+          {test.target && test.kind === 'max' && <p className="mt-2 text-[12.5px] text-ink-3">Suggested: {targetLabel(test)}. Record what you actually do, even past it.</p>}
           {ex.safety && <p className="mt-2 text-[12.5px] leading-snug text-warn">{ex.safety}</p>}
         </div>
 
@@ -351,6 +406,7 @@ function TestCard({
               />
               {hold && <span className="text-[18px] text-ink-3">s</span>}
             </div>
+            {harder && beyondTarget(test, shown) && <div className="mt-1 text-[12.5px] font-medium" style={{ color }}>Past the suggested range. You may be ready for {exerciseById[harder.exerciseId].name}.</div>}
             <div className="mt-1 h-5 text-[12.5px] text-ink-2">
               {reading ? <>Reads <span className="num font-medium" style={{ color }}>{reading.points}</span> · {reading.band} range</> : <span className="text-ink-3">{hold ? 'Time it, or type the seconds' : 'Type it, or count up below'}</span>}
             </div>
