@@ -43,8 +43,11 @@ export const useIsCoach = () => {
   return coachMode && !!roles?.includes('coach')
 }
 
-/** Manages what every athlete sees: demonstrations, themes, coach access. Not affected by coach mode. */
-export const useIsAdmin = () => useStore((s) => !!s.meId && !!s.athletes[s.meId]?.roles.includes('admin'))
+/**
+ * Manages what every athlete sees: demonstrations, themes, coach access. Not affected by coach mode.
+ * The sample world's athlete is an admin only while developing: on the public site the Studio is for a real admin account.
+ */
+export const useIsAdmin = () => useStore((s) => !!s.meId && !!s.athletes[s.meId]?.roles.includes('admin') && (!s.demo || import.meta.env.DEV))
 
 /** Re-render on an interval; returns the current time in ms. */
 export function useNow(intervalMs = 250, enabled = true) {

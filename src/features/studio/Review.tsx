@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { AlertTriangle, Plus } from 'lucide-react'
+import { AlertTriangle, ClipboardCopy, Plus } from 'lucide-react'
 import { ASSET_STATUSES, CORRECTION_TAGS, STATUS_LABEL, canMove, historyOf, reviewQueue, type AssetStatus, type CameraAngle, type CharacterId, type DemoAsset } from '@/domain/media'
 import { exerciseById } from '@/domain/catalog'
 import { useStore } from '@/data/store'
@@ -34,6 +34,7 @@ export function Review() {
   const [filter, setFilter] = useState<AssetStatus | 'all'>('all')
   const [selected, setSelected] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
+  const [copied, setCopied] = useState(false)
   const counts = reviewQueue(animations)
   const wide = useWide()
   const asset = animations.find((a) => a.id === selected) ?? null
@@ -72,7 +73,18 @@ export function Review() {
         {ASSET_STATUSES.filter((s) => counts[s] > 0).map((s) => (
           <button key={s} className="chip" data-on={filter === s} onClick={() => setFilter(s)}>{STATUS_LABEL[s]} · {counts[s]}</button>
         ))}
-        <button className="btn btn-outline btn-sm ml-auto" onClick={() => setGenerating(true)}><Plus size={14} /> Generate</button>
+        <button
+          className="btn btn-quiet btn-sm ml-auto"
+          onClick={() => {
+            // Everything decided so far, as plain text: to hand to whoever corrects the movements.
+            const lines = order.flatMap((id) => (['male', 'female'] as const).flatMap((c) => historyOf(animations, id, 'animation', c).slice(0, 1).map((a) =>
+              `${exerciseById[id].name} · ${c} · v${a.version} · ${STATUS_LABEL[a.status]}${a.notes.map((n) => `\n   - ${n.tags.length ? `[${n.tags.join(', ')}] ` : ''}${n.text}`).join('')}`)))
+            void navigator.clipboard?.writeText(`Aura animation review, ${new Date().toLocaleDateString()}\n\n${lines.join('\n')}`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
+          }}
+        >
+          <ClipboardCopy size={13} /> {copied ? 'Copied' : 'Copy my review'}
+        </button>
+        <button className="btn btn-outline btn-sm" onClick={() => setGenerating(true)}><Plus size={14} /> Generate</button>
       </div>
 
       <div className="mt-4 lg:grid lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)] lg:items-start lg:gap-8">
