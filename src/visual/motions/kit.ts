@@ -5,7 +5,7 @@
  */
 import { Quaternion, Vector3 } from 'three'
 import type { Side } from '../body/skeleton'
-import { elbowOf, handRot, pitch, type Body, type LegPose, type Pose, type Rig } from '../rig'
+import { elbowOf, handRot, pitch, type ArmPose, type Body, type LegPose, type Pose, type Rig } from '../rig'
 
 export const SIDES: [Side, number][] = [['L', 1], ['R', -1]]
 export const deg = Math.PI / 180
@@ -48,6 +48,8 @@ export function legOnBall(b: Body, hip: Vector3, ball: Vector3, heel: Vector3, l
 export interface Line {
   /** Angle of the body above the floor, degrees. */
   angle: number
+  /** Height of the surface the balls of the feet are on, plus the pad of the foot. */
+  pad: number
   ankle: Vector3
   hip: Vector3
   shoulder: Vector3
@@ -56,7 +58,9 @@ export interface Line {
 /**
  * A straight body, face down, on the balls of the feet (at z = `ballZ`,
  * head towards +Z), with the shoulder joints at a height. Returns the line;
- * `proneBody` writes it into a pose.
+ * `proneBody` writes it into a pose. `pad` is the height of the balls of
+ * the feet: 0.014 on the floor, more with the feet on a box. The angle goes
+ * negative when the feet are higher than the shoulders.
  */
 export function proneLine(b: Body, ballZ: number, shoulderY: number, pad = 0.014): Line {
   const f = b.ball.length()
@@ -67,7 +71,7 @@ export function proneLine(b: Body, ballZ: number, shoulderY: number, pad = 0.014
   for (let i = 0; i < 12; i++) a = Math.asin(Math.max(-0.5, Math.min(0.95, (shoulderY - pad - f * Math.cos(a)) / L)))
   const dir = at(Math.cos(a), Math.sin(a))
   const ankle = at(ballZ - f * Math.sin(a), pad + f * Math.cos(a))
-  return { angle: a / deg, ankle, hip: ankle.clone().addScaledVector(dir, legs), shoulder: ankle.clone().addScaledVector(dir, L) }
+  return { angle: a / deg, pad, ankle, hip: ankle.clone().addScaledVector(dir, legs), shoulder: ankle.clone().addScaledVector(dir, L) }
 }
 
 /** Writes a prone straight body into a pose: trunk, hips and both legs. `tuck` hollows the trunk a few degrees. */
@@ -79,7 +83,7 @@ export function proneBody(b: Body, line: Line, out: Pose, tuck = 3) {
   for (const [side, sign] of SIDES) {
     const x = sign * b.rest.upperLegL.x
     const ankle = line.ankle.clone().setX(x)
-    onBall(b, ankle, at(line.ankle.z + b.ball.length() * Math.sin(line.angle * deg), 0.014, x), out.leg[side])
+    onBall(b, ankle, at(line.ankle.z + b.ball.length() * Math.sin(line.angle * deg), line.pad, x), out.leg[side])
     out.leg[side].knee.set(0, -1, 0.2)
   }
 }
@@ -90,11 +94,11 @@ export function proneBody(b: Body, line: Line, out: Pose, tuck = 3) {
  * the first attempt is measured and corrected. `arms` places the hands; it is
  * told where the shoulders actually are.
  */
-export function proneAt(rig: Rig, out: Pose, ballZ: number, shoulderY: number, arms: (shoulder: Vector3) => void, tuck = 3): Vector3 {
+export function proneAt(rig: Rig, out: Pose, ballZ: number, shoulderY: number, arms: (shoulder: Vector3) => void, tuck = 3, pad = 0.014): Vector3 {
   const seen = new Vector3()
   let ask = shoulderY
   for (let i = 0; i < 4; i++) {
-    const line = proneLine(rig.body, ballZ, ask)
+    const line = proneLine(rig.body, ballZ, ask, pad)
     proneBody(rig.body, line, out, tuck)
     arms(i ? seen : line.shoulder)
     rig.solve(out)
@@ -122,11 +126,11 @@ export function straightLegs(rig: Rig, out: Pose, flex: number, point = 50, spre
 /** A hand flat on the floor: the wrist sits this far above it. */
 export const wristHeight = (b: Body) => 0.024 * b.scale
 
-/** Both hands flat on the floor, fingers towards +Z, `half` either side of the centre line. */
-export function handsOnFloor(b: Body, out: Pose, z: number, half: number, elbow: Vector3, turnOut = 8) {
+/** Both hands flat on the floor (or on a surface `height` above it), fingers towards +Z, `half` either side of the centre line. */
+export function handsOnFloor(b: Body, out: Pose, z: number, half: number, elbow: Vector3, turnOut = 8, height = 0) {
   for (const [side, sign] of SIDES) {
     const arm = out.arm[side]
-    arm.hand.set(sign * half, wristHeight(b), z)
+    arm.hand.set(sign * half, height + wristHeight(b), z)
     arm.rot.copy(handRot(side, new Vector3(sign * Math.sin(turnOut * deg), 0, Math.cos(turnOut * deg)), new Vector3(0, -1, 0)))
     arm.elbow.set(sign * elbow.x, elbow.y, elbow.z)
     arm.grip = 0.04
@@ -134,13 +138,21 @@ export function handsOnFloor(b: Body, out: Pose, z: number, half: number, elbow:
   }
 }
 
-/** Both hands closed over a bar that runs across the stage: overhand, `half` either side of the centre line. */
-export function handsOnBar(b: Body, out: Pose, bar: { height: number; radius: number; z?: number }, half: number) {
+/**
+ * One hand closed round a bar or rail. `point` is the centre of the bar where
+ * the hand holds it; `fingers` is the way the fingers point before they curl
+ * (from the wrist towards the bar), `palm` what the palm faces (towards the bar).
+ */
+export function gripAt(b: Body, arm: ArmPose, side: Side, point: Vector3, radius: number, fingers: Vector3, palm: Vector3, grip = 1) {
+  const f = fingers.clone().normalize(), p = palm.clone().normalize()
+  arm.hand.copy(point).addScaledVector(f, radius * 0.35 - b.knuckle).addScaledVector(p, -(radius + 0.012 * b.scale))
+  arm.rot.copy(handRot(side, f, p))
+  arm.grip = grip
+}
+
+/** Both hands closed over a bar that runs across the stage, hanging under it: overhand (palms forward) or underhand (palms towards the face). */
+export function handsOnBar(b: Body, out: Pose, bar: { height: number; radius: number; z?: number }, half: number, grip: 'over' | 'under' = 'over') {
   for (const [side, sign] of SIDES) {
-    const arm = out.arm[side]
-    // The knuckles sit on top of the bar; the wrist hangs below and just behind it.
-    arm.hand.set(sign * half, bar.height + bar.radius * 0.35 - b.knuckle, (bar.z ?? 0) - bar.radius - 0.012 * b.scale)
-    arm.rot.copy(handRot(side, new Vector3(0, 1, 0), new Vector3(0, 0, 1)))
-    arm.grip = 1
+    gripAt(b, out.arm[side], side, new Vector3(sign * half, bar.height, bar.z ?? 0), bar.radius, new Vector3(0, 1, 0), new Vector3(0, 0, grip === 'over' ? 1 : -1))
   }
 }

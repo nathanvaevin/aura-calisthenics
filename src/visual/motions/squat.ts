@@ -11,6 +11,8 @@ import { ease, lerp, there, type Motion } from './types'
 export const squat: Motion = {
   id: 'squat',
   revision: 1,
+  stage: 'square',
+  planted: ['footL', 'footR'],
   kind: 'reps',
   period: 3.2,
   camera: 'three-quarter',
@@ -61,6 +63,8 @@ export const squat: Motion = {
 export const splitSquat: Motion = {
   id: 'split-squat',
   revision: 1,
+  stage: 'square',
+  planted: ['footL', 'toesR'],
   kind: 'reps',
   period: 3.2,
   camera: 'side',

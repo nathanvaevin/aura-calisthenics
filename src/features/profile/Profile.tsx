@@ -9,7 +9,7 @@ import { bestEvidence } from '@/domain/scoring/mastery'
 import { recentUnlocks } from '@/domain/insights'
 import { useIsAdmin, useIsCoach, useMe } from '@/data/hooks'
 import { useStore } from '@/data/store'
-import { signInWithGoogle, signOut, useCloud } from '@/data/cloud'
+import { signInWithGoogle, signOut, startOver, useCloud } from '@/data/cloud'
 import { KeepProfile, Notice, SyncLine } from '@/features/account/Account'
 import { CoachAccessRow, CoachRequests } from '@/features/account/CoachAccess'
 import { AuraDot, AuraField } from '@/ui/AuraField'
@@ -26,6 +26,8 @@ export function Profile() {
   const me = useMe()
   const coach = useIsCoach()
   const admin = useIsAdmin()
+  const [erasing, setErasing] = useState(false)
+  const [eraseProblem, setEraseProblem] = useState<string | null>(null)
   const navigate = useNavigate()
   const settings = useStore((s) => s.settings)
   const setSettings = useStore((s) => s.setSettings)
@@ -332,6 +334,22 @@ export function Profile() {
                 {!account && cloud.configured && !demo && <p className="mt-2 text-[12px] leading-relaxed text-ink-3">Signing in moves what you have built on this device into your account.</p>}
                 {!account && <Notice className="mt-3" />}
               </div>
+              {account && !cloud.user?.guest && (
+                <div>
+                  <button
+                    className="flex w-full items-center gap-2 px-4 py-3.5 text-left text-[14px] text-ink-2 last:rounded-b-[22px] hover:bg-surface-2"
+                    disabled={erasing}
+                    onClick={() => {
+                      if (!window.confirm('Erase your results, workouts, goals and assessment answers, and go back to the welcome questions?\n\nYour account, your role and the courses you coach stay. This cannot be undone.')) return
+                      setErasing(true)
+                      void startOver().then((problem) => { setErasing(false); setEraseProblem(problem) })
+                    }}
+                  >
+                    <Trash2 size={14} /> {erasing ? 'Erasing…' : 'Erase my training data and start over'}
+                  </button>
+                  {eraseProblem && <p className="px-4 pb-3.5 text-[12.5px] leading-relaxed text-warn">{eraseProblem}</p>}
+                </div>
+              )}
               {!account && (
                 <button
                   className="flex w-full items-center gap-2 px-4 py-3.5 text-left text-[14px] text-ink-2 last:rounded-b-[22px] hover:bg-surface-2"

@@ -96,7 +96,7 @@ async function expectDenied(label: string, user: string | null, sql: string, rol
 
 console.log('Applying schema')
 await db.exec(PRELUDE)
-for (const file of ['0001_core.sql', '0002_storage.sql', '0003_evidence_observed.sql', '0004_assessments.sql', '0005_places.sql', '0006_live.sql', '0007_coach_access.sql', '0008_course_weeks_and_station_mode.sql', '0009_visual_content.sql']) {
+for (const file of ['0001_core.sql', '0002_storage.sql', '0003_evidence_observed.sql', '0004_assessments.sql', '0005_places.sql', '0006_live.sql', '0007_coach_access.sql', '0008_course_weeks_and_station_mode.sql', '0009_visual_content.sql', '0010_start_over.sql']) {
   await db.exec(read(`../supabase/migrations/${file}`))
   ok(`${file} applies cleanly`)
 }
@@ -450,6 +450,28 @@ await expectDenied('an athlete cannot change them', A, setTheme('primal'))
 await expectDenied('nor a coach', C, setTheme('primal'))
 await as(C, 'authenticated', () => db.exec(`update public.app_settings set value = '{"defaultTheme":"primal"}'; delete from public.app_settings;`))
 ;(await count(`select 1 from public.app_settings where value ->> 'defaultTheme' = 'cosmic'`)) === 1 ? ok('…by any route') : bad('app_settings', 'a coach changed the settings')
+
+// ── Starting over (0010) ─────────────────────────────────────────────────
+console.log('\nStarting over')
+const S1 = '00000000-0000-0000-0000-0000000000f1'
+const S2 = '00000000-0000-0000-0000-0000000000f2'
+await db.exec(`insert into auth.users (id) values ('${S1}'), ('${S2}');`)
+await db.exec(`update public.profiles set handle = 'starter', roles = '{athlete,coach}' where id = '${S1}'; update public.profiles set handle = 'bystander' where id = '${S2}';`)
+const mine = (who: string) => `
+  insert into public.evidence (athlete_id, exercise_id, value, tier, source) values ('${who}', 'pushup', 12, 'self', 'manual');
+  insert into public.athlete_goals (athlete_id, skill_id) select '${who}', id from public.skills limit 1;
+  insert into public.workout_logs (id, athlete_id, title, source_type, started_at) values (gen_random_uuid(), '${who}', 'Practice', 'library', now());`
+await expectOk('an athlete has results, a goal and a workout', S1, mine(S1))
+await expectOk('…and so does someone else', S2, mine(S2))
+// A result the athlete could not delete themselves: verified by a coach.
+await db.exec(`insert into public.evidence (athlete_id, exercise_id, value, tier, source, verified_by, verified_at) values ('${S1}', 'pull-up', 5, 'coach', 'manual', '${C}', now());`)
+await expectDenied('someone signed out cannot start anything over', null, `select public.start_over();`, 'anon')
+await expectOk('the athlete starts over', S1, `select public.start_over();`)
+const left = async (who: string) => (await count(`select 1 from public.evidence where athlete_id = '${who}'`)) + (await count(`select 1 from public.athlete_goals where athlete_id = '${who}'`)) + (await count(`select 1 from public.workout_logs where athlete_id = '${who}'`))
+;(await left(S1)) === 0 ? ok('their results (verified ones too), goals and workouts are gone') : bad('start_over', `${await left(S1)} rows of theirs remain`)
+;(await left(S2)) === 3 ? ok('nobody else is touched') : bad('start_over', `the other athlete has ${await left(S2)} rows, expected 3`)
+const after = await one<{ handle: string | null; roles: string }>(`select handle, roles::text from public.profiles where id = '${S1}'`)
+after.handle === null && after.roles === '{athlete,coach}' ? ok('the account stays, with its roles, and is asked the welcome questions again') : bad('start_over', JSON.stringify(after))
 
 console.log(`\n${passed} passed, ${failed} failed`)
 await db.close()

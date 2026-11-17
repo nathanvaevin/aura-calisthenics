@@ -10,7 +10,7 @@ export const highBar = (b: Body): Bar => ({ height: 2.32 * b.scale, width: 1.3 *
  * Hanging from the bar, `u` of the way from a dead hang (0) to the chin over
  * the bar (1). `active` pulls the shoulders down away from the ears.
  */
-function hang(rig: Rig, out: Pose, u: number, active: number, sway = 0) {
+export function hang(rig: Rig, out: Pose, u: number, active: number, sway = 0) {
   const b = rig.body
   const s = b.scale
   const bar = highBar(b)
@@ -50,13 +50,15 @@ function hang(rig: Rig, out: Pose, u: number, active: number, sway = 0) {
 export const pullup: Motion = {
   id: 'pull-up',
   revision: 1,
+  stage: 'tall',
+  planted: ['handL', 'handR'],
   kind: 'reps',
   period: 3.4,
   camera: 'back',
   azimuth: 152,
   elevation: 2,
   beat: 0.5,
-  bar: highBar,
+  props: (b) => [{ kind: 'bar', ...highBar(b) }],
   detail: { forearm_flex: 0.5, forearm_ext: 0.3, rear_cuff: 0.6 },
   standard: 'Starts from a dead hang with straight arms; chin clearly over the bar; no swing or kick; lowered under control to straight arms.',
   effort: (t) => 0.3 + 0.7 * there(t, 0.4, 0.1),
@@ -71,12 +73,14 @@ export const pullup: Motion = {
 export const deadHang: Motion = {
   id: 'dead-hang',
   revision: 1,
+  stage: 'tall',
+  planted: ['handL', 'handR'],
   kind: 'hold',
   period: 5,
   camera: 'front',
   azimuth: 28,
   elevation: 2,
-  bar: highBar,
+  props: (b) => [{ kind: 'bar', ...highBar(b) }],
   standard: 'Full grip, arms straight, shoulders relaxed up by the ears, body still, feet clear of the floor.',
   effort: () => 0.6,
   pose(t, rig, out) {

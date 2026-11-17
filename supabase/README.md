@@ -244,3 +244,7 @@ npx supabase db push                                 # applies supabase/migratio
 ```
 
 `db push` applies the migrations but **not** the seed. To load the catalog + demo data afterwards, paste `supabase/seed.sql` into the SQL editor and run it. The CLI tracks which migrations a project already has, which the paste method leaves to you.
+
+## 10 · Starting over
+
+Paste **all of `supabase/migrations/0010_start_over.sql`** into the SQL editor and run it once. *Success. No rows returned.* It adds one function, `start_over()`, which lets a signed-in athlete erase their own results, workouts, goals and assessment answers and be asked the welcome questions again. The account, its roles, its enrolments and anything it coaches stay. Without it, the button in Profile says the step is missing and erases nothing.

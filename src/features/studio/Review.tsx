@@ -7,7 +7,8 @@ import { Empty, Eyebrow, Segmented, Sheet, Toggle } from '@/ui/primitives'
 import type { AuraMode } from '@/visual/aura/director'
 import { THEMES } from '@/visual/aura/themes'
 import { MOTIONS, motionAt } from '@/visual/motions'
-import { PILOT_EXERCISES, PILOT_PURPOSE, stageRatio } from '@/visual/pilot'
+import { PILOT_EXERCISES, PILOT_PURPOSE } from '@/visual/pilot'
+import { STAGE_RATIO } from '@/visual/motions/types'
 import { MUSCLE_COLOUR, type PerformerSpec } from '@/visual/player'
 import { cx } from '@/lib/format'
 import { DISCIPLINE_GLOW, Field, Stage, StatusPill, useWide } from './shared'
@@ -58,6 +59,9 @@ export function Review() {
     latest: (['male', 'female'] as const).map((c) => historyOf(animations, id, 'animation', c)[0]).filter(Boolean) as DemoAsset[],
   })).filter((r) => r.latest.length && (filter === 'all' || r.latest.some((a) => a.status === filter)))
 
+  // Movements that exist in the app and have never been generated for a character.
+  const missing = order.flatMap((id) => (['male', 'female'] as const).filter((c) => !animations.some((a) => a.exerciseId === id && a.slot === c)).map((c) => [id, c] as const))
+
   if (animations.length === 0) {
     return (
       <Empty title="Nothing generated yet" action={<button className="btn btn-primary" onClick={generatePilot}>Generate the pilot</button>}>
@@ -84,6 +88,7 @@ export function Review() {
         >
           <ClipboardCopy size={13} /> {copied ? 'Copied' : 'Copy my review'}
         </button>
+        {missing.length > 0 && <button className="btn btn-primary btn-sm" onClick={() => missing.forEach(([id, c]) => generate(id, c))}><Plus size={14} /> Generate {missing.length} new</button>}
         <button className="btn btn-outline btn-sm" onClick={() => setGenerating(true)}><Plus size={14} /> Generate</button>
       </div>
 
@@ -148,7 +153,7 @@ function Detail({ asset, all, defaultTheme, onSelect }: { asset: DemoAsset; all:
   const previousPlayable = !!previous && !!motionAt(previous.animation!.motion, previous.animation!.revision)
   const other: CharacterId = recipe.character === 'male' ? 'female' : 'male'
   const opts = { muscles, aura, theme, glow: tint === 'discipline' ? DISCIPLINE_GLOW[ex.discipline] : MUSCLE_COLOUR }
-  const ratio = stageRatio(asset.exerciseId)
+  const ratio = STAGE_RATIO[motion?.stage ?? 'square']
   const margin = aura === 'off' ? 1.16 : 1.4
   const can = (to: AssetStatus) => canMove(asset.status, to)
 

@@ -49,7 +49,7 @@ Never present simulated or sample behaviour as real. If something cannot work wi
 
 - `npm run dev` · `npm test` · `npm run build`
 - `npm run db:seed` regenerates `supabase/seed.sql` from `src/domain`
-- `npm run db:check` applies all nine migrations + seed to an in-process Postgres and checks the access rules
+- `npm run db:check` applies all ten migrations + seed to an in-process Postgres and checks the access rules
 - `npm run db:bundle` regenerates `supabase/apply.sql` (the one-paste setup) from the migrations and seed — run it after changing either
 - `npm run deploy` tests, builds for the public address and replaces the `gh-pages` branch. Publishing is outward-facing: run it only when the owner says so
 - `npm run character:build` regenerates the two characters in `public/characters/` (`-- --draft` is quick and coarse, for sculpting)

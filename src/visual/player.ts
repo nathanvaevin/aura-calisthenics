@@ -16,7 +16,9 @@ import { createActor, type Actor } from './character'
 import { motionAt, type Motion } from './motions'
 import { stand } from './motions/stand'
 import { emptyPose, type Pose } from './rig'
+import { buildProps } from './props'
 import { ANGLE, Stage, type CameraAngle } from './stage'
+import type { Group } from 'three'
 
 export interface PerformerSpec {
   character: CharacterId
@@ -54,6 +56,8 @@ interface Performer {
   base: Float32Array
   target: Float32Array
   lastPhase: number
+  /** The equipment this performer is on. */
+  props: Group | null
 }
 
 export const MUSCLE_COLOUR = '#ff2f8f'
@@ -96,7 +100,7 @@ export class Player {
     const generation = ++this.generation
     const actors = await Promise.all(specs.map((s) => createActor(s.character)))
     if (generation !== this.generation || this.disposed) { actors.forEach((a) => a.dispose()); return }
-    for (const p of this.cast) { p.field.dispose(); p.actor.dispose() }
+    for (const p of this.cast) { p.field.dispose(); p.actor.dispose(); p.props?.removeFromParent() }
     this.cast = specs.map((spec, i) => {
       const actor = actors[i]
       actor.group.position.x = spec.x ?? 0
@@ -104,18 +108,19 @@ export class Player {
       this.stage.add(actor.group)
       const field = new AuraField(actor)
       this.stage.add(field.group, field.world)
-      const p: Performer = { spec, actor, field, motion: null, pose: emptyPose(), base: new Float32Array(SLOTS), target: new Float32Array(SLOTS), lastPhase: 0 }
+      const p: Performer = { spec, actor, field, motion: null, pose: emptyPose(), base: new Float32Array(SLOTS), target: new Float32Array(SLOTS), lastPhase: 0, props: null }
       this.apply(p, spec)
+      // Each performer has their own equipment, sized to them.
+      const props = p.motion?.props?.(actor.rig.body)
+      if (props?.length) {
+        p.props = buildProps(props)
+        p.props.position.copy(actor.group.position)
+        p.props.rotation.y = actor.group.rotation.y
+        this.stage.add(p.props)
+      }
       return p
     })
     this.sets = specs.some((s) => s.aura.mode === 'living')
-    const first = this.cast.find((p) => p.motion)
-    const bar = first?.motion?.bar?.(first.actor.rig.body)
-    const xs = this.cast.map((p) => p.actor.group.position.x)
-    this.stage.setBar(bar ? { ...bar, width: Math.max(bar.width, Math.max(...xs) - Math.min(...xs) + bar.width) } : null)
-    if (bar) this.stage.barAt((Math.max(...xs) + Math.min(...xs)) / 2)
-    // One bar for everyone on it: a shorter athlete hangs with their feet further from the floor.
-    for (const p of this.cast) p.actor.group.position.y = bar && p.motion?.bar ? bar.height - p.motion.bar(p.actor.rig.body).height : 0
     this.time = 0
     this.settle = -1
     if (!opts.keepView) this.reframe()
@@ -231,6 +236,13 @@ export class Player {
       if (m) m.pose(phase, p.actor.rig, p.pose)
       else stand(p.actor.rig.body, p.pose, phase)
       p.actor.pose(p.pose)
+      const wheel = p.props?.getObjectByName('wheel')
+      if (wheel) {
+        // The wheel is held in both hands and rolls as they travel.
+        const pos = p.actor.rig.pos
+        wheel.position.set((pos.handL.x + pos.handR.x) / 2, wheel.userData.radius, (pos.handL.z + pos.handR.z) / 2)
+        wheel.rotation.x = wheel.position.z / wheel.userData.radius
+      }
 
       const effort = m ? (resting ? 0.3 : m.effort(phase)) : 0.5 + 0.5 * Math.sin(cycles * Math.PI * 2)
       const shift = m?.shift?.(phase)
@@ -285,7 +297,7 @@ export class Player {
   dispose() {
     this.disposed = true
     cancelAnimationFrame(this.raf)
-    for (const p of this.cast) { p.field.dispose(); p.actor.dispose() }
+    for (const p of this.cast) { p.field.dispose(); p.actor.dispose(); p.props?.removeFromParent() }
     this.cast = []
     this.stage.dispose()
   }

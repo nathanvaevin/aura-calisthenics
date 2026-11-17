@@ -4,8 +4,8 @@
  * angles. One WebGL canvas.
  */
 import {
-  ACESFilmicToneMapping, CircleGeometry, Color, CylinderGeometry, DirectionalLight, Group, HemisphereLight, Mesh,
-  MeshStandardMaterial, PCFSoftShadowMap, PerspectiveCamera, PMREMGenerator, Scene, ShaderMaterial, ShadowMaterial, SRGBColorSpace, Vector3, WebGLRenderer,
+  ACESFilmicToneMapping, CircleGeometry, Color, DirectionalLight, HemisphereLight, Mesh,
+  PCFSoftShadowMap, PerspectiveCamera, PMREMGenerator, Scene, ShaderMaterial, ShadowMaterial, SRGBColorSpace, Vector3, WebGLRenderer,
 } from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 
@@ -29,7 +29,6 @@ export class Stage {
   readonly scene = new Scene()
   readonly camera = new PerspectiveCamera(26, 1, 0.05, 60)
   readonly view: View = { azimuth: 0, elevation: 6, distance: 5, target: new Vector3(0, 0.95, 0) }
-  private readonly bar = new Group()
   private readonly key: DirectionalLight
 
   constructor(canvas: HTMLCanvasElement, opts: { shadows?: boolean } = {}) {
@@ -81,34 +80,8 @@ export class Stage {
     sheen.renderOrder = -2
     shadow.renderOrder = -1
     scene.add(sheen, shadow)
-
-    const metal = new MeshStandardMaterial({ color: 0x2a2b33, roughness: 0.35, metalness: 0.85 })
-    const rail = new Mesh(new CylinderGeometry(1, 1, 1, 20), metal)
-    rail.rotation.z = Math.PI / 2
-    rail.castShadow = true
-    const postL = new Mesh(new CylinderGeometry(1, 1, 1, 16), metal)
-    const postR = postL.clone()
-    this.bar.add(rail, postL, postR)
-    this.bar.visible = false
-    scene.add(this.bar)
   }
 
-  /** A horizontal bar across the stage, at a height. */
-  setBar(bar: { height: number; width: number; radius: number; z?: number } | null) {
-    this.bar.visible = !!bar
-    if (!bar) return
-    const [rail, postL, postR] = this.bar.children as Mesh[]
-    rail.scale.set(bar.radius, bar.width + 0.3, bar.radius)
-    rail.position.set(0, bar.height, bar.z ?? 0)
-    for (const [post, side] of [[postL, -1], [postR, 1]] as const) {
-      post.scale.set(0.028, bar.height + 0.12, 0.028)
-      post.position.set(side * (bar.width / 2 + 0.15), (bar.height + 0.12) / 2, bar.z ?? 0)
-    }
-  }
-
-  barAt(x: number) { this.bar.position.x = x }
-
-  /** Props that are not always there (a wall, a box) can be handed in as they are. */
   add(...objects: Parameters<Scene['add']>) { this.scene.add(...objects) }
 
   resize(width: number, height: number) {

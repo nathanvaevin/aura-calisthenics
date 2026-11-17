@@ -2,7 +2,7 @@
 
 How the two master characters, their muscle activation, the Aura and the exercise animations are made, and how they relate to videos and to the review workflow. Status of each part is in [REGISTER.md](REGISTER.md) (F-100 to F-112); this file explains how it works.
 
-Last updated: 2026-11-17 · first version (pilot)
+Last updated: 2026-11-17 · the first-day assessment (68 movements)
 
 ## 1 · The parts, and what depends on what
 
@@ -77,15 +77,30 @@ A movement is a function: for any moment of one cycle and any body, it writes a 
 - A **pose** is written like a coach's description: where the hips are and how the trunk is turned, where each hand and foot is, which way elbows and knees point (`src/visual/rig.ts`). The solver finds every joint, including the shoulder girdle rising with the arm and the forearm turning with the hand.
 - Because contacts are stated (hands on the floor, hands round the bar, the ball of the foot planted), the same movement fits both characters exactly. Nothing is copied from one to the other.
 - Each movement states its `standard` (what correct looks like) and a `revision`. Changing a movement means raising its revision; the old one stays in the code until the new one is approved, so the two can be compared.
-- `kit.ts` holds the recurring geometry: a straight body on its toes, a hand round a bar, a foot on its ball.
+- `kit.ts` holds the recurring geometry: a straight body on its toes, a hand round a bar or rail, a foot on its ball.
+- A movement lists its **equipment** (`props`): a bar across the stage, two rails (dip bars, or parallettes when low), a box, a wall, an ab wheel that follows the hands. `src/visual/props.ts` draws them, sized to the character.
+- A movement lists what is **planted** (a hand on the floor, a foot on the ground); that is checked for every movement automatically.
 
-**Checked automatically** (`motions.test.ts`, 63 checks, both characters, 48 moments each): hands and feet reach where they are put; planted contacts do not drift (under 4 mm); no joint folds past its range; nothing goes through the floor; and each exercise's own standard (push-up locks out and stays straight, chin clears the bar, hip crease below the knee, elbows under shoulders in the plank, head lands in front of the hands in the pike push-up, and so on).
+**Checked automatically.** `testkit.ts` holds what every movement must satisfy, for both characters at 48 moments: hands and feet reach where they are put; what is planted does not drift (under 4 mm); no elbow or knee folds past its range; nothing goes through the floor. Each family then has its own test file with each exercise's standard (lockout, depth, alignment, what touches the equipment, what stays off the floor).
 
-**The pilot** (`src/visual/pilot.ts`): push-up, strict pull-up, bodyweight squat, front plank, pike push-up, hollow body hold, split squat (the library's lunge pattern), dead hang, freestanding handstand, cat-cow.
+**What exists** (`motions/index.ts`): 68 movements.
 
-**Adding an exercise.** Write its movement with the kit, give it a standard, add it to `PILOT`/`ALL` in `motions/index.ts`, add its checks, and generate it in the Studio. It arrives as pending.
+| Family | File | Exercises |
+| --- | --- | --- |
+| Pilot | `pushup`, `hang`, `squat`, `holds`, `pike` | push-up, strict pull-up, squat, front plank, pike push-up, hollow hold, split squat, dead hang, freestanding handstand, cat-cow |
+| Push | `pushes.ts` | wall, high incline, low incline, knee, diamond, decline, archer and pseudo planche push-ups, elevated pike push-up, wall handstand push-up |
+| Rows and dips | `rows.ts` | incline, horizontal and feet-elevated rows, bench dip, negative dip, parallel bar dip |
+| Bar | `bar.ts` | scapular pull-up, negative pull-up, chin-up, chest-to-bar, hanging knee raise, hanging leg raise, toes-to-bar, tuck and advanced tuck front lever, muscle-up |
+| Floor and core | `floor.ts` | dead bug, glute bridge, single-leg bridge, side plank, hollow rock, reverse plank, tuck L-sit, L-sit, kneeling ab-wheel rollout, Nordic curl negative |
+| Legs | `legs.ts` | box squat, wall sit, single-leg calf raise, Bulgarian split squat, Cossack squat, deep squat hold, assisted pistol, pistol squat, shrimp squat |
+| Handstand station | `inverted.ts` | box pike hold, crow pose, wall walk, chest-to-wall and back-to-wall handstand, wall and freestanding shoulder taps, elbow lever |
+| Mobility | `mobility.ts` | standing toe touch, deep lunge stretch, overhead wall reach, pancake to elbows, full bridge |
 
-**Not yet possible.** Movements that travel (a muscle-up over the bar, a jump), one-sided support (side plank, one-arm work) and props other than the floor and a high bar (rings, dip bars, a box, a wall) need new kit pieces. Transitions between exercises do not exist.
+Together these are every exercise of the first-day assessment (all 67 of its guided tests and menu variations) plus cat-cow.
+
+**Adding an exercise.** Write its movement with the kit, give it a standard, its equipment and what is planted, add it to its family's list (or a new family in `motions/index.ts`), add its checks, and generate it in the Studio. It arrives as pending.
+
+**Known limits.** The shoulder blades cannot be drawn back on their own, so the squeeze at the top of a row does not show. A hand keeps one orientation on a bar through a repetition. Rings and resistance bands do not exist as equipment. Transitions between exercises do not exist. The muscle-up and the wall walk travel the furthest from anything the rig was built for: look at those two hardest.
 
 ## 6 · The Aura
 

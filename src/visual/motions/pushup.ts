@@ -32,6 +32,8 @@ const leg = () => ({ foot: new Vector3(), rot: pitch(0), knee: new Vector3(), to
 export const pushup: Motion = {
   id: 'pushup',
   revision: 1,
+  stage: 'low',
+  planted: ['handL', 'handR', 'toesL', 'toesR'],
   kind: 'reps',
   period: 2.9,
   camera: 'side',

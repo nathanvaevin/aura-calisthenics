@@ -1,81 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { Vector3 } from 'three'
 import { EXERCISES, exerciseById } from '@/domain/catalog'
-import { BONES, type BoneName } from '../body/skeleton'
+import type { BoneName } from '../body/skeleton'
 import { activationOf, CHANNELS, MUSCLE_CHANNELS, SLOTS } from '../body/muscles'
 import { PILOT_EXERCISES } from '../pilot'
-import { emptyPose, Rig } from '../rig'
 import { highBar } from './hang'
 import { MOTIONS, PILOT, motionAt } from './index'
-
-const STEPS = 48
-const deg = 180 / Math.PI
+import { deg, drift, expectSound, sample } from './testkit'
 
 /** Every joint of a movement at every sampled moment, for one character. */
-function run(id: string, who: 'male' | 'female') {
-  const rig = new Rig(who)
-  const pose = emptyPose()
-  const m = MOTIONS[id]
-  return Array.from({ length: STEPS }, (_, i) => {
-    const t = i / STEPS
-    m.pose(t, rig, pose)
-    rig.solve(pose)
-    const snap = Object.fromEntries(BONES.map((b) => [b, rig.pos[b].clone()])) as Record<BoneName, Vector3>
-    const at = (b: BoneName) => snap[b].clone()
-    return {
-      t, s: rig.body.scale, body: rig.body,
-      at,
-      asked: { handL: pose.arm.L.hand.clone(), handR: pose.arm.R.hand.clone(), footL: pose.leg.L.foot.clone(), footR: pose.leg.R.foot.clone() },
-      crown: at('head').add(new Vector3(0, rig.body.height - rig.body.rest.head.y, 0).applyQuaternion(rig.rot.head)),
-      angle: (a: BoneName, b: BoneName, c: BoneName) => at(a).sub(at(b)).angleTo(at(c).sub(at(b))) * deg,
-      /** Shoulders, hips, ankles through the middle of the body: 180 is a straight line. */
-      line: () => {
-        const mid = (n: string) => at(`${n}L` as BoneName).add(at(`${n}R` as BoneName)).multiplyScalar(0.5)
-        return mid('upperArm').sub(mid('upperLeg')).angleTo(mid('foot').sub(mid('upperLeg'))) * deg
-      },
-    }
-  })
-}
-
-const drift = (points: Vector3[]) => Math.max(...points.map((p) => p.distanceTo(points[0])))
-const SIDES = ['L', 'R'] as const
-const both = (name: string) => SIDES.map((s) => `${name}${s}` as BoneName)
+const run = (id: string, who: 'male' | 'female') => sample(MOTIONS[id], who)
 
 describe.each(['male', 'female'] as const)('the pilot movements, %s character', (who) => {
   const frames = Object.fromEntries(PILOT.map((m) => [m.id, run(m.id, who)]))
 
-  it.each(PILOT.map((m) => m.id))('%s: the skeleton is whole and stays above the floor', (id) => {
-    for (const f of frames[id]) {
-      for (const b of ['hips', 'head', ...both('hand'), ...both('foot'), ...both('lowerArm'), ...both('lowerLeg'), ...both('toes')] as BoneName[]) {
-        const p = f.at(b)
-        expect(Number.isFinite(p.x + p.y + p.z)).toBe(true)
-        expect(p.y).toBeGreaterThan(-0.004)
-      }
-      // Hands and feet are where the movement put them: nothing was out of reach.
-      for (const s of SIDES) {
-        expect(f.at(`hand${s}`).distanceTo(f.asked[`hand${s}`])).toBeLessThan(0.003)
-        expect(f.at(`foot${s}`).distanceTo(f.asked[`foot${s}`])).toBeLessThan(0.003)
-      }
-      // No elbow or knee folds further than a real one can.
-      for (const s of SIDES) {
-        expect(f.angle(`upperArm${s}`, `lowerArm${s}`, `hand${s}`)).toBeGreaterThan(28)
-        expect(f.angle(`upperLeg${s}`, `lowerLeg${s}`, `foot${s}`)).toBeGreaterThan(30)
-      }
-    }
-  })
-
-  it.each([
-    ['pushup', both('hand'), both('toes')],
-    ['pull-up', both('hand'), []],
-    ['squat', [], both('foot')],
-    ['plank', both('hand'), both('toes')],
-    ['pike-pushup', both('hand'), both('toes')],
-    ['split-squat', [], ['footL', 'toesR'] as BoneName[]],
-    ['dead-hang', both('hand'), []],
-    ['freestanding-hs', both('hand'), []],
-    ['cat-cow', both('hand'), both('foot')],
-  ] as [string, BoneName[], BoneName[]][])('%s: what is planted stays planted', (id, hands, feet) => {
-    for (const b of [...hands, ...feet]) expect(drift(frames[id].map((f) => f.at(b)))).toBeLessThan(0.004)
+  // Every movement the app has, not only the pilot: whole skeleton, in reach, in range, planted where it says.
+  it.each(Object.keys(MOTIONS))('%s: sound', (id) => {
+    expectSound(MOTIONS[id], frames[id] ?? run(id, who))
   })
 
   it('push-up: a straight body, chest to the floor, arms straight at the top', () => {

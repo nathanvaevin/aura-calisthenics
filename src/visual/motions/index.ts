@@ -1,19 +1,29 @@
 import type { Motion } from './types'
+import { BAR } from './bar'
+import { FLOOR } from './floor'
 import { deadHang, pullup } from './hang'
 import { catCow, handstand, hollow, plank } from './holds'
+import { INVERTED } from './inverted'
+import { LEGS } from './legs'
+import { MOBILITY } from './mobility'
 import { pikePushup } from './pike'
+import { PUSHES } from './pushes'
 import { pushup } from './pushup'
+import { ROWS } from './rows'
 import { splitSquat, squat } from './squat'
 
 /** The ten movements of the pilot, in the order they are shown. */
 export const PILOT: Motion[] = [pushup, pullup, squat, plank, pikePushup, hollow, splitSquat, deadHang, handstand, catCow]
+
+/** The rest of the first-day assessment, family by family, easier variations first. */
+export const ASSESSMENT: Motion[] = [...PUSHES, ...ROWS, ...BAR, ...FLOOR, ...LEGS, ...INVERTED, ...MOBILITY]
 
 /**
  * Every revision of every movement that is still in the app. When a movement
  * is corrected, the earlier revision stays here until its replacement has
  * been approved, so the two can be compared.
  */
-const ALL: Motion[] = [...PILOT]
+const ALL: Motion[] = [...PILOT, ...ASSESSMENT]
 
 /** The current revision of each movement, by the exercise it demonstrates. */
 export const MOTIONS: Record<string, Motion> = {}

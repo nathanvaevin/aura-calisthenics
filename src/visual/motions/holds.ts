@@ -12,6 +12,8 @@ const breath = (t: number) => Math.sin(t * Math.PI * 2)
 export const plank: Motion = {
   id: 'plank',
   revision: 1,
+  stage: 'low',
+  planted: ['handL', 'handR', 'toesL', 'toesR'],
   kind: 'hold',
   period: 4.6,
   camera: 'side',
@@ -47,6 +49,7 @@ export const plank: Motion = {
 export const hollow: Motion = {
   id: 'hollow-hold',
   revision: 1,
+  stage: 'low',
   kind: 'hold',
   period: 4.6,
   camera: 'side',
@@ -85,6 +88,8 @@ export const hollow: Motion = {
 export const handstand: Motion = {
   id: 'freestanding-hs',
   revision: 1,
+  stage: 'tall',
+  planted: ['handL', 'handR'],
   kind: 'balance',
   period: 5.2,
   camera: 'side',
@@ -119,6 +124,8 @@ export const handstand: Motion = {
 export const catCow: Motion = {
   id: 'cat-cow',
   revision: 1,
+  stage: 'low',
+  planted: ['handL', 'handR', 'footL', 'footR'],
   kind: 'mobility',
   period: 6.4,
   camera: 'side',

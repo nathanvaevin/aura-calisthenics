@@ -185,6 +185,26 @@ export async function flush(scope?: Scope): Promise<void> {
   await engine.settled()
 }
 
+/**
+ * Erases this account's training record on the server and on this device,
+ * then starts the app again at the welcome questions. The account, its roles
+ * and anything it coaches stay. Answers with a sentence when it could not be done.
+ */
+export async function startOver(): Promise<string | null> {
+  if (!supabase) return 'Starting over needs an account.'
+  const { error } = await supabase.rpc('start_over')
+  if (error) {
+    return /start_over|schema cache|PGRST202/i.test(`${error.code} ${error.message}`)
+      ? 'Aura’s database does not have this yet (database step 0010). Nothing was erased.'
+      : `Could not start over: ${error.message}. Nothing was erased.`
+  }
+  // The engine must not see an emptied device as things to delete: stop it first, then begin again from the server.
+  stopEngine()
+  emptyDevice()
+  window.location.assign(import.meta.env.BASE_URL)
+  return null
+}
+
 function leave() {
   const was = engineUid ?? useStore.getState().cloudUid
   stopEngine()

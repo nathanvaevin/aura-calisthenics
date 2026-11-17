@@ -12,6 +12,8 @@ import { ease, lerp, there, type Motion } from './types'
 export const pikePushup: Motion = {
   id: 'pike-pushup',
   revision: 1,
+  stage: 'low',
+  planted: ['handL', 'handR', 'toesL', 'toesR'],
   kind: 'reps',
   period: 3.1,
   camera: 'side',

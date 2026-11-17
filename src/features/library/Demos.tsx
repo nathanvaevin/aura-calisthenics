@@ -3,7 +3,7 @@ import type { CharacterId, DemoAsset } from '@/domain/media'
 import { Segmented, Toggle } from '@/ui/primitives'
 import Demo from '@/visual/Demo'
 import { MOTIONS } from '@/visual/motions'
-import { stageRatio } from '@/visual/pilot'
+import { STAGE_RATIO } from '@/visual/motions/types'
 
 /**
  * The published animated demonstration of an exercise. Loaded on demand: it
@@ -28,7 +28,7 @@ export default function ExerciseDemos({ animations }: { animations: Partial<Reco
     <div className="rise">
       <Demo
         cast={[{ character: recipe.character, motion: recipe.motion, revision: recipe.revision, muscles: muscles ? 'exercise' : null, aura: { theme: recipe.theme ?? 'cosmic', mode: 'off' } }]}
-        ratio={stageRatio(asset.exerciseId)} angle={recipe.camera !== motion.camera ? recipe.camera : undefined} label="Animated demonstration"
+        ratio={STAGE_RATIO[motion.stage]} angle={recipe.camera !== motion.camera ? recipe.camera : undefined} label="Animated demonstration"
       />
       <div className="mt-2.5 flex items-center justify-between gap-3">
         {current.length > 1
