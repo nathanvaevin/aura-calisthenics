@@ -122,7 +122,7 @@ export default function Demo({ cast, ratio = 1, controls = 'simple', margin, ang
               <>
                 <button aria-label="Replay" onClick={() => { player.current?.restart(); setPlaying(true) }} className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full bg-white/14 text-white backdrop-blur-md hover:bg-white/22"><RotateCcw size={14} /></button>
                 <button onClick={() => { player.current?.setSpeed(slow ? 1 : 0.35); setSlow(!slow) }} className={cx('pointer-events-auto flex h-9 items-center rounded-full px-3 font-mono text-[11px] backdrop-blur-md', slow ? 'bg-white text-black' : 'bg-white/14 text-white hover:bg-white/22')}>Slow</button>
-                <button onClick={() => player.current?.release()} className="pointer-events-auto flex h-9 items-center gap-1.5 rounded-full bg-white/14 px-3 font-mono text-[11px] text-white backdrop-blur-md hover:bg-white/22"><Sparkles size={12} />Release</button>
+                {cast.some((c) => c.aura.mode !== 'off') && <button onClick={() => player.current?.release()} className="pointer-events-auto flex h-9 items-center gap-1.5 rounded-full bg-white/14 px-3 font-mono text-[11px] text-white backdrop-blur-md hover:bg-white/22"><Sparkles size={12} />Aura burst</button>}
               </>
             )}
             <div className="pointer-events-auto ml-auto flex rounded-full bg-white/14 p-0.5 backdrop-blur-md">

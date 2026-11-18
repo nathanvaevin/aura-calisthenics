@@ -48,21 +48,21 @@ export function Characters() {
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {UNIVERSE_IDS.map((id) => (
           <button key={id} className="chip" data-on={universe === id} onClick={() => { setUniverse(id); setFinish(0) }}>
-            {UNIVERSES[id].name}{id !== 'aura' && <span className="ml-1 opacity-60">· {released[id] ? 'released' : 'not released'}</span>}
+            {UNIVERSES[id].name}{id !== 'aura' && <span className="ml-1 opacity-60">· {released[id] ? 'athletes have it' : 'only you'}</span>}
           </button>
         ))}
       </div>
       {universe !== 'aura' && (
         <div className="card mb-4 flex items-center justify-between gap-4 p-4">
           <span className="text-[14px]">
-            Release {u.name} to athletes
+            Show {u.name} to athletes
             <span className="mt-0.5 block max-w-xl text-[12.5px] leading-relaxed text-ink-3">
               {released[universe]
                 ? 'Athletes can choose this theme. Its character performs their demonstrations and stands on their profile.'
-                : 'Only you can open this theme. Athletes see it listed as in preparation, and keep the original Aura until you release it.'}
+                : 'Only you can open this theme. Athletes see it listed as in preparation, and keep the original Aura until you switch this on.'}
             </span>
           </span>
-          <Toggle on={!!released[universe]} onChange={(on) => setAuraSettings({ universes: { ...released, [universe]: on } })} label={`Release ${u.name} to athletes`} />
+          <Toggle on={!!released[universe]} onChange={(on) => setAuraSettings({ universes: { ...released, [universe]: on } })} label={`Show ${u.name} to athletes`} />
         </div>
       )}
       <div className="flex flex-wrap items-center justify-between gap-3">

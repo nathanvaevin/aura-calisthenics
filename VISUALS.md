@@ -120,8 +120,9 @@ Together these are every exercise of the first-day assessment (all 67 of its gui
 
 `src/domain/media.ts` (rules), `src/features/studio/` (screens), table `demo_assets` (migration 0009).
 
+- **Where it happens: Studio → Exercises** (`Exercises.tsx`), one row per exercise in the library. An exercise is *waiting* while a movement exists and either character is not live, *needs correction* when one was sent back, *live* when both are published and current, and has *no animation yet* when nobody has written its movement. A movement is created `pending` the first time its exercise is opened there; the only way to an athlete is the admin's *Approve and send*.
 - Statuses: draft → pending review → approved → published, with needs correction and archived. Only an admin moves them; athletes are served published rows only. On screen `published` reads **Official** and `approved` reads **Approved, hidden** (taken down).
-- **Approval is one decision** (`makeOfficial`): *Approve* takes a pending version straight to published, and an archived one back to it. A version sent back for correction cannot be approved; it needs a new version.
+- **Approval is one decision** (`makeOfficial`): *Approve and send* takes a pending version straight to published, and an archived one back to it. A version sent back for correction cannot be approved; it needs a new version.
 - One version per exercise and slot (`male`, `female`, `instructor`, `instructor:<label>`) is published at a time. Publishing another archives the one before; it stays in the history.
 - **One exercise record, one question.** Every screen that shows an exercise uses `DemoSlot` (`src/features/library/DemoSlot.tsx`), which asks for the published version of that exercise. Nothing is attached per screen, so approving, replacing or taking down reaches the library page, the skill sheet, the workout's technique sheet and both kinds of assessment at once. Where there is no approved animation the slot renders nothing and the screen keeps what it had.
 - A correction note stays on the version it was written on and is copied to the next version. The earlier version is kept.
