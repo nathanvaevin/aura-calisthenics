@@ -3,7 +3,7 @@
 The single source of truth for what works, what only looks finished, and what still has to be connected.
 Update it in the same change as any feature, integration or dependency (rule in `CLAUDE.md`).
 
-Last updated: 2026-11-18 · after repainting Goku as ink on paper
+Last updated: 2026-11-18 · after publishing Goku and Baki
 
 ## Read this first
 
@@ -379,6 +379,11 @@ Reference: [VISUALS.md](VISUALS.md) §11 to §13. Theme data: `src/theme/`. "Pro
 | Data protection | Any real athletes | Privacy notice, deletion and export, consent for under-18s in classes |
 
 ## F · Change log
+
+**2026-11-18 · Published: Goku and Baki, Goku as ink on paper**
+
+- On the owner's word, `npm run deploy`. The public site serves the renamed themes, the repainted Goku theme and its renamed forms. Checked there signed out at phone size: 7 checks pass, no page errors (as T-17).
+- Goku and Baki are still not released to athletes (action 3k): only an administrator can open them.
 
 **2026-11-18 · Goku repainted as ink on paper; its forms renamed**
 
