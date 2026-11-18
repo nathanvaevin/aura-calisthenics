@@ -17,8 +17,8 @@ const EASE = [0.22, 1, 0.36, 1] as const
 
 /**
  * What fills the screen behind an unlock. Each universe celebrates in its
- * own manner: Aura in widening rings of light, Anime Power in a burst of
- * speed lines, Iron Will in one heavy stroke. `level` scales it to what was
+ * own manner: Aura in widening rings of light, Goku in a burst of
+ * speed lines, Baki in one heavy stroke. `level` scales it to what was
  * achieved.
  */
 function Burst({ universe, colour, level }: { universe: UniverseId; colour: string; level: number }) {
@@ -76,7 +76,7 @@ function Burst({ universe, colour, level }: { universe: UniverseId; colour: stri
   )
 }
 
-/** How the headline arrives: it rises in Aura, cuts in at speed in Anime Power, lands with weight in Iron Will. */
+/** How the headline arrives: it rises in Aura, cuts in at speed in Goku, lands with weight in Baki. */
 const ARRIVAL: Record<UniverseId, { initial: TargetAndTransition; animate: TargetAndTransition; transition: Transition }> = {
   aura: { initial: { y: 18, opacity: 0 }, animate: { y: 0, opacity: 1 }, transition: { duration: 0.9, delay: 0.25, ease: EASE } },
   power: { initial: { x: -70, opacity: 0, skewX: -14 }, animate: { x: 0, opacity: 1, skewX: 0 }, transition: { duration: 0.5, delay: 0.18, ease: EASE } },

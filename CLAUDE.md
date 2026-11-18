@@ -44,7 +44,7 @@ Never present simulated or sample behaviour as real. If something cannot work wi
 - Official assessments are shown the standard way for everyone: Aura Dark, plain wording, the Aura master character under the Cosmic Aura (`standardLook`). Do not put `useVoice()` or the athlete's look into `src/features/assess/`.
 - A universe beyond the original, and anything new in one (a character, a form), reaches athletes only when the owner releases it in the Studio. Do not default a release to on.
 - Every build of a character stands on the same skeleton. Do not move a joint for one build.
-- Characters and themes are original. They may take a genre's manner; never an existing character, costume, name or mark.
+- Characters, costumes, artwork and form names are original. They may take a genre's manner; never an existing character's likeness, costume, logo, artwork or quotes. The two theme names "Goku" and "Baki" are the owner's own decision (2026-11-18, taken knowing they are other people's trademarks); they are a `name` in `src/theme/themes.ts` and nothing else may follow them towards the source.
 - An exercise's demonstration is shown through `DemoSlot`, wherever the exercise appears. Do not attach an animation to a screen.
 
 ## Standing rule: location and presence

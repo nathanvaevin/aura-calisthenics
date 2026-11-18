@@ -129,7 +129,7 @@ export const THEMES: AuraTheme[] = [
     sparks: { count: 60, speed: 0.8 },
   }),
 
-  // ── Anime Power: flame-like, tall, loud. One per form. ───────────────────
+  // ── Goku: flame-like, tall, loud. One per form. ───────────────────
   { ...theme('ignition', 'Ignition', 'A first flame: amber, close to the body.', ['#ffb347', '#ff7a1f', '#ffe2a6', '#ff4d2e'], {
     breath: 0.4, flow: 1.6, body: 0.7,
     shell: { level: 1.2, reach: 1.1, flame: 1 },
@@ -188,7 +188,7 @@ export const THEMES: AuraTheme[] = [
     sparks: { count: 90, speed: 0.8 },
   }), universe: 'power' },
 
-  // ── Iron Will: restrained. Heat, steam and the ground; no rays, no ribbons. ──
+  // ── Baki: restrained. Heat, steam and the ground; no rays, no ribbons. ──
   { ...theme('pressure', 'Pressure', 'Heat coming off a body at work. Pale steam, close to the skin.', ['#e9e2d6', '#b8ada0', '#8a8078', '#ffffff'], {
     breath: 0.26, flow: 0.9, body: 0.35,
     shell: { level: 0.8, reach: 0.5, flame: 0.35 },

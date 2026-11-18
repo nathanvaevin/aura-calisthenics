@@ -51,13 +51,13 @@ export const THEMES: Record<ThemeId, AppTheme> = {
     type: 'Instrument Serif', tone: 'Thoughtful, human',
   },
   power: {
-    id: 'power', name: 'Anime Power', line: 'Unlock your next form.',
+    id: 'power', name: 'Goku', line: 'Unlock your next form.',
     blurb: 'Speed, flame and transformation. Every level is a new form.',
     scheme: 'dark', universe: 'power', voice: 'power', chrome: '#07061a',
     type: 'Barlow Condensed, italic', tone: 'Energetic, ambitious',
   },
   iron: {
-    id: 'iron', name: 'Iron Will', line: 'Strength is earned.',
+    id: 'iron', name: 'Baki', line: 'Strength is earned.',
     blurb: 'Ink, bone and red. Anatomy in hard light, and nothing given.',
     scheme: 'dark', universe: 'iron', voice: 'iron', chrome: '#0b0a09',
     type: 'Anton, capitals', tone: 'Direct, disciplined',
@@ -136,7 +136,7 @@ export const UNIVERSES: Record<UniverseId, Universe> = {
     ],
   },
   power: {
-    id: 'power', name: 'Anime Power', forms: 'Form',
+    id: 'power', name: 'Goku', forms: 'Form',
     character: 'A hero drawn in ink and flat colour, with hair that takes the colour of the form.',
     build: 'power',
     list: [
@@ -153,7 +153,7 @@ export const UNIVERSES: Record<UniverseId, Universe> = {
     ],
   },
   iron: {
-    id: 'iron', name: 'Iron Will', forms: 'State',
+    id: 'iron', name: 'Baki', forms: 'State',
     character: 'A heavy, serious athlete. Every muscle is drawn, and the light is hard.',
     build: 'iron',
     list: [

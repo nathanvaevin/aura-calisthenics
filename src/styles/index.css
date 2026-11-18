@@ -127,7 +127,7 @@
   --shadow-pop: 0 24px 60px -24px rgba(40, 30, 10, 0.28);
 }
 
-/* Anime Power: indigo night, flame amber, condensed italics. */
+/* Goku: indigo night, flame amber, condensed italics. */
 [data-theme='power'] {
   color-scheme: dark;
   --bg: #07061a;
@@ -187,7 +187,7 @@
   --eyebrow-tracking: 0.14em;
 }
 
-/* Iron Will: ink, bone and red. Square, heavy, nothing decorative. */
+/* Baki: ink, bone and red. Square, heavy, nothing decorative. */
 [data-theme='iron'] {
   color-scheme: dark;
   --bg: #0b0a09;

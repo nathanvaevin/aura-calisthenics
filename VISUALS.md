@@ -154,9 +154,9 @@ Expect it to need a person to correct most movements, at least at first. A reali
 
 ## 11 · Universes: a character for each theme
 
-The four themes of the app (`src/theme/themes.ts`) stand on three **universes**: Aura (Aura Dark and Aura Light), Anime Power, Iron Will. A universe is what a theme shares with the 3D side.
+The four themes of the app (`src/theme/themes.ts`) stand on three **universes**: Aura (Aura Dark and Aura Light), Goku, Baki. A universe is what a theme shares with the 3D side.
 
-| | Aura | Anime Power | Iron Will |
+| | Aura | Goku | Baki |
 | --- | --- | --- | --- |
 | Body (`build`) | the two masters | hero build: broad shoulders, tapered waist; swept spiked hair; wristbands and sash | heavy build: thick neck and traps, wide lats, deep separation; hand wraps |
 | Files | `aura-*.glb` | `power-*.glb` | `iron-*.glb` |
@@ -170,13 +170,13 @@ The four themes of the app (`src/theme/themes.ts`) stand on three **universes**:
 - **How a universe is drawn is data** (`src/visual/styles.ts`): shading, outline, cloth colour, stage lighting, how much room the hair needs. The shading runs after the lights in the character's one material, so the three states (base, muscles, Aura) work in every universe.
 - **Finishes** are the athlete's colours for a universe (skin, hair, accent): three each, in `themes.ts`. Material names a character file may use: `skin`, `cloth`, `hair`, `accent`.
 - **A universe reaches athletes only when an administrator releases it** (Studio → Characters; stored with the Aura settings). Until then `wearing()` gives the original theme and the Aura character: an athlete is never shown a character nobody approved, and never a different universe's character in place of a missing one.
-- Original designs. They take a genre's manner (flat colour and speed lines; ink and anatomy), not any existing character, costume or mark. The Aura wordmark keeps its own typeface in every theme.
+- Original designs. They take a genre's manner (flat colour and speed lines; ink and anatomy), not any existing character's likeness, costume or mark. The themes are *named* Goku and Baki by the owner's decision (2026-11-18; until then Anime Power and Iron Will). That is a name only: the characters, their clothes, the forms and their names stay Aura's own, and must not be drawn towards the characters those names belong to. The Aura wordmark keeps its own typeface in every theme.
 
-Known limits: the new bodies were looked at in nine poses as stills, not through every movement. Anime Power hair goes through the floor when the head is close to it. The drawn outline draws each body a second time.
+Known limits: the new bodies were looked at in nine poses as stills, not through every movement. Goku hair goes through the floor when the head is close to it. The drawn outline draws each body a second time.
 
 ## 12 · Forms: the Aura variations of a universe
 
-A **form** is an Aura theme (§6) given a name, a place in a universe and a condition (`Form` in `themes.ts`). Aura has six (Cosmic, Signature, Lunar, Solar, Ethereal, Electric), Anime Power five (Ignition → Transcendent), Iron Will five (Pressure → Apex). The ten new ones are ordinary entries in `aura/themes.ts`, marked with their universe; Iron Will's use no rays and no ribbons, only heat, steam, sparks and the ground.
+A **form** is an Aura theme (§6) given a name, a place in a universe and a condition (`Form` in `themes.ts`). Aura has six (Cosmic, Signature, Lunar, Solar, Ethereal, Electric), Goku five (Ignition → Transcendent), Baki five (Pressure → Apex). The ten new ones are ordinary entries in `aura/themes.ts`, marked with their universe; Baki's use no rays and no ribbons, only heat, steam, sparks and the ground.
 
 - The first form of a universe is everyone's. The others are unlocked by an Aura class reached, a number of skills mastered, or a skill verified by a coach (`Unlock`). **An unlock reads the scoring and nothing reads a form**: `personal.ts` imports the class thresholds, and no file under `src/domain/scoring` knows a theme exists.
 - A form that is chosen but not earned is not worn; the first one is, and the choice is kept for when it is earned. An administrator can wear all of them, to review them.
