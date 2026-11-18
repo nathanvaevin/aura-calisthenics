@@ -3,7 +3,7 @@
 The single source of truth for what works, what only looks finished, and what still has to be connected.
 Update it in the same change as any feature, integration or dependency (rule in `CLAUDE.md`).
 
-Last updated: 2026-11-18 · after the Studio's Exercises tab (not published)
+Last updated: 2026-11-18 · after publishing the Studio's Exercises tab
 
 ## Read this first
 
@@ -381,6 +381,10 @@ Reference: [VISUALS.md](VISUALS.md) §11 to §13. Theme data: `src/theme/`. "Pro
 | Data protection | Any real athletes | Privacy notice, deletion and export, consent for under-18s in classes |
 
 ## F · Change log
+
+**2026-11-18 · Published: the Studio's Exercises tab**
+
+- On the owner's word, `npm run deploy`. The public site serves the Studio with Exercises, Characters, Muscles and Videos. Checked there signed out at phone size: 7 checks pass, no page errors. The Studio itself opens only for an administrator, so it was not seen on the live site.
 
 **2026-11-18 · Studio: one Exercises tab; the Aura tab removed**
 
