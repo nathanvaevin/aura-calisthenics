@@ -15,6 +15,7 @@ import {
   SkinnedMesh, Vector3, type PerspectiveCamera,
 } from 'three'
 import type { Actor } from '../character'
+import { SKIN_BLEND, SKIN_DECL } from '../body/skinning'
 import type { AuraTheme, ComponentId, ThemeTuning } from './themes'
 
 const GLSL = /* glsl */ `
@@ -110,11 +111,13 @@ export class AuraField {
     const shellMat = (inner: boolean) => shader(S, { uReach: 0.01, uFlame: 0, uPower: inner ? 2.2 : 1.4, uInner: inner ? 1 : 0 }, /* glsl */ `
       #include <common>
       #include <skinning_pars_vertex>
+      ${SKIN_DECL}
       uniform float uReach, uFlame, uInner;
       varying float vEdge, vY, vLick;
       void main() {
         vec3 objectNormal = normal;
         #include <skinbase_vertex>
+        ${SKIN_BLEND}
         #include <skinnormal_vertex>
         vec3 transformed = position;
         #include <skinning_vertex>

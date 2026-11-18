@@ -3,7 +3,7 @@
 The single source of truth for what works, what only looks finished, and what still has to be connected.
 Update it in the same change as any feature, integration or dependency (rule in `CLAUDE.md`).
 
-Last updated: 2026-11-18 · after the full-screen demonstration and 360° everywhere (not published)
+Last updated: 2026-11-18 · after the owner's first corrections (not published)
 
 ## Read this first
 
@@ -38,7 +38,7 @@ Last updated: 2026-11-18 · after the full-screen demonstration and 360° everyw
 | 3j | ~~Publish this build~~ | **Done, 2026-11-18**, on your word | The public site serves it: the new characters and posters load, and the phone-size athlete check passes there (T-17) |
 | 3m | ~~Paste `supabase/migrations/0013_more_themes.sql`~~ | **Done by you, 2026-11-18** | You reported success. I cannot read this one from outside; the first time Goku Light is chosen on a signed-in account will show it |
 | 3k | **Look at Goku and Baki, then release them**: Studio → Characters → choose the universe → *Show … to athletes*. One switch each | **You** | Their characters, shading and Aura forms are my work and nobody else has seen them. Until released, athletes can choose only Aura Dark and Aura Light |
-| 3f | **Go through the exercises in the Studio**: Studio → Exercises lists all 116; the 68 that have a movement are *Waiting for you*. Open one, watch it, then *Approve and send both*, or *Needs correction* with a note. *Copy my review* puts every decision and note on the clipboard for me | **You** | The movements are my work, checked by measurement and by eye, not by a coach. Nothing is approved. Your corrections decide the standard for the rest of the library (A-13) |
+| 3f | **Go through the exercises in the Studio**: 60 of the 68 are approved and live (2026-11-18). Still waiting for you: the five corrected movements (wall handstand shoulder taps, dip, negative dip, freestanding handstand, crow pose) and the three you held back for the shoulders (chin-up, elevated pike push-up, overhead wall reach), which now have the corrected body | **You** | Open each under Studio → Exercises: *Approve and send both*, or *Needs correction* with a note (A-13) |
 | 3c | Try a group assessment **and a check-in at a real park** on real phones over the public address | **You** + codebase fixes | Verified in desktop Chrome only, with separate browser profiles standing in for phones (T-04, T-10). Camera scanning, real GPS, small screens, gym Wi-Fi and outdoor conditions are untested |
 | 4 | Review the assessment protocol as a coach: tests, gates, caps, order | **You** | The benchmarks and thresholds are my proposal (F-21). They decide what 20 people do in your class |
 | 6 | Read SCORING.md §9 and decide on proposals P1–P7 | **You** | Nothing in scoring was changed. Seven improvements are described with their measured effect; each changes numbers athletes have seen, so each is your call (A-10) |
@@ -383,6 +383,15 @@ Reference: [VISUALS.md](VISUALS.md) §11 to §13. Theme data: `src/theme/`. "Pro
 | Data protection | Any real athletes | Privacy notice, deletion and export, consent for under-18s in classes |
 
 ## F · Change log
+
+**2026-11-18 · The owner's first corrections: five movements, and the body's shoulders and forearms**
+
+- By this date the owner had approved **60 exercises (120 animations) on the live project**; they are served to a signed-out browser. What he sent back:
+- **A fault of the body, everywhere**: shoulders and armpits caved in with the arms overhead (overhead wall reach, elevated pike push-up, hangs) and forearms thinned to a ribbon with the palms turned (chin-up). Cause: the skin was averaged between bones turned far apart. Fixed in how the skin follows the bones (`src/visual/body/skinning.ts`): no change to the character files, the skeleton or any movement, so **nothing he approved needs approving again**, and all six characters have it. Seen on the three exercises he named, a hang, a squat and a push-up, and on the Goku and Baki bodies.
+- **Five movements corrected**, each now revision 2 and waiting for his approval: wall handstand shoulder taps (a real shift of weight; the palm on the shoulder, not by the armpit), parallel bar dip and negative dip (wrists straight over the rails), freestanding handstand (eyes on the floor between the hands), crow pose (shins resting on the arms, not through them). None of the five was among the 60 approved, so nothing live is withdrawn. Revision 1 of each is kept until revision 2 is approved. Each has a check that fails on the old movement (VISUALS.md §5). The freestanding shoulder taps, which he approved, share the tap with the wall version and were left as approved.
+- **Studio**: a movement corrected while its animation was still waiting is put up again as it now is when its exercise is opened; no "Make a new version" step.
+- **Resume bar**: the close button is a small cross on the bar's edge.
+- 639 tests (10 new); journeys 31 and 42 checks, now run cut off from the live project so that what is approved there cannot change their result. **Not seen on a real phone**: the new skinning does more work per point of the body, on every frame. Not published.
 
 **2026-11-18 · The demonstration fills the screen; 360° everywhere**
 

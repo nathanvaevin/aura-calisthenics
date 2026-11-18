@@ -132,7 +132,21 @@ function pivot(out: Pose, about: Vector3, q: Quaternion) {
  * leans over the supporting hand as one line, the other hand comes off the
  * floor, touches the opposite shoulder and goes back to the same spot.
  */
-function taps(rig: Rig, out: Pose, t: number, o: Stand, lean: number, elbowFront: number) {
+interface Tap {
+  /** Degrees the whole line leans over the supporting hand. */
+  lean: number
+  /** How far forward the tapping elbow swings. */
+  elbowFront: number
+  /** Where the palm lands, from the supporting shoulder's joint, in the chest's own directions: towards that side, towards the head, forward. */
+  touch: [number, number, number]
+}
+/** On the shoulder itself: the wrist stops short of the joint so that the palm, a little further on, covers the front of the shoulder's cap. */
+const ON_SHOULDER: [number, number, number] = [-0.028, 0.025, 0.085]
+/** Revision 1 landed a hand's width inside it, by the armpit. */
+const BY_ARMPIT: [number, number, number] = [-0.085, 0.01, 0.07]
+
+function taps(rig: Rig, out: Pose, t: number, o: Stand, tap: Tap) {
+  const { lean, elbowFront } = tap
   const b = rig.body
   const s = b.scale
   const support: Side = t < 0.5 ? 'L' : 'R'
@@ -156,7 +170,7 @@ function taps(rig: Rig, out: Pose, t: number, o: Stand, lean: number, elbowFront
   if (floor.distanceTo(shoulder) > reach) floor.sub(shoulder).setLength(reach).add(shoulder)
   // On the front of the supporting shoulder, the palm against the chest.
   const front = (x: number, y: number, z: number) => new Vector3(x * s, y * s, z * s).applyQuaternion(out.chest)
-  const touch = rig.pos[`upperArm${support}`].clone().add(front(-sign * 0.085, 0.01, 0.07))
+  const touch = rig.pos[`upperArm${support}`].clone().add(front(sign * tap.touch[0], tap.touch[1], tap.touch[2]))
   const e = ease(lift)
   arm.hand.copy(floor).lerp(touch, e).add(front(0, 0, 0.03 * Math.sin(Math.PI * e)))
   const tapRot = handRot(tapping, front(sign, 0.25, 0).normalize(), front(0, 0, -1).normalize())
@@ -170,25 +184,31 @@ function taps(rig: Rig, out: Pose, t: number, o: Stand, lean: number, elbowFront
 
 const tapEffort = (t: number) => { const h = (t % 0.5) * 2; return 0.55 + 0.4 * ramp(h, 0.04, 0.32) * (1 - ramp(h, 0.7, 0.96)) }
 
+const WALL_TAPS = {
+  id: 'wall-shoulder-taps', stage: 'tall', kind: 'reps', period: 5.6, beat: 0.26, camera: 'side', azimuth: 40, elevation: 2,
+  props: (b: Body) => [{ kind: 'wall' as const, z: wallsOf(b).chest }],
+  detail: { delt_post: 0.3, forearm_flex: 0.5, forearm_ext: 0.4 },
+  effort: tapEffort,
+} satisfies Partial<Motion>
+
 /**
- * Wall handstand shoulder taps: chest to the wall, the weight moves over one
- * hand before the other leaves the floor to touch the opposite shoulder.
+ * Wall handstand shoulder taps: chest to the wall. The weight moves over one
+ * hand first, far enough that the other hand is light, and only then does it
+ * leave the floor to touch the opposite shoulder, on the shoulder itself.
  */
 export const wallShoulderTaps: Motion = {
-  id: 'wall-shoulder-taps',
+  ...WALL_TAPS,
+  revision: 2,
+  standard: 'Chest to the wall, toes staying on it; the hips travel most of the way over the supporting hand before the other hand lifts; supporting arm locked and shoulder pushed tall; the palm lands on the opposite shoulder itself, not inside it by the armpit, and returns to the same spot; hips do not twist.',
+  pose: (t, rig, out) => taps(rig, out, t, CHEST, { lean: 8.2, elbowFront: -0.25, touch: ON_SHOULDER }),
+}
+
+/** Revision 1, kept until revision 2 is approved: a small lean, and the hand landing by the armpit. */
+export const wallShoulderTapsEarlier: Motion = {
+  ...WALL_TAPS,
   revision: 1,
-  stage: 'tall',
-  kind: 'reps',
-  period: 5.6,
-  beat: 0.26,
-  camera: 'side',
-  azimuth: 40,
-  elevation: 2,
-  props: (b) => [{ kind: 'wall', z: wallsOf(b).chest }],
-  detail: { delt_post: 0.3, forearm_flex: 0.5, forearm_ext: 0.4 },
   standard: 'Chest to the wall, toes staying on it; the weight shifts over the supporting hand before the other lifts; supporting arm locked and shoulder pushed tall; the hand touches the opposite shoulder and returns to the same spot; hips do not twist.',
-  effort: tapEffort,
-  pose: (t, rig, out) => taps(rig, out, t, CHEST, 3.4, -0.25),
+  pose: (t, rig, out) => taps(rig, out, t, CHEST, { lean: 3.4, elbowFront: -0.25, touch: BY_ARMPIT }),
 }
 
 /**
@@ -210,7 +230,7 @@ export const hsShoulderTaps: Motion = {
   effort: tapEffort,
   pose(t, rig, out) {
     const drift = 0.8 * Math.sin(t * Math.PI * 4) + 0.35 * Math.sin(t * Math.PI * 10 + 1)
-    taps(rig, out, t, { tilt: 0, drift, head: 18, point: 50, spread: 8 }, 3.6, 0.9)
+    taps(rig, out, t, { tilt: 0, drift, head: 18, point: 50, spread: 8 }, { lean: 3.6, elbowFront: 0.9, touch: BY_ARMPIT })
   },
 }
 
@@ -266,43 +286,96 @@ export const pikeHold: Motion = {
   },
 }
 
+/** The shortest distance between two stretches of limb, each given by its ends. */
+export function apart(a1: Vector3, a2: Vector3, b1: Vector3, b2: Vector3): number {
+  const u = a2.clone().sub(a1), v = b2.clone().sub(b1), w = a1.clone().sub(b1)
+  const a = u.dot(u), b = u.dot(v), c = v.dot(v), d = u.dot(w), e = v.dot(w)
+  const den = a * c - b * b
+  let s = den > 1e-12 ? Math.min(1, Math.max(0, (b * e - c * d) / den)) : 0
+  let t = c > 1e-12 ? (b * s + e) / c : 0
+  if (t < 0) { t = 0; s = Math.min(1, Math.max(0, -d / a)) } else if (t > 1) { t = 1; s = Math.min(1, Math.max(0, (b - d) / a)) }
+  return a1.clone().addScaledVector(u, s).distanceTo(b1.clone().addScaledVector(v, t))
+}
+
+/** The trunk and arms of the crow: the same in every revision. */
+function crowBase(rig: Rig, out: Pose, t: number) {
+  const b = rig.body
+  const s = b.scale
+  // The balance is a rock of a centimetre or so, forward and back over the hands.
+  const rock = 0.012 * s * Math.sin(t * Math.PI * 2) + 0.004 * s * Math.sin(t * Math.PI * 6 + 1)
+  handsOnFloor(b, out, 0, b.rest.upperArmL.x * 0.98, new Vector3(0.45, 0.1, -1), 6)
+  for (const [side] of SIDES) { out.arm[side].grip = 0.18; out.arm[side].shrug = 0.3 }
+  out.chest.copy(pitch(104))
+  out.pelvis.copy(pitch(70))
+  out.head.copy(pitch(58))
+  const target = at(0.215 * s + rock, 0.415 * s)
+  out.hips.set(0, target.y + 0.08 * s, target.z - b.trunk)
+  shouldersAt(rig, out, target)
+}
+
+const CROW = {
+  stage: 'square', planted: ['handL', 'handR'], kind: 'balance', period: 4.6, camera: 'side', azimuth: 62, elevation: 6,
+  detail: { delt_post: 0.2, delt_lat: 0.5, pec: 0.35, pec_upper: 0.35 },
+  effort: (t: number) => 0.6 + 0.15 * Math.abs(breath(t)),
+} satisfies Partial<Motion>
+
+/** How thick the limbs are where the shin crosses the arm: what "resting on" means in numbers. */
+export const CROW_GIRTH = { arm: 0.046, shin: 0.044 }
+
 /**
- * Crow pose: hands on the floor, elbows bent back, knees on the backs of the
- * upper arms, hips high, feet off the floor, eyes ahead of the hands.
+ * Crow pose: hands on the floor, elbows bent back, the shins laid across the
+ * backs of the upper arms just below the knees, hips high, feet off the
+ * floor and together behind, eyes ahead of the hands.
+ *
+ * The shin lies ON the arm: where it crosses, the two are a limb's thickness
+ * apart, and nowhere does the leg pass through an arm.
  */
 export const crow: Motion = {
+  ...CROW,
   id: 'crow-pose',
-  revision: 1,
-  stage: 'square',
-  planted: ['handL', 'handR'],
-  kind: 'balance',
-  period: 4.6,
-  camera: 'side',
-  azimuth: 62,
-  elevation: 6,
-  detail: { delt_post: 0.2, delt_lat: 0.5, pec: 0.35, pec_upper: 0.35 },
-  standard: 'Knees high on the backs of the upper arms; shoulders well ahead of the hands; upper back rounded; both feet off the floor; eyes forward of the hands, head off the floor.',
-  effort: (t) => 0.6 + 0.15 * Math.abs(breath(t)),
+  revision: 2,
+  standard: 'The shins rest across the backs of the upper arms just below the knees, and no part of a leg passes through an arm; knees outside the elbows; shoulders well ahead of the hands; upper back rounded; both feet off the floor and together; eyes forward of the hands, head off the floor.',
   pose(t, rig, out) {
     const b = rig.body
     const s = b.scale
-    // The balance is a rock of a centimetre or so, forward and back over the hands.
-    const rock = 0.012 * s * Math.sin(t * Math.PI * 2) + 0.004 * s * Math.sin(t * Math.PI * 6 + 1)
-    handsOnFloor(b, out, 0, b.rest.upperArmL.x * 0.98, new Vector3(0.45, 0.1, -1), 6)
-    for (const [side] of SIDES) { out.arm[side].grip = 0.18; out.arm[side].shrug = 0.3 }
-    out.chest.copy(pitch(104))
-    out.pelvis.copy(pitch(70))
-    out.head.copy(pitch(58))
-    const target = at(0.215 * s + rock, 0.415 * s)
-    out.hips.set(0, target.y + 0.08 * s, target.z - b.trunk)
-    shouldersAt(rig, out, target)
+    crowBase(rig, out, t)
     for (const [side, sign] of SIDES) {
       const hip = rig.pos[`upperLeg${side}`]
       const shoulder = rig.pos[`upperArm${side}`], elbow = rig.pos[`lowerArm${side}`]
-      // The knee sits on the upper arm, two thirds of the way down it, just outside and above.
+      const along = elbow.clone().sub(shoulder).normalize()
+      // The back of the upper arm, where the triceps makes a shelf: up and back from its middle.
+      const up = new Vector3(0, 1, -0.35)
+      const shelf = up.addScaledVector(along, -up.dot(along)).normalize()
+      const on = shoulder.clone().lerp(elbow, 0.5).addScaledVector(shelf, (CROW_GIRTH.arm + CROW_GIRTH.shin + 0.004) * s)
+      // The feet come together behind and below the hips; the shin runs from there, over the arm, to a knee outside it.
+      const feet = new Vector3(sign * 0.04 * s, hip.y - 0.3 * s, hip.z - 0.085 * s)
+      const run = on.clone().sub(feet).normalize()
+      const want = on.clone().addScaledVector(run, 0.085 * s)
+      const knee = want.sub(hip).setLength(b.upperLeg).add(hip)
+      const leg = out.leg[side]
+      leg.foot.copy(feet).sub(knee).setLength(b.lowerLeg).add(knee)
+      leg.knee.copy(knee).sub(hip.clone().add(leg.foot).multiplyScalar(0.5))
+      leg.rot.copy(pitch(150)).premultiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), -sign * 0.25))
+      leg.toes = -15
+    }
+  },
+}
+
+/** Revision 1, kept until revision 2 is approved: the knee sat beside the arm and the shin passed through it. */
+export const crowEarlier: Motion = {
+  ...CROW,
+  id: 'crow-pose',
+  revision: 1,
+  standard: 'Knees high on the backs of the upper arms; shoulders well ahead of the hands; upper back rounded; both feet off the floor; eyes forward of the hands, head off the floor.',
+  pose(t, rig, out) {
+    const b = rig.body
+    const s = b.scale
+    crowBase(rig, out, t)
+    for (const [side, sign] of SIDES) {
+      const hip = rig.pos[`upperLeg${side}`]
+      const shoulder = rig.pos[`upperArm${side}`], elbow = rig.pos[`lowerArm${side}`]
       const rest = shoulder.clone().lerp(elbow, 0.62).add(new Vector3(sign * 0.055 * s, 0.062 * s, -0.01 * s))
       const knee = rest.sub(hip).setLength(b.upperLeg).add(hip)
-      // The shins fold back under the hips, feet together and pointed.
       const tuck = new Vector3(sign * 0.035 * s, hip.y - 0.3 * s, hip.z - 0.02 * s)
       const leg = out.leg[side]
       leg.foot.copy(tuck).sub(knee).setLength(b.lowerLeg).add(knee)

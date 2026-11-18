@@ -45,9 +45,11 @@ A demonstration never contains a picture or a video of the animation. It is a sm
 
 **Honest limits.**
 - Generated, not sculpted: stylised anatomy, simple hair, no face by design.
-- Skinning is plain linear blending with no corrective shapes: shoulders and hips lose some volume at the extremes (arms overhead, deep squat).
+- No corrective shapes. Since 2026-11-18 the skin no longer loses its girth where bones are turned far apart (see *How the skin follows the bones*, below); a deep fold (the back of a knee in a full squat) can still crease.
 - The four fingers bend together.
 - The files are not compressed. Mesh compression (meshopt) would bring each to roughly a quarter of its size.
+
+**How the skin follows the bones** (`src/visual/body/skinning.ts`, 2026-11-18). The usual way averages the places each bone would carry a point to; where two bones are turned far apart that average lies inside the limb, which is what made the shoulder cap vanish with the arms overhead and a forearm thin to a ribbon with the palm turned up. The bones' movements themselves are now blended into one rigid movement per point (dual quaternions), so a point turns part of the way with each bone and keeps its distance from the joint. It is shader text, with no change to the character files or the skeleton, and it is used by everything that draws the body so that they agree: the body's materials, its drawn outline, its shadow and the Aura's shells. Any new shader that draws the body with skinning must include it (`SKIN_DECL`, `SKIN_BLEND`).
 
 **Replacing a character.** A character artist can supply a different mesh. The app needs: the same bone names and rest pose, materials named `skin`, `cloth`, `hair`, and the `_MUSCLE` attribute (slot numbers in the order of `CHANNELS` in `muscles.ts`). Movements, muscles and Aura then work unchanged.
 
@@ -99,6 +101,12 @@ A movement is a function: for any moment of one cycle and any body, it writes a 
 Together these are every exercise of the first-day assessment (all 67 of its guided tests and menu variations) plus cat-cow.
 
 **Adding an exercise.** Write its movement with the kit, give it a standard, its equipment and what is planted, add it to its family's list (or a new family in `motions/index.ts`), add its checks, and generate it in the Studio. It arrives as pending.
+
+**Corrected after the owner's review (2026-11-18)**, each at revision 2, with revision 1 kept in `motions/index.ts` (`EARLIER`) until its replacement is approved, and a check that would fail on the old movement:
+- *Wall handstand shoulder taps*: the hips travel most of the way over the supporting hand (a lean of about 8 degrees, was 3.4) before the other hand lifts, and the palm lands on the shoulder's cap, not a hand's width inside it. The freestanding version was already approved and is unchanged.
+- *Parallel bar dip, negative dip*: the forearm stands over the rail and the hand goes on down from it, closed round the rail, so the wrist is all but straight. It was laid across the rail and bent sharply.
+- *Freestanding handstand*: the head is lifted about 46 degrees, eyes on the floor between the hands (was 18).
+- *Crow pose*: the shin is laid across the back of the upper arm just below the knee, a limb's thickness away from it and never inside it; the knee is past the arm. The distance between the centre lines of shin and arm went from 2.6 cm to 9 cm.
 
 **Known limits.** The shoulder blades cannot be drawn back on their own, so the squeeze at the top of a row does not show. A hand keeps one orientation on a bar through a repetition. Rings and resistance bands do not exist as equipment. Transitions between exercises do not exist. The muscle-up and the wall walk travel the furthest from anything the rig was built for: look at those two hardest.
 

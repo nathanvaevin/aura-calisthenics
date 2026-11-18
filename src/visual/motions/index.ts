@@ -2,14 +2,14 @@ import type { Motion } from './types'
 import { BAR } from './bar'
 import { FLOOR } from './floor'
 import { deadHang, pullup } from './hang'
-import { catCow, handstand, hollow, plank } from './holds'
-import { INVERTED } from './inverted'
+import { catCow, handstand, handstandEarlier, hollow, plank } from './holds'
+import { INVERTED, crowEarlier, wallShoulderTapsEarlier } from './inverted'
 import { LEGS } from './legs'
 import { MOBILITY } from './mobility'
 import { pikePushup } from './pike'
 import { PUSHES } from './pushes'
 import { pushup } from './pushup'
-import { ROWS } from './rows'
+import { ROWS, dipEarlier, negativeDipEarlier } from './rows'
 import { splitSquat, squat } from './squat'
 
 /** The ten movements of the pilot, in the order they are shown. */
@@ -23,7 +23,11 @@ export const ASSESSMENT: Motion[] = [...PUSHES, ...ROWS, ...BAR, ...FLOOR, ...LE
  * is corrected, the earlier revision stays here until its replacement has
  * been approved, so the two can be compared.
  */
-const ALL: Motion[] = [...PILOT, ...ASSESSMENT]
+const EARLIER: Motion[] = [
+  // Corrected on 2026-11-18 after the owner's review; revision 2 of each waits for approval.
+  handstandEarlier, crowEarlier, wallShoulderTapsEarlier, dipEarlier, negativeDipEarlier,
+]
+const ALL: Motion[] = [...PILOT, ...ASSESSMENT, ...EARLIER]
 
 /** The current revision of each movement, by the exercise it demonstrates. */
 export const MOTIONS: Record<string, Motion> = {}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { exerciseById } from '@/domain/catalog'
-import { ROWS, benchDip, dip, feetElevatedRow, horizontalRow, inclineRow, negativeDip } from './rows'
+import { ROWS, benchDip, dip, dipEarlier, feetElevatedRow, horizontalRow, inclineRow, negativeDip, negativeDipEarlier } from './rows'
 import { deg, expectSound, highest, lowest, sample, type Frames } from './testkit'
 import type { Prop } from './types'
 
@@ -126,6 +126,18 @@ describe.each(['male', 'female'] as const)('rows and dips, %s character', (who) 
       expect(x.lean('hips', 'upperChest')).toBeLessThan(32)
       expect(x.mid('upperArm').z).toBeGreaterThan(x.at('hips').z - 0.02)
     }
+  })
+
+  it.each([dip, negativeDip])('$id: the wrists are straight over the rails, the hands closed round them', (m) => {
+    const bend = (x: Frames[number], s: 'L' | 'R') => x.angle(`lowerArm${s}`, `hand${s}`, `fingers1${s}`)
+    const f = frames[m.id]
+    // At lockout the forearm, the wrist and the hand are all but one line.
+    for (const s of SIDE) expect(bend(f[0], s), `${m.id} wrist${s} at lockout`).toBeGreaterThan(158)
+    // Through the dip the forearm leans as the elbow travels back; the wrist gives a little and no more.
+    for (const x of f) for (const s of SIDE) expect(bend(x, s), `${m.id} wrist${s} at ${x.t}`).toBeGreaterThan(132)
+    // Revision 1 had the hand laid across the rail: bent by a third of a right angle more.
+    const before = sample(m === dip ? dipEarlier : negativeDipEarlier, who)
+    for (const s of SIDE) expect(bend(before[0], s)).toBeLessThan(bend(f[0], s) - 25)
   })
 
   it('dip: the feet stay clear of the floor and the legs do not swing', () => {

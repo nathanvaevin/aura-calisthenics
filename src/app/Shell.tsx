@@ -46,7 +46,7 @@ function ResumeBar() {
   const total = active.log.entries.reduce((n, e) => n + e.sets.length, 0)
   return (
     <>
-      <div className="glass flex w-full items-center gap-1.5 rounded-full border border-line-strong py-2 pr-2 pl-4 shadow-(--shadow-pop)" data-resume>
+      <div className="glass relative flex w-full items-center rounded-full border border-line-strong py-2 pr-2 pl-4 shadow-(--shadow-pop)" data-resume>
         <button onClick={() => navigate('/workout')} className="pressable flex min-w-0 flex-1 items-center gap-3 text-left">
           <span className="relative flex h-2 w-2 shrink-0">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" />
@@ -62,8 +62,11 @@ function ResumeBar() {
             <Play size={12} fill="currentColor" /> Resume
           </span>
         </button>
-        <button onClick={() => setAsking(true)} aria-label="End this workout" title="End this workout" className="pressable flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-surface-2 hover:text-ink">
-          <X size={16} />
+        {/* A small cross on the bar's edge. The part you can touch is larger than the part you can see. */}
+        <button onClick={() => setAsking(true)} aria-label="End this workout" title="End this workout" className="group absolute -top-3 -right-2 flex h-10 w-10 items-center justify-center">
+          <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full border border-line-strong bg-surface-2 text-ink-2 shadow-(--shadow-pop) transition-colors group-hover:bg-ink group-hover:text-bg group-active:scale-95">
+            <X size={12} strokeWidth={2.6} />
+          </span>
         </button>
       </div>
 

@@ -85,9 +85,9 @@ export const hollow: Motion = {
  * vertical line, arms locked, shoulders pushed tall, ribs in, toes pointed.
  * The body is never still: it is held by small corrections from the fingers.
  */
-export const handstand: Motion = {
+const freestanding = (revision: number, look: number, standard: string): Motion => ({
   id: 'freestanding-hs',
-  revision: 1,
+  revision,
   stage: 'tall',
   planted: ['handL', 'handR'],
   kind: 'balance',
@@ -96,7 +96,7 @@ export const handstand: Motion = {
   azimuth: 70,
   elevation: 2,
   detail: { delt_post: 0.35, forearm_flex: 0.6, forearm_ext: 0.5 },
-  standard: 'Arms locked; shoulders fully open and pushed tall; wrists, shoulders, hips and ankles on one line; no arch; legs together, toes pointed.',
+  standard,
   effort: (t) => 0.55 + 0.2 * Math.abs(Math.sin(t * Math.PI * 2)),
   pose(t, rig, out) {
     const b = rig.body
@@ -107,14 +107,19 @@ export const handstand: Motion = {
     for (const [side] of SIDES) { out.arm[side].shrug = 1; out.arm[side].grip = 0.12 - 0.05 * Math.sin(t * Math.PI * 2) }
     out.chest.copy(pitch(180 + drift * 0.6))
     out.pelvis.copy(pitch(180 - drift * 0.9 + 1.5))
-    out.head.copy(pitch(180 - 18))
+    out.head.copy(pitch(180 - look))
     const lean = drift * (Math.PI / 180)
     const target = at(Math.sin(lean) * reach, wristHeight(b) + Math.cos(lean) * reach * 0.9975)
     out.hips.set(0, target.y + b.trunk, target.z)
     shouldersAt(rig, out, target)
     straightLegs(rig, out, -drift * 0.7, 52)
   },
-}
+})
+
+/** The head is lifted until the eyes are on the floor between the hands: that spot is what a handstand is balanced by. */
+export const handstand = freestanding(2, 46, 'Arms locked; shoulders fully open and pushed tall; wrists, shoulders, hips and ankles on one line; no arch; legs together, toes pointed; the head lifted so the eyes are on the floor between the hands.')
+/** Revision 1, kept until revision 2 is approved: the head almost in line, looking past the hands. */
+export const handstandEarlier = freestanding(1, 18, 'Arms locked; shoulders fully open and pushed tall; wrists, shoulders, hips and ankles on one line; no arch; legs together, toes pointed.')
 
 /**
  * Cat-cow on hands and knees: hands under the shoulders, knees under the

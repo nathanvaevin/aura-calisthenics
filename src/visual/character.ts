@@ -5,11 +5,12 @@
  * The layers are uniforms on one material, so they change smoothly and
  * independently of each other and of the pose.
  */
-import { BackSide, CanvasTexture, Color, Group, MeshStandardMaterial, ShaderMaterial, SkinnedMesh, SRGBColorSpace, Vector3, type Bone, type Mesh, type Object3D, type Texture } from 'three'
+import { BackSide, CanvasTexture, Color, Group, MeshDepthMaterial, MeshStandardMaterial, RGBADepthPacking, ShaderMaterial, SkinnedMesh, SRGBColorSpace, Vector3, type Bone, type Mesh, type Object3D, type Texture } from 'three'
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import { BONES, type BoneName, type BuildId, type CharacterId } from './body/skeleton'
 import { SLOTS } from './body/muscles'
+import { SKIN_BLEND, SKIN_DECL, withSkin } from './body/skinning'
 import { Rig, type Pose } from './rig'
 import { STYLES, styleOf, type CharacterStyle, type PerformerStyle } from './styles'
 
@@ -220,6 +221,15 @@ if (uCosmos > 0.001) {
 }
 `
 
+let shadow: MeshDepthMaterial | null = null
+function shadowMaterial() {
+  if (shadow) return shadow
+  shadow = new MeshDepthMaterial({ depthPacking: RGBADepthPacking })
+  shadow.onBeforeCompile = (shader) => { shader.vertexShader = withSkin(shader.vertexShader) }
+  shadow.customProgramCacheKey = () => 'aura-shadow'
+  return shadow
+}
+
 type Kind = 'skin' | 'cloth' | 'hair' | 'accent'
 
 function material(kind: Kind, look: Look, logo: { x: number; y: number; width: number; height: number }) {
@@ -237,7 +247,7 @@ function material(kind: Kind, look: Look, logo: { x: number; y: number; width: n
       uShade: look.shade, uHair: { value: kind === 'hair' ? 1 : 0 }, uHairGlow: look.hairGlow, uHairCharge: look.hairCharge,
       uLogo: { value: logoTexture() }, uLogoRect: { value: [logo.x, logo.y, logo.width, logo.height] },
     })
-    shader.vertexShader = shader.vertexShader
+    shader.vertexShader = withSkin(shader.vertexShader)
       .replace('#include <common>', `#include <common>\n${VERT_DECL}`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>\n${VERT_MAIN}`)
     shader.fragmentShader = shader.fragmentShader
@@ -302,6 +312,8 @@ export class Actor {
       mesh.material = mat
       mesh.frustumCulled = false
       mesh.castShadow = true
+      // The shadow is cast by the body as it is drawn, not as the usual skinning would have it.
+      mesh.customDepthMaterial = shadowMaterial()
       this.materials.push(mat)
       this.meshes.push(mesh)
     })
@@ -340,10 +352,12 @@ export class Actor {
           vertexShader: /* glsl */ `
             #include <common>
             #include <skinning_pars_vertex>
+            ${SKIN_DECL}
             uniform float uWidth;
             void main() {
               vec3 objectNormal = normal;
               #include <skinbase_vertex>
+              ${SKIN_BLEND}
               #include <skinnormal_vertex>
               vec3 transformed = position;
               #include <skinning_vertex>

@@ -117,6 +117,20 @@ describe.each(['male', 'female'] as const)('the pilot movements, %s character', 
     }
   })
 
+  it('handstand: the head is lifted so the eyes are on the floor between the hands', () => {
+    for (const x of frames['freestanding-hs']) {
+      // From the base of the skull to the crown. In line with the body it would point straight down at the floor.
+      const skull = x.crown.clone().sub(x.at('head')).normalize()
+      const lifted = Math.acos(Math.min(1, Math.max(-1, -skull.y))) * 180 / Math.PI
+      expect(lifted, `at ${x.t}`).toBeGreaterThan(38)
+      expect(lifted, `at ${x.t}`).toBeLessThan(56)
+      // Tipped back, towards the back of the body, which is what turns the face to the floor.
+      expect(skull.z).toBeGreaterThan(0.5)
+      // And the head stays clear of the floor.
+      expect(x.crown.y).toBeGreaterThan(0.12 * x.s)
+    }
+  })
+
   it('cat-cow: knees on the floor, arms straight, the spine rounds one way and arches the other', () => {
     const f = frames['cat-cow']
     const bend = f.map((x) => x.at('chest').y - (x.at('hips').y + x.at('upperChest').y) / 2)

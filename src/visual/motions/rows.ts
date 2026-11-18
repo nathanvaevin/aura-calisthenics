@@ -153,13 +153,23 @@ const dipRails = (b: Body): Prop => ({ kind: 'rails', height: railHeight(b), gap
  * bottom of the dip (1). Trunk, arms and where the shoulders are; the legs
  * are the caller's.
  */
-function dipPose(rig: Rig, out: Pose, depth: number) {
+/**
+ * How the hand sits on the rail. `straight`: the forearm stands over the rail
+ * and the hand goes on down from it, closed round the rail, so the wrist is
+ * nearly straight, as it is on a real bar. `draped` was revision 1: the hand
+ * laid across the top of the rail and bent sharply at the wrist.
+ */
+type RailGrip = 'straight' | 'draped'
+const RAIL_GRIP: Record<RailGrip, { out: number; down: number }> = { straight: { out: 0.3, down: -0.954 }, draped: { out: 0.77, down: -0.64 } }
+
+function dipPose(rig: Rig, out: Pose, depth: number, hold: RailGrip = 'straight') {
+  const g = RAIL_GRIP[hold]
   const b = rig.body
   const s = b.scale
   for (const [side, sign] of SIDES) {
     const arm = out.arm[side]
-    // The heel of the hand on top of the rail, fingers wrapped over the outside, thumb forward.
-    gripAt(b, arm, side, new Vector3(sign * railHalf(b), railHeight(b), 0), RAIL * s, new Vector3(sign * 0.77, -0.64, 0), new Vector3(-sign * 0.64, -0.77, 0), 0.9)
+    // The heel of the hand on the rail, the hand closed round its outside, thumb forward.
+    gripAt(b, arm, side, new Vector3(sign * railHalf(b), railHeight(b), 0), RAIL * s, new Vector3(sign * g.out, g.down, 0), new Vector3(sign * g.down, -g.out, 0), hold === 'straight' ? 1 : 0.9)
     arm.elbow.set(sign * 0.22, 0.1, -1)
     arm.shrug = lerp(-1, -0.4, depth)
   }
@@ -186,9 +196,9 @@ const hang = (depth: number) => lerp(4, 21, depth) + lerp(8, 13, depth)
  * the shoulders are below the elbows, chest a little forward, elbows back,
  * legs quiet; then pressed to lockout.
  */
-export const dip: Motion = {
+const dipOn = (revision: number, hold: RailGrip, standard: string): Motion => ({
   id: 'dip',
-  revision: 1,
+  revision,
   kind: 'reps',
   period: 3.2,
   camera: 'three-quarter',
@@ -199,14 +209,17 @@ export const dip: Motion = {
   planted: ['handL', 'handR'],
   beat: 0.97,
   detail: { delt_lat: 0.15, delt_ant: 0.6, pec_upper: 0.55 },
-  standard: 'Starts and ends with the arms locked and the shoulders pressed down; shoulders pass below the elbows at the bottom; chest slightly forward, elbows tracking back; the legs do not swing.',
+  standard,
   effort: (t) => 0.35 + 0.65 * there(t, 0.42, 0.06),
   pose(t, rig, out) {
     const depth = there(t, 0.42, 0.06)
-    dipPose(rig, out, depth)
+    dipPose(rig, out, depth, hold)
     straightLegs(rig, out, hang(depth), 46)
   },
-}
+})
+export const dip = dipOn(2, 'straight', 'Starts and ends with the arms locked and the shoulders pressed down; shoulders pass below the elbows at the bottom; chest slightly forward, elbows tracking back; the legs do not swing; the wrists straight over the rails, the hands closed round them.')
+/** Revision 1, kept until revision 2 is approved: the hands draped over the rails, wrists bent. */
+export const dipEarlier = dipOn(1, 'draped', 'Starts and ends with the arms locked and the shoulders pressed down; shoulders pass below the elbows at the bottom; chest slightly forward, elbows tracking back; the legs do not swing.')
 
 /** Where the step between the rails is: its top is where the feet are when standing tall in the support. */
 const step = (b: Body) => remember(`step:${b.id}`, () => {
@@ -230,9 +243,9 @@ const onStep = (t: number) => (t < LIFT ? 1 - ease(t / LIFT) : t < DOWN ? 0 : t 
  * even descent of at least five seconds to the bottom of a dip; then the
  * feet go down onto a step and the legs stand the body back up.
  */
-export const negativeDip: Motion = {
+const negativeDipOn = (revision: number, hold: RailGrip, standard: string): Motion => ({
   id: 'negative-dip',
-  revision: 1,
+  revision,
   kind: 'reps',
   period: 7,
   camera: 'three-quarter',
@@ -243,13 +256,13 @@ export const negativeDip: Motion = {
   planted: ['handL', 'handR'],
   beat: DOWN,
   detail: { delt_lat: 0.15, delt_ant: 0.6, pec_upper: 0.55 },
-  standard: 'Starts locked out with the shoulders pressed down; lowers evenly for at least five seconds, without dropping through the bottom, until the shoulders are below the elbows; the way back up is a step, not a press.',
+  standard,
   // The work is the way down, and hardest where it is deepest; the step back up is rest.
   effort: (t) => (t < LIFT || t >= REACH ? 0.15 : t < DOWN ? 0.45 + 0.55 * negativeDepth(t) : 0.6),
   pose(t, rig, out) {
     const b = rig.body
     const depth = negativeDepth(t)
-    dipPose(rig, out, depth)
+    dipPose(rig, out, depth, hold)
     const on = onStep(t)
     const place = step(b)
     const down = (a: number) => new Vector3(0, -Math.cos(a * deg), Math.sin(a * deg))
@@ -263,7 +276,10 @@ export const negativeDip: Motion = {
       leg.toes = 0
     }
   },
-}
+})
+export const negativeDip = negativeDipOn(2, 'straight', 'Starts locked out with the shoulders pressed down; lowers evenly for at least five seconds, without dropping through the bottom, until the shoulders are below the elbows; the way back up is a step, not a press; the wrists straight over the rails throughout.')
+/** Revision 1, kept until revision 2 is approved. */
+export const negativeDipEarlier = negativeDipOn(1, 'draped', 'Starts locked out with the shoulders pressed down; lowers evenly for at least five seconds, without dropping through the bottom, until the shoulders are below the elbows; the way back up is a step, not a press.')
 
 // ── Bench dip ────────────────────────────────────────────────────────────
 

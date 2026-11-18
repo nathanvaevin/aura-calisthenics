@@ -156,12 +156,20 @@ function ExerciseView({ ex, animations, onNext }: { ex: Exercise; animations: De
   const motion = MOTIONS[ex.id]
 
   // A movement that has never been put up for review is put up when it is first opened:
-  // a version waiting for a decision, which no athlete sees.
+  // a version waiting for a decision, which no athlete sees. One that was put up, never
+  // decided, and has been corrected since is put up again as it now is; the earlier
+  // version stays in the list of versions.
   useEffect(() => {
     if (!motion) return
     for (const c of CHARACTERS) {
-      if (useStore.getState().demos.some((d) => d.exerciseId === ex.id && d.kind === 'animation' && d.slot === c)) continue
-      createDemo({ exerciseId: ex.id, kind: 'animation', slot: c, title: `${ex.name} · ${c}`, animation: { character: c, motion: ex.id, revision: motion.revision, camera: motion.camera, theme: null } })
+      const state = useStore.getState()
+      const latest = historyOf(state.demos.filter((d) => d.kind === 'animation' && d.animation), ex.id, 'animation', c)[0] as DemoAsset | undefined
+      if (!latest) {
+        createDemo({ exerciseId: ex.id, kind: 'animation', slot: c, title: `${ex.name} · ${c}`, animation: { character: c, motion: ex.id, revision: motion.revision, camera: motion.camera, theme: null } })
+      } else if (latest.status === 'pending' && !isCurrent(latest)) {
+        const id = state.reviseDemo(latest.id)
+        if (id) state.patchDemo(id, { animation: { ...latest.animation!, revision: motion.revision } })
+      }
     }
   }, [ex.id, ex.name, motion, createDemo])
 

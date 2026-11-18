@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { Vector3 } from 'three'
 import type { BoneName, CharacterId } from '../body/skeleton'
 import { emptyPose, Rig } from '../rig'
-import { INVERTED, backToWall, chestToWall, heelBack, hsShoulderTaps, pikeHold, toeTip, wallShoulderTaps, wallWalk } from './inverted'
+import { CROW_GIRTH, INVERTED, apart, backToWall, chestToWall, crowEarlier, heelBack, hsShoulderTaps, pikeHold, toeTip, wallShoulderTaps, wallShoulderTapsEarlier, wallWalk } from './inverted'
 import { SIDES, drift, expectSound, lowest, sample } from './testkit'
 import type { Motion } from './types'
 
@@ -52,7 +52,26 @@ describe.each(['male', 'female'] as const)('the handstand station, %s character'
     }
   })
 
-  it('crow: knees on the upper arms, shoulders ahead of the hands, feet and head off the floor', () => {
+  it('crow: the shins rest on the backs of the upper arms and no part of a leg passes through an arm', () => {
+    const girth = CROW_GIRTH.arm + CROW_GIRTH.shin
+    for (const x of frames['crow-pose']) for (const s of SIDES) {
+      const shin = [x.at(`lowerLeg${s}`), x.at(`foot${s}`)] as const, thigh = [x.at(`upperLeg${s}`), x.at(`lowerLeg${s}`)] as const
+      const upper = [x.at(`upperArm${s}`), x.at(`lowerArm${s}`)] as const, fore = [x.at(`lowerArm${s}`), x.at(`hand${s}`)] as const
+      // On it: a limb's thickness between the two where they cross. Not floating above, not inside.
+      const rest = apart(...shin, ...upper)
+      expect(rest, `shin${s} inside the arm at ${x.t}`).toBeGreaterThan((girth - 0.006) * x.s)
+      expect(rest, `shin${s} off the arm at ${x.t}`).toBeLessThan((girth + 0.02) * x.s)
+      expect(apart(...shin, ...fore), `shin${s} through the forearm at ${x.t}`).toBeGreaterThan(girth * x.s)
+      expect(apart(...thigh, ...upper), `thigh${s} through the arm at ${x.t}`).toBeGreaterThan(girth * x.s)
+      // The knee is past the arm, so it is the shin that lies on it.
+      expect(Math.abs(x.at(`lowerLeg${s}`).x), `knee${s} inside the arm`).toBeGreaterThan(Math.abs(x.at(`upperArm${s}`).x) - 0.05 * x.s)
+    }
+    // What was wrong with revision 1, as a number: its shin ran through the arm.
+    const before = sample(crowEarlier, who)[0]
+    expect(apart(before.at('lowerLegL'), before.at('footL'), before.at('upperArmL'), before.at('lowerArmL'))).toBeLessThan(0.05 * before.s)
+  })
+
+  it('crow: shoulders ahead of the hands, hips high, feet and head off the floor', () => {
     for (const x of frames['crow-pose']) {
       expect(x.mid('upperArm').z - x.mid('hand').z).toBeGreaterThan(0.12 * x.s)
       expect(x.mid('upperLeg').y).toBeGreaterThan(x.mid('upperArm').y - 0.03 * x.s)
@@ -60,12 +79,6 @@ describe.each(['male', 'female'] as const)('the handstand station, %s character'
       for (const s of SIDES) {
         expect(x.at(`foot${s}`).y).toBeGreaterThan(0.12 * x.s)
         expect(x.at(`toes${s}`).y).toBeGreaterThan(0.06 * x.s)
-        // The knee rests on the upper arm: within a hand's breadth of the line from shoulder to elbow.
-        const a = x.at(`upperArm${s}`), b = x.at(`lowerArm${s}`), k = x.at(`lowerLeg${s}`)
-        const ab = b.clone().sub(a)
-        const u = Math.min(1, Math.max(0, k.clone().sub(a).dot(ab) / ab.lengthSq()))
-        expect(k.distanceTo(a.add(ab.multiplyScalar(u)))).toBeLessThan(0.11 * x.s)
-        expect(u).toBeGreaterThan(0.3)
         // Elbows bent, but not collapsed.
         const elbow = x.angle(`upperArm${s}`, `lowerArm${s}`, `hand${s}`)
         expect(elbow).toBeGreaterThan(70)
@@ -130,6 +143,31 @@ describe.each(['male', 'female'] as const)('the handstand station, %s character'
       expect(part[0].at(`hand${tapping}`).y).toBeLessThan(0.05 * tap.s)
     }
     for (const x of f) expect(x.line()).toBeGreaterThan(170)
+  })
+
+  it('wall shoulder taps: the weight really moves over the supporting hand, and the palm lands on the shoulder, not by the armpit', () => {
+    const measure = (m: Motion) => {
+      const f = sample(m, who)
+      const part = f.slice(0, f.length / 2)
+      const tap = lowest(part, (x) => x.at('handR').distanceTo(x.at('upperArmL')))
+      // The palm is between the wrist and the knuckles.
+      const palm = tap.at('handR').add(tap.at('fingers1R')).multiplyScalar(0.5)
+      return {
+        // How far the hips have gone towards the supporting hand, as a share of the way.
+        shift: (tap.at('hips').x - part[0].at('hips').x) / part[0].at('handL').x,
+        // How far inside the shoulder joint the palm lands, towards the breastbone.
+        inside: (tap.at('upperArmL').x - palm.x) / tap.s,
+        reach: palm.distanceTo(tap.at('upperArmL')) / tap.s,
+      }
+    }
+    const now = measure(wallShoulderTaps), before = measure(wallShoulderTapsEarlier)
+    expect(now.shift).toBeGreaterThan(0.6)
+    expect(now.shift).toBeLessThan(1.05)
+    expect(Math.abs(now.inside)).toBeLessThan(0.03)
+    expect(now.reach).toBeLessThan(0.11)
+    // Revision 1, for the record of what was corrected: a third of the shift, and a hand's width further in.
+    expect(before.shift).toBeLessThan(0.45)
+    expect(before.inside).toBeGreaterThan(now.inside + 0.03)
   })
 
   it('freestanding shoulder taps: stacked over the hands, legs a little apart', () => {
