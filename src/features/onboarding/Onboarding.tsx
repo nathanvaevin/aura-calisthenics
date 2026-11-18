@@ -247,14 +247,22 @@ export function Onboarding() {
                 <button onClick={() => setAccountStep(false)} aria-label="Back" className="pressable -ml-2 flex h-10 w-10 items-center justify-center rounded-full text-ink-2 hover:text-ink"><ArrowLeft size={19} /></button>
               </header>
               <div className="flex flex-1 flex-col justify-center">
-                <Eyebrow>Your account</Eyebrow>
-                <h1 className="display mt-2 text-[40px] leading-[1.04]">Create your account</h1>
-                <p className="mt-3 text-[15px] leading-relaxed text-ink-2">Your profile, training and results are saved and open on any device. Your coach sees what you choose to share.</p>
-                <ul className="mt-6 space-y-2.5 text-[14px] text-ink-2">
-                  {['Pick up on your phone where you left off on your laptop', 'Join your coach’s courses and assessments', 'Your progress, kept for as long as you train'].map((t) => (
-                    <li key={t} className="flex gap-2.5"><Check size={16} strokeWidth={2.4} className="mt-0.5 shrink-0 text-good" />{t}</li>
+                <Eyebrow>One tap to begin</Eyebrow>
+                <h1 className="display mt-2 text-[44px] leading-[1.02]">Make it <span className="italic">yours.</span></h1>
+                <p className="mt-3 text-[15.5px] leading-relaxed text-ink-2">Sign in, and everything you build here stays with you: your Aura, your skills, every session.</p>
+                <ol className="mt-7 space-y-3.5">
+                  {[
+                    ['A few quick questions', 'Where you are today, and what you want.'],
+                    ['Your first Aura', 'One number for your strength, balance and control.'],
+                    ['Your next step', 'A skill tree that shows exactly what to work on.'],
+                  ].map(([title, line], i) => (
+                    <li key={title} className="flex items-start gap-3.5">
+                      <span className="display num mt-[-2px] w-5 shrink-0 text-[24px] leading-none text-accent">{i + 1}</span>
+                      <span className="min-w-0"><span className="block text-[15px] font-medium">{title}</span><span className="block text-[13px] leading-snug text-ink-3">{line}</span></span>
+                    </li>
                   ))}
-                </ul>
+                </ol>
+                <p className="mt-6 text-[12.5px] text-ink-3">On your own, or with a coach: it works both ways.</p>
               </div>
               <div className="mt-8 flex flex-col gap-3">
                 <GoogleButton />

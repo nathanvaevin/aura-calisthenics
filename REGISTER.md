@@ -384,6 +384,10 @@ Reference: [VISUALS.md](VISUALS.md) §11 to §13. Theme data: `src/theme/`. "Pro
 
 ## F · Change log
 
+**2026-11-18 · The account step of the welcome, rewritten**
+
+- At the owner's request: the screen after *Get started* no longer speaks of laptops or opens with a coach. It says in one line why to sign in ("everything you build here stays with you"), then the three things that follow (a few quick questions, your first Aura, your next step), and one closing line that it works alone or with a coach. Same sign-in button and terms line. Fits one phone screen without scrolling (seen at 390×844, 375×667 and desktop). Not published.
+
 **2026-11-18 · Every movement approved**
 
 - Read from the live project, signed out: 136 published animations, 68 exercises, both characters each, none showing an out-of-date movement. That includes the five corrected movements at revision 2 and the three held back for the shoulders. Action 3f is done.
