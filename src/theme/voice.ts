@@ -54,6 +54,16 @@ const COPY = {
     iron: 'Done. It counts because you did it properly.',
   },
 
+  // Closing a workout that is still running. What is lost is said plainly beside it, the same in every voice.
+  'workout.quit.title': { aura: 'End this workout?', power: 'Is that all you’ve got?', iron: 'Are you quitting your workout?!' },
+  'workout.quit.line': {
+    aura: 'You can stop here. What counts is that you come back.',
+    power: 'Your power was still rising.',
+    iron: 'Nobody is making you. That is the point.',
+  },
+  'workout.quit.stay': { aura: 'Keep going', power: 'Power back up', iron: 'Back to work' },
+  'workout.quit.leave': { aura: 'End workout', power: 'End it here', iron: 'I quit' },
+
   // Empty pages
   'empty.logs.title': { aura: 'Nothing logged yet', power: 'No sessions cleared yet', iron: 'Nothing on record' },
   'empty.course.title': { aura: 'No course yet', power: 'No course yet', iron: 'No course yet' },

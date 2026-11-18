@@ -1,5 +1,5 @@
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
-import { Pause, Play, RotateCcw, Sparkles } from 'lucide-react'
+import { Pause, Play, Rotate3d, RotateCcw, Sparkles } from 'lucide-react'
 import { cx } from '@/lib/format'
 import { Player, type PerformerSpec, type PlayerState } from './player'
 import type { CameraAngle } from './stage'
@@ -12,7 +12,9 @@ const ANGLES: { value: CameraAngle; label: string }[] = [
 
 /**
  * A stage with characters on it. `simple` is what an athlete gets (play,
- * pause, camera angle); `review` adds what an administrator needs to inspect
+ * pause, camera angle); `spin` is for looking at a character rather than a
+ * movement (one button that turns it all the way round, and it follows a
+ * finger dragged across it); `review` adds what an administrator needs to inspect
  * a movement (scrub, slow motion, drag to look round, the release on demand).
  *
  * This file brings in the 3D engine: load it lazily.
@@ -21,7 +23,7 @@ export default function Demo({ cast, ratio = 1, controls = 'simple', margin, ang
   cast: PerformerSpec[]
   /** Width over height of the stage. */
   ratio?: number
-  controls?: 'none' | 'simple' | 'review'
+  controls?: 'none' | 'simple' | 'spin' | 'review'
   /** Space round the subject; more when an Aura needs room. */
   margin?: number
   /** The camera angle to open on, where it is not the movement's own. */
@@ -86,22 +88,57 @@ export default function Demo({ cast, ratio = 1, controls = 'simple', margin, ang
   }, [key, margin, opening])
 
   const drag = useRef<{ x: number; y: number } | null>(null)
-  const orbit = controls === 'review'
+  /** Dragging looks round the subject: freely in a review, sideways only where the point is to turn a character. */
+  const orbit = controls === 'review' || controls === 'spin'
+  const level = controls === 'spin'
+
+  // One full turn, eased in and out. Pressing again, or taking hold of the character, stops it where it is.
+  const [turning, setTurning] = useState(false)
+  const spin = useRef(0)
+  const stopTurn = () => { cancelAnimationFrame(spin.current); spin.current = 0; setTurning(false) }
+  const turnRound = () => {
+    if (spin.current) return stopTurn()
+    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const length = still ? 0 : 3400
+    const from = performance.now()
+    let done = 0
+    setTurning(true)
+    const step = (now: number) => {
+      const u = length ? Math.min(1, (now - from) / length) : 1
+      const eased = (u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2) * 360
+      player.current?.turn(eased - done)
+      done = eased
+      if (u < 1 && player.current) spin.current = requestAnimationFrame(step)
+      else stopTurn()
+    }
+    spin.current = requestAnimationFrame(step)
+  }
+  useEffect(() => () => cancelAnimationFrame(spin.current), [])
 
   return (
     <div ref={box} className={cx('relative w-full overflow-hidden rounded-card border border-line bg-(--stage)', className)} style={{ aspectRatio: String(ratio) }}>
       <canvas
         ref={canvas} role="img" aria-label={label ?? 'Animated demonstration'}
-        className={cx('block h-full w-full transition-opacity duration-500', ready ? 'opacity-100' : 'opacity-0', orbit && 'cursor-grab touch-none active:cursor-grabbing')}
-        onPointerDown={orbit ? (e) => { drag.current = { x: e.clientX, y: e.clientY }; e.currentTarget.setPointerCapture(e.pointerId) } : undefined}
-        onPointerMove={orbit ? (e) => { if (!drag.current) return; player.current?.orbit(e.clientX - drag.current.x, e.clientY - drag.current.y); drag.current = { x: e.clientX, y: e.clientY } } : undefined}
+        className={cx('block h-full w-full transition-opacity duration-500', ready ? 'opacity-100' : 'opacity-0', orbit && 'cursor-grab active:cursor-grabbing', orbit && (level ? 'touch-pan-y' : 'touch-none'))}
+        onPointerDown={orbit ? (e) => { if (spin.current) stopTurn(); drag.current = { x: e.clientX, y: e.clientY }; e.currentTarget.setPointerCapture(e.pointerId) } : undefined}
+        onPointerMove={orbit ? (e) => { if (!drag.current) return; player.current?.orbit(e.clientX - drag.current.x, level ? 0 : e.clientY - drag.current.y); drag.current = { x: e.clientX, y: e.clientY } } : undefined}
         onPointerUp={orbit ? () => { drag.current = null } : undefined}
-        onWheel={orbit ? (e) => player.current?.zoom(e.deltaY > 0 ? 1.06 : 0.94) : undefined}
+        onPointerCancel={orbit ? () => { drag.current = null } : undefined}
+        onWheel={orbit && !level ? (e) => player.current?.zoom(e.deltaY > 0 ? 1.06 : 0.94) : undefined}
       />
       {!ready && !failed && <div className="absolute inset-0 flex items-center justify-center font-mono text-[10.5px] tracking-[0.14em] text-(--stage-ink) uppercase">Loading</div>}
       {failed && <div className="absolute inset-0 flex items-center justify-center px-8 text-center text-[13px] text-(--stage-ink)">This device could not start the 3D view.</div>}
 
-      {controls !== 'none' && ready && (
+      {controls === 'spin' && ready && (
+        <button
+          aria-label={turning ? 'Stop turning' : 'Turn the character all the way round'} aria-pressed={turning} title="Turn all the way round. You can also drag the character."
+          onClick={turnRound}
+          className={cx('absolute right-3 bottom-3 flex h-11 items-center gap-1.5 rounded-full px-3.5 font-mono text-[11px] tracking-[0.06em] backdrop-blur-md transition-colors', turning ? 'bg-white text-black' : 'bg-black/45 text-white hover:bg-black/60')}
+        >
+          <Rotate3d size={17} className={cx(turning && 'animate-spin [animation-duration:3.4s]')} />360°
+        </button>
+      )}
+      {controls !== 'none' && controls !== 'spin' && ready && (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col gap-2 bg-gradient-to-t from-black/55 to-transparent p-3 pt-10">
           {controls === 'review' && state && (
             <input

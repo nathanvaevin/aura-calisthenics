@@ -76,7 +76,7 @@ export function CharacterStudio({ theme }: { theme?: ThemeId }) {
           )}
         </div>
         <Stage3D
-          cast={cast} ratio={move ? STAGE_RATIO[MOTIONS[move.motion]?.stage ?? 'square'] : 0.9} controls="simple" margin={preview === 'aura' ? 1.36 : 1.12}
+          cast={cast} ratio={move ? STAGE_RATIO[MOTIONS[move.motion]?.stage ?? 'square'] : 0.9} controls="spin" margin={preview === 'aura' ? 1.36 : 1.12}
           className="mx-auto max-h-[52dvh] lg:max-h-[66dvh]" label={`Your character, ${shown.form.name}`}
         />
       </div>

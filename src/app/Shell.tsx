@@ -1,10 +1,13 @@
+import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router'
-import { BookOpen, ClipboardCheck, Clapperboard, House, MapPin, Play, ScanLine, User, Waypoints, Zap } from 'lucide-react'
+import { BookOpen, ClipboardCheck, Clapperboard, House, MapPin, Play, ScanLine, User, Waypoints, X, Zap } from 'lucide-react'
 import { useStore } from '@/data/store'
 import { useClock, useIsAdmin, useIsCoach, useMe } from '@/data/hooks'
 import { liveVisit } from '@/domain/places'
 import { exerciseById } from '@/domain/catalog'
+import { useVoice } from '@/theme/useTheme'
 import { AuraDot } from '@/ui/AuraField'
+import { Sheet } from '@/ui/primitives'
 import { cx, initials, num } from '@/lib/format'
 
 const TABS = [
@@ -25,32 +28,61 @@ export function Wordmark({ size = 26 }: { size?: number }) {
   )
 }
 
+/**
+ * A workout that is still running, one tap from going back to it. It can be
+ * closed, which ends the workout: that is asked first, in the theme's own
+ * voice, with what would be lost said plainly.
+ */
 function ResumeBar() {
   const active = useStore((s) => s.active)
+  const discard = useStore((s) => s.discardWorkout)
+  const toSummary = useStore((s) => s.toSummary)
   const navigate = useNavigate()
+  const v = useVoice()
+  const [asking, setAsking] = useState(false)
   if (!active) return null
   const entry = active.log.entries[active.index]
   const done = active.log.entries.reduce((n, e) => n + e.sets.filter((s) => s.done).length, 0)
   const total = active.log.entries.reduce((n, e) => n + e.sets.length, 0)
   return (
-    <button
-      onClick={() => navigate('/workout')}
-      className="pressable glass flex w-full items-center gap-3 rounded-full border border-line-strong py-2 pr-2 pl-4 text-left shadow-(--shadow-pop)"
-    >
-      <span className="relative flex h-2 w-2">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" />
-        <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13.5px] font-medium">{active.log.title}</span>
-        <span className="block truncate text-[11.5px] text-ink-3">
-          {active.phase === 'summary' ? 'Ready to save' : exerciseById[entry.exerciseId]?.name} · {done}/{total} sets
-        </span>
-      </span>
-      <span className="flex h-9 items-center gap-1.5 rounded-full bg-ink px-3.5 text-[13px] font-semibold text-bg">
-        <Play size={12} fill="currentColor" /> Resume
-      </span>
-    </button>
+    <>
+      <div className="glass flex w-full items-center gap-1.5 rounded-full border border-line-strong py-2 pr-2 pl-4 shadow-(--shadow-pop)" data-resume>
+        <button onClick={() => navigate('/workout')} className="pressable flex min-w-0 flex-1 items-center gap-3 text-left">
+          <span className="relative flex h-2 w-2 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[13.5px] font-medium">{active.log.title}</span>
+            <span className="block truncate text-[11.5px] text-ink-3">
+              {active.phase === 'summary' ? 'Ready to save' : exerciseById[entry.exerciseId]?.name} · {done}/{total} sets
+            </span>
+          </span>
+          <span className="flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-ink px-3.5 text-[13px] font-semibold text-bg">
+            <Play size={12} fill="currentColor" /> Resume
+          </span>
+        </button>
+        <button onClick={() => setAsking(true)} aria-label="End this workout" title="End this workout" className="pressable flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-surface-2 hover:text-ink">
+          <X size={16} />
+        </button>
+      </div>
+
+      <Sheet open={asking} onClose={() => setAsking(false)} eyebrow={active.log.title} title={v('workout.quit.title')}>
+        <p className="display text-[19px] leading-snug text-ink-2">{v('workout.quit.line')}</p>
+        <p className="mt-3 text-[13.5px] leading-relaxed text-ink-2">
+          {done > 0
+            ? <><span className="num font-medium text-ink">{done} of {total}</span> sets done. Ending now saves none of them.</>
+            : 'Nothing has been logged in this session yet, so nothing is lost.'}
+        </p>
+        <div className="mt-6 flex flex-col gap-2.5">
+          <button className="btn btn-primary btn-lg" onClick={() => { setAsking(false); navigate('/workout') }}>{v('workout.quit.stay')}</button>
+          {done > 0 && active.phase !== 'summary' && (
+            <button className="btn btn-outline" onClick={() => { setAsking(false); toSummary(); navigate('/workout') }}>Finish here and save the {done} {done === 1 ? 'set' : 'sets'}</button>
+          )}
+          <button className="btn btn-quiet text-warn" onClick={() => { setAsking(false); discard() }}>{v('workout.quit.leave')}</button>
+        </div>
+      </Sheet>
+    </>
   )
 }
 

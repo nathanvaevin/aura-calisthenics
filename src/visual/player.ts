@@ -229,6 +229,8 @@ export class Player {
     v.azimuth -= dx * 0.4
     v.elevation = Math.max(-8, Math.min(70, v.elevation + dy * 0.3))
   }
+  /** Turns the camera round the subject by so many degrees, at the height it is at. */
+  turn(degrees: number) { this.stage.view.azimuth += degrees }
   zoom(factor: number) { this.stage.view.distance = Math.max(1.2, Math.min(14, this.stage.view.distance * factor)) }
 
   play() { this.playing = true }
