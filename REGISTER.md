@@ -386,7 +386,7 @@ Reference: [VISUALS.md](VISUALS.md) §11 to §13. Theme data: `src/theme/`. "Pro
 
 **2026-11-18 · The account step of the welcome, rewritten**
 
-- At the owner's request: the screen after *Get started* no longer speaks of laptops or of a coach. A first rewrite read as written by a machine and was rejected; it now says, in plain words, "Sign in to start", why (your results are saved), and what comes next (a few questions, two minutes, your first Aura score). Same sign-in button and terms line. Not published.
+- At the owner's request: the screen after *Get started* no longer speaks of laptops or of a coach. A first rewrite read as written by a machine and was rejected; it now says, in plain words, "Sign in to start", why (your results are saved), and what comes next (a few questions, two minutes, your first Aura score). Same sign-in button and terms line. **Published on the owner's word and read back from the public site.**
 
 **2026-11-18 · Every movement approved**
 
