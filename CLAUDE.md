@@ -44,7 +44,8 @@ Never present simulated or sample behaviour as real. If something cannot work wi
 - Official assessments are shown the standard way for everyone: Aura Dark, plain wording, the Aura master character under the Cosmic Aura (`standardLook`). Do not put `useVoice()` or the athlete's look into `src/features/assess/`.
 - A universe beyond the original, and anything new in one (a character, a form), reaches athletes only when the owner releases it in the Studio. Do not default a release to on.
 - Every build of a character stands on the same skeleton. Do not move a joint for one build.
-- Characters, costumes, artwork and form names are original. They may take a genre's manner; never an existing character's likeness, costume, logo, artwork or quotes. The two theme names "Goku" and "Baki" are the owner's own decision (2026-11-18, taken knowing they are other people's trademarks); they are a `name` in `src/theme/themes.ts` and nothing else may follow them towards the source.
+- Characters, costumes, artwork and form names are original. They may take a genre's manner; never an existing character's likeness, costume, logo, artwork or quotes. The theme names "Goku" and "Baki", Goku's five form names and its paper, vermilion and navy palette are the owner's own decisions (2026-11-18, taken knowing whose they are); they are data in `src/theme/themes.ts` and `src/visual/styles.ts`. Do not go further towards a source than the owner has asked: no likeness, symbol, logo or artwork, and no picture he supplies as reference goes into the app.
+- A light stage (`StageLook.paint`) paints its Aura instead of lighting it. Check a new Aura theme on the paper stage as well as a dark one.
 - An exercise's demonstration is shown through `DemoSlot`, wherever the exercise appears. Do not attach an animation to a screen.
 
 ## Standing rule: location and presence

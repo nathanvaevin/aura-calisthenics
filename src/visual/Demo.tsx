@@ -98,8 +98,8 @@ export default function Demo({ cast, ratio = 1, controls = 'simple', margin, ang
         onPointerUp={orbit ? () => { drag.current = null } : undefined}
         onWheel={orbit ? (e) => player.current?.zoom(e.deltaY > 0 ? 1.06 : 0.94) : undefined}
       />
-      {!ready && !failed && <div className="absolute inset-0 flex items-center justify-center font-mono text-[10.5px] tracking-[0.14em] text-white/40 uppercase">Loading</div>}
-      {failed && <div className="absolute inset-0 flex items-center justify-center px-8 text-center text-[13px] text-white/60">This device could not start the 3D view.</div>}
+      {!ready && !failed && <div className="absolute inset-0 flex items-center justify-center font-mono text-[10.5px] tracking-[0.14em] text-(--stage-ink) uppercase">Loading</div>}
+      {failed && <div className="absolute inset-0 flex items-center justify-center px-8 text-center text-[13px] text-(--stage-ink)">This device could not start the 3D view.</div>}
 
       {controls !== 'none' && ready && (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col gap-2 bg-gradient-to-t from-black/55 to-transparent p-3 pt-10">

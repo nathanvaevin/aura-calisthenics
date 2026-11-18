@@ -52,8 +52,8 @@ export const THEMES: Record<ThemeId, AppTheme> = {
   },
   power: {
     id: 'power', name: 'Goku', line: 'Unlock your next form.',
-    blurb: 'Speed, flame and transformation. Every level is a new form.',
-    scheme: 'dark', universe: 'power', voice: 'power', chrome: '#07061a',
+    blurb: 'Ink on paper under a red sun. Every level is a new form.',
+    scheme: 'light', universe: 'power', voice: 'power', chrome: '#e9e7e2',
     type: 'Barlow Condensed, italic', tone: 'Energetic, ambitious',
   },
   iron: {
@@ -140,16 +140,16 @@ export const UNIVERSES: Record<UniverseId, Universe> = {
     character: 'A hero drawn in ink and flat colour, with hair that takes the colour of the form.',
     build: 'power',
     list: [
-      { id: 'ignition', name: 'Ignition', line: 'The first flame. Everyone starts here.', aura: 'ignition', unlock: { kind: 'start' }, colour: '#ff9a2f' },
-      { id: 'awakened', name: 'Awakened', line: 'Jade fire. The work has started to show.', aura: 'awakened', unlock: { kind: 'skills', count: 3 }, colour: '#1fe0a0' },
-      { id: 'ascended', name: 'Ascended', line: 'Violet, with the first lightning.', aura: 'ascended', unlock: { kind: 'class', index: 1 }, colour: '#a45cff' },
-      { id: 'overdrive', name: 'Overdrive', line: 'Crimson and white lightning.', aura: 'overdrive', unlock: { kind: 'class', index: 3 }, colour: '#ff3355' },
-      { id: 'transcendent', name: 'Transcendent', line: 'Every colour at once, and quiet.', aura: 'transcendent', unlock: { kind: 'class', index: 5 }, colour: '#ffe9a8' },
+      { id: 'ignition', name: 'Saiyan', line: 'The first flame. Everyone starts here.', aura: 'ignition', unlock: { kind: 'start' }, colour: '#ff9a2f' },
+      { id: 'awakened', name: 'God', line: 'Jade fire. The work has started to show.', aura: 'awakened', unlock: { kind: 'skills', count: 3 }, colour: '#1fe0a0' },
+      { id: 'ascended', name: 'Destruction', line: 'Violet, with the first lightning.', aura: 'ascended', unlock: { kind: 'class', index: 1 }, colour: '#a45cff' },
+      { id: 'overdrive', name: 'Kaio-ken', line: 'Crimson and white lightning.', aura: 'overdrive', unlock: { kind: 'class', index: 3 }, colour: '#ff3355' },
+      { id: 'transcendent', name: 'Ultra Instinct', line: 'Every colour at once, and quiet.', aura: 'transcendent', unlock: { kind: 'class', index: 5 }, colour: '#ffe9a8' },
     ],
     finishes: [
-      { id: 'dawn', name: 'Dawn', skin: '#f0c9a4', hair: '#1d1b2a', accent: '#ffb21e' },
-      { id: 'dusk', name: 'Dusk', skin: '#c58f62', hair: '#15131f', accent: '#3fd0ff' },
-      { id: 'night', name: 'Night', skin: '#7d5236', hair: '#0f0e17', accent: '#ff4d8d' },
+      { id: 'dawn', name: 'Paper', skin: '#f1eee8', hair: '#121215', accent: '#25365f' },
+      { id: 'dusk', name: 'Clay', skin: '#dcae88', hair: '#121215', accent: '#25365f' },
+      { id: 'night', name: 'Earth', skin: '#8a5c3d', hair: '#0d0d10', accent: '#2c4173' },
     ],
   },
   iron: {

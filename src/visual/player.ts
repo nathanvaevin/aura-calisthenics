@@ -123,7 +123,9 @@ export class Player {
       }
       return p
     })
-    this.stage.setLook(STYLES[specs[0]?.style?.universe ?? 'aura'].stage)
+    const look = STYLES[specs[0]?.style?.universe ?? 'aura'].stage
+    this.stage.setLook(look)
+    for (const p of this.cast) p.field.setPaint(!!look.paint)
     this.sets = specs.some((s) => s.aura.mode === 'living')
     this.time = 0
     this.settle = -1

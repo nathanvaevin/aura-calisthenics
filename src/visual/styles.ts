@@ -19,7 +19,14 @@ export interface StageLook {
   room: number
   exposure: number
   /** The pool of light on the floor, and how dark the shadow in it is. */
-  floor: { colour: string; shadow: number }
+  floor: { colour: string; shadow: number; wash?: number }
+  /**
+   * A light stage, like paper. An Aura is drawn on it as paint (colour laid
+   * over the page) instead of as light, which a pale ground would swallow.
+   */
+  paint?: boolean
+  /** A flat disc standing behind the subject, like a sun in a print. Radius and height above the subject's middle, in metres. */
+  sun?: { colour: string; radius: number; lift: number }
 }
 
 export interface CharacterStyle {
@@ -59,16 +66,19 @@ export const STYLES: Record<UniverseId, CharacterStyle> = {
       floor: { colour: '#9ea8d9', shadow: 0.42 },
     },
   },
+  // Ink on paper: black line, grey wash, one red and one blue. The stage is a sheet with a red sun on it.
   power: {
-    universe: 'power', build: 'power', shading: 'cel', outline: 0.0042, outlineColour: '#0b0820',
-    cloth: '#1b1836', roughness: 1, metalness: 0, rim: 0.5, hairGlow: true, headroom: 0.33,
+    universe: 'power', build: 'power', shading: 'cel', outline: 0.0052, outlineColour: '#0d0d10',
+    cloth: '#e0492b', roughness: 1, metalness: 0, rim: 0.12, hairGlow: true, headroom: 0.33,
     stage: {
-      backdrop: '#060518',
-      key: { colour: '#fff6e8', power: 2.4, from: [1.9, 4.0, 3.0] },
-      rims: [{ colour: '#56c8ff', power: 1.6 }, { colour: '#ff6bd6', power: 1.3 }],
-      fill: { sky: '#cfd2ff', ground: '#1a1440', power: 0.5 },
+      backdrop: '#e9e7e2',
+      key: { colour: '#ffffff', power: 2.4, from: [1.9, 4.0, 3.0] },
+      rims: [{ colour: '#ffffff', power: 0.6 }, { colour: '#ffffff', power: 0.4 }],
+      fill: { sky: '#ffffff', ground: '#b9b5ad', power: 0.6 },
       room: 0, exposure: 1.0,
-      floor: { colour: '#7f7bff', shadow: 0.5 },
+      floor: { colour: '#17171b', shadow: 0.3, wash: 2.2 },
+      paint: true,
+      sun: { colour: '#e4502e', radius: 1.02, lift: 0.34 },
     },
   },
   iron: {

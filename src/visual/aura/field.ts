@@ -11,7 +11,7 @@
  * plank and someone hanging from a bar alike.
  */
 import {
-  AdditiveBlending, BufferAttribute, BufferGeometry, Color, DoubleSide, DynamicDrawUsage, Group, Mesh, PlaneGeometry, Points, ShaderMaterial,
+  AdditiveBlending, BackSide, NormalBlending, BufferAttribute, BufferGeometry, Color, DoubleSide, DynamicDrawUsage, Group, Mesh, PlaneGeometry, Points, ShaderMaterial,
   SkinnedMesh, Vector3, type PerspectiveCamera,
 } from 'three'
 import type { Actor } from '../character'
@@ -19,7 +19,7 @@ import type { AuraTheme, ComponentId, ThemeTuning } from './themes'
 
 const GLSL = /* glsl */ `
 uniform vec3 uPal[6];
-uniform float uPalN, uTime, uIntensity, uPulse, uBurst, uSurge, uBase, uFloor;
+uniform float uPalN, uTime, uIntensity, uPulse, uBurst, uSurge, uBase, uFloor, uPaint;
 uniform vec3 uSize;
 vec3 pal(float x) {
   float f = fract(x) * uPalN;
@@ -41,8 +41,20 @@ type U = Record<string, { value: unknown }>
 function shader(shared: U, own: Record<string, unknown>, vertex: string, fragment: string, opts: Partial<ShaderMaterial> = {}) {
   const uniforms: U = { ...shared }
   for (const [k, v] of Object.entries(own)) uniforms[k] = { value: v }
+  // Every component ends in the same step: on a paper stage its light is turned into paint.
+  const painted = `${fragment.replace('void main()', 'void lit()')}
+    void main() {
+      lit();
+      if (uPaint > 0.5) {
+        vec3 c = gl_FragColor.rgb;
+        float pale = min(c.r, min(c.g, c.b));
+        // What was a white-hot core has no white to be on paper: it takes the colour, deepened.
+        c = mix(c, c * c * 0.9, 0.55) * (1.0 - 0.35 * pale);
+        gl_FragColor = vec4(c, min(1.0, gl_FragColor.a * 1.1));
+      }
+    }`
   return new ShaderMaterial({
-    uniforms, vertexShader: `${GLSL}\n${vertex}`, fragmentShader: `${GLSL}\n${fragment}`,
+    uniforms, vertexShader: `${GLSL}\n${vertex}`, fragmentShader: `${GLSL}\n${painted}`,
     transparent: true, depthWrite: false, blending: AdditiveBlending, side: DoubleSide, ...opts,
   })
 }
@@ -82,7 +94,7 @@ export class AuraField {
     const S = this.shared = {
       uPal: { value: Array.from({ length: 6 }, () => new Color(1, 1, 1)) }, uPalN: { value: 4 },
       uTime: { value: 0 }, uIntensity: { value: 0 }, uPulse: { value: 0 }, uBurst: { value: 99 }, uSurge: { value: 0 },
-      uBase: { value: 0 }, uFloor: { value: 0.004 }, uSize: { value: this.size },
+      uBase: { value: 0 }, uFloor: { value: 0.004 }, uSize: { value: this.size }, uPaint: { value: 0 },
     }
     const part = (id: ComponentId, ...objects: (Mesh | Points)[]) => {
       const gain = { value: 0 }
@@ -390,6 +402,14 @@ export class AuraField {
       this.world.add(arcs)
       this.arcs = { geometry: g, position, side }
     }
+  }
+
+  /** On a paper stage the Aura is laid on as paint; on a dark one it is light. */
+  setPaint(on: boolean) {
+    this.shared.uPaint.value = on ? 1 : 0
+    for (const part of Object.values(this.parts)) for (const o of part.objects) (o.material as ShaderMaterial).blending = on ? NormalBlending : AdditiveBlending
+    // Paint would coat the body where light only brightened it: keep the outline to what stands outside the figure.
+    for (const s of this.shells) { const m = s.material as ShaderMaterial; m.side = on ? BackSide : DoubleSide; m.needsUpdate = true }
   }
 
   setTheme(theme: AuraTheme, tuning: ThemeTuning = {}) {

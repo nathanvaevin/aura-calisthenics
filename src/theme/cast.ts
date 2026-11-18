@@ -10,7 +10,7 @@ import type { Wearing } from './personal'
 import { UNIVERSES, type UniverseId } from './themes'
 
 /** The colour working muscles light up in. */
-export const MUSCLE_GLOW: Record<UniverseId, string> = { aura: '#ff2f8f', power: '#ff7a1f', iron: '#e3261c' }
+export const MUSCLE_GLOW: Record<UniverseId, string> = { aura: '#ff2f8f', power: '#e0245e', iron: '#e3261c' }
 
 export type Look = Pick<Wearing, 'universe' | 'character' | 'form' | 'finish' | 'intensity'>
 

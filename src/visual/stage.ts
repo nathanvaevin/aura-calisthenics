@@ -35,6 +35,8 @@ export class Stage {
   private readonly fill: HemisphereLight
   private readonly shadow: ShadowMaterial
   private readonly sheen: ShaderMaterial
+  private readonly sun: Mesh<CircleGeometry, ShaderMaterial>
+  private readonly back = new Vector3()
   private look: StageLook = STYLES.aura.stage
 
   constructor(canvas: HTMLCanvasElement, opts: { shadows?: boolean } = {}) {
@@ -81,9 +83,9 @@ export class Stage {
     shadow.receiveShadow = true
     this.sheen = new ShaderMaterial({
       transparent: true, depthWrite: false,
-      uniforms: { uColour: { value: new Color(0x9ea8d9) } },
+      uniforms: { uColour: { value: new Color(0x9ea8d9) }, uWash: { value: 1 } },
       vertexShader: 'varying vec2 vP; void main(){ vP = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-      fragmentShader: 'uniform vec3 uColour; varying vec2 vP; void main(){ float r = length(vP); gl_FragColor = vec4(uColour, 0.085 * exp(-r * r * 0.42)); }',
+      fragmentShader: 'uniform vec3 uColour; uniform float uWash; varying vec2 vP; void main(){ float r = length(vP); gl_FragColor = vec4(uColour, 0.085 * uWash * exp(-r * r * 0.42)); }',
     })
     const sheen = new Mesh(new CircleGeometry(7, 48), this.sheen)
     sheen.rotation.x = -Math.PI / 2
@@ -91,6 +93,32 @@ export class Stage {
     sheen.renderOrder = -2
     shadow.renderOrder = -1
     scene.add(sheen, shadow)
+
+    // A sun as a print has one: a flat disc behind the subject, its edge broken like dry brush.
+    this.sun = new Mesh(new CircleGeometry(1, 72), new ShaderMaterial({
+      transparent: true, depthWrite: false,
+      uniforms: { uColour: { value: new Color(0xe4502e) } },
+      vertexShader: 'varying vec2 vP; void main(){ vP = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: `
+        uniform vec3 uColour; varying vec2 vP;
+        float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float noise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y); }
+        void main(){
+          float r = length(vP);
+          vec2 q = mat2(0.8, -0.6, 0.6, 0.8) * vP;
+          float cloud = noise(q * 2.3) * 0.55 + noise(q * 5.1 + 3.7) * 0.3 + noise(q * 11.0 + 9.1) * 0.15;
+          float streak = noise(vec2(vP.x * 2.4 + 4.0, vP.y * 38.0));
+          // Solid to the edge above; washed away by a wet brush towards the bottom.
+          float edge = 1.0 - smoothstep(0.962, 0.978, r + (cloud - 0.5) * 0.035);
+          float worn = smoothstep(-1.0, 0.05, vP.y + (cloud - 0.5) * 0.9);
+          float a = edge * worn * (0.94 + 0.06 * streak);
+          gl_FragColor = vec4(uColour, a);
+          #include <colorspace_fragment>
+        }`,
+    }))
+    this.sun.renderOrder = -3
+    this.sun.visible = false
+    scene.add(this.sun)
   }
 
   add(...objects: Parameters<Scene['add']>) { this.scene.add(...objects) }
@@ -109,6 +137,9 @@ export class Stage {
     this.renderer.toneMappingExposure = look.exposure
     this.shadow.opacity = look.floor.shadow
     ;(this.sheen.uniforms.uColour.value as Color).set(look.floor.colour)
+    this.sheen.uniforms.uWash.value = look.floor.wash ?? 1
+    this.sun.visible = !!look.sun
+    if (look.sun) { (this.sun.material.uniforms.uColour.value as Color).set(look.sun.colour); this.sun.scale.setScalar(look.sun.radius) }
   }
 
   resize(width: number, height: number) {
@@ -132,6 +163,12 @@ export class Stage {
     this.key.target.position.set(target.x, 0, target.z)
     const [kx, ky, kz] = this.look.key.from
     this.key.position.set(target.x + kx, ky, target.z + kz)
+    if (this.look.sun) {
+      // Always behind the subject as the camera goes round it, and facing the camera.
+      this.back.set(-Math.sin(a), 0, -Math.cos(a))
+      this.sun.position.set(target.x + this.back.x * 2.6, target.y + this.look.sun.lift, target.z + this.back.z * 2.6)
+      this.sun.lookAt(this.camera.position.x, this.sun.position.y, this.camera.position.z)
+    }
     this.renderer.render(this.scene, this.camera)
   }
 
