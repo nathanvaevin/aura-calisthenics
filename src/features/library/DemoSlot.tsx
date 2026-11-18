@@ -1,4 +1,5 @@
-import { lazy, Suspense, useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useState, type Ref } from 'react'
+import type { DemoHandle } from '@/visual/Demo'
 import { Play } from 'lucide-react'
 import { publishedFor } from '@/domain/media'
 import { useStore } from '@/data/store'
@@ -46,5 +47,22 @@ export function DemoSlot({ exerciseId, official, open: startsOpen, className }: 
         <ExerciseDemos animations={publishedFor(demos, exerciseId).animations} official={official} />
       </Suspense>
     </div>
+  )
+}
+
+/**
+ * The same approved demonstration, as a stage that fills the screen it is
+ * on: the screen's controls lie over it and say how much they cover, and the
+ * character is kept in what is left. Renders nothing when there is no
+ * approved animation; ask `useHasDemo` first and keep the screen as it was.
+ */
+export function DemoStage({ exerciseId, official, cover, handle }: { exerciseId: string; official?: boolean; cover: { top: number; bottom: number }; handle?: Ref<DemoHandle> }) {
+  const demos = useStore((s) => s.demos)
+  const has = useHasDemo(exerciseId)
+  if (!has) return null
+  return (
+    <Suspense fallback={null}>
+      <ExerciseDemos animations={publishedFor(demos, exerciseId).animations} official={official} stage={cover} handle={handle} />
+    </Suspense>
   )
 }

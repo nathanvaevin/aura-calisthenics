@@ -38,6 +38,10 @@ export class Stage {
   private readonly sun: Mesh<CircleGeometry, ShaderMaterial>
   private readonly back = new Vector3()
   private look: StageLook = STYLES.aura.stage
+  private readonly size = { width: 1, height: 1 }
+  /** How much of the canvas is covered from the top and from the bottom, in the units given to `resize`: now, and where it is heading. */
+  private readonly cover = { top: 0, bottom: 0 }
+  private readonly coverTo = { top: 0, bottom: 0 }
 
   constructor(canvas: HTMLCanvasElement, opts: { shadows?: boolean } = {}) {
     const renderer = new WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' })
@@ -175,7 +179,42 @@ export class Stage {
 
   resize(width: number, height: number) {
     this.renderer.setSize(width, height, false)
-    this.camera.aspect = width / Math.max(1, height)
+    this.size.width = width
+    this.size.height = Math.max(1, height)
+    this.project()
+  }
+
+  /**
+   * Parts of the canvas that something else lies over (a screen's controls,
+   * drawn on top of a stage that fills it). The subject is framed in the band
+   * between them, and the rest of the canvas shows the room round it. Moves
+   * there smoothly unless `now`.
+   */
+  setCover(top: number, bottom: number, now = false) {
+    this.coverTo.top = Math.max(0, top)
+    this.coverTo.bottom = Math.max(0, bottom)
+    if (now) { this.cover.top = this.coverTo.top; this.cover.bottom = this.coverTo.bottom; this.project() }
+  }
+
+  /** Moves the covered parts towards where they are heading. True while they are still moving: the subject then needs fitting again. */
+  settleCover(dt: number): boolean {
+    const dTop = this.coverTo.top - this.cover.top, dBottom = this.coverTo.bottom - this.cover.bottom
+    if (dTop === 0 && dBottom === 0) return false
+    const k = dt > 0 ? 1 - Math.exp(-dt * 9) : 1
+    const near = Math.abs(dTop) < 0.5 && Math.abs(dBottom) < 0.5
+    this.cover.top = near ? this.coverTo.top : this.cover.top + dTop * k
+    this.cover.bottom = near ? this.coverTo.bottom : this.cover.bottom + dBottom * k
+    this.project()
+    return true
+  }
+
+  /** The camera sees the band as its whole picture, and the canvas as a taller window round it. */
+  private project() {
+    const { width, height } = this.size
+    const band = Math.max(height * 0.22, height - this.cover.top - this.cover.bottom)
+    this.camera.aspect = width / band
+    if (this.cover.top > 0 || this.cover.bottom > 0) this.camera.setViewOffset(width, band, 0, -Math.min(this.cover.top, height - band), width, height)
+    else this.camera.clearViewOffset()
     this.camera.updateProjectionMatrix()
   }
 

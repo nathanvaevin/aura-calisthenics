@@ -7,13 +7,27 @@ import type { PerformerSpec } from '@/visual/player'
 import type { AuraMode } from '@/visual/aura/director'
 import type { ThemeTuning } from '@/visual/aura/themes'
 import type { Wearing } from './personal'
-import { THEMES, UNIVERSES, type ThemeId, type UniverseId } from './themes'
+import { styleOf } from '@/visual/styles'
+import { THEMES, THEME_IDS, UNIVERSES, type ThemeId, type UniverseId } from './themes'
 
 /** The colour working muscles light up in. */
 export const MUSCLE_GLOW: Record<UniverseId, string> = { aura: '#ff2f8f', power: '#e0245e', iron: '#e3261c' }
 
 /** `theme` says which rendition of the universe is shown, where a universe has two (Goku and Goku Light). */
 export type Look = Pick<Wearing, 'universe' | 'character' | 'form' | 'finish' | 'intensity'> & { theme?: ThemeId }
+
+/**
+ * The theme whose colours suit a screen laid over the stage of this theme's
+ * character. Its own, almost always. Aura Light is a light page round a dark
+ * stage (an Aura is light and needs the dark): written over that stage, the
+ * screen takes the dark theme of the same universe.
+ */
+export function stageTheme(theme: ThemeId): ThemeId {
+  const t = THEMES[theme]
+  const paper = !!styleOf({ universe: t.universe, variant: t.variant }).stage.paint
+  if ((t.scheme === 'light') === paper) return theme
+  return THEME_IDS.find((id) => THEMES[id].universe === t.universe && (THEMES[id].scheme === 'light') === paper) ?? theme
+}
 
 /** The official presentation: the Aura master character under the Cosmic Aura. Used for every assessment. */
 export const standardLook = (character: Wearing['character']): Look => ({

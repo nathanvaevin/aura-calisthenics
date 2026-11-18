@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { DemoSlot } from '@/features/library/DemoSlot'
+import { DemoSlot, useHasDemo } from '@/features/library/DemoSlot'
+import { StageScreen } from '@/features/library/StageScreen'
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router'
 import { ArrowLeft, ArrowRight, Check, Hand, Minus, Pause, Play, Plus, X } from 'lucide-react'
 import type { DisciplineId } from '@/domain/types'
@@ -374,6 +375,89 @@ function TestCard({
   const bump = (d: number) => setValue((v) => Math.max(0, Math.min(limit, v + d)))
   const reading = test.kind === 'max' && shown > 0 ? resultReading(test, shown) : null
 
+  // Where the official demonstration exists, it is the screen: the test is written over it.
+  const staged = useHasDemo(ex.id) && test.kind !== 'choice'
+  const [watching, setWatching] = useState(false)
+  const start = () => { setValue(0); setStarted(Date.now()); setWatching(true) }
+  const stop = () => { setValue(Math.min(limit, Math.max(1, elapsed))); setStarted(null); setWatching(false) }
+  const primary = started ? (
+    <button className="btn btn-accent btn-lg w-full" onClick={stop}><Pause size={16} fill="currentColor" /> Stop at {elapsed}s</button>
+  ) : (
+    <div className="flex gap-2.5">
+      {hold && <button className={cx('btn btn-lg', value ? 'btn-outline flex-1' : 'btn-primary flex-[1.4]')} onClick={start}><Play size={15} fill="currentColor" /> {value ? 'Again' : 'Start timer'}</button>}
+      <button className={cx('btn btn-lg', hold && !value ? 'btn-outline flex-1' : 'btn-primary flex-[1.4]')} onClick={() => onRecord(value)}>
+        <Check size={17} strokeWidth={2.6} /> {value === 0 ? 'Not yet' : `Record ${value}${hold ? 's' : ''}`}
+      </button>
+    </div>
+  )
+  const readingLine = reading ? <>Reads <span className="num font-medium" style={{ color }}>{reading.points}</span> · {reading.band} range</> : null
+
+  if (staged) {
+    const benchmark = `Benchmark ${index + 1}${index + 1 < total ? ` of ${total}` : ''}`
+    return (
+      <StageScreen
+        exerciseId={ex.id} official focus={watching} onFocus={setWatching}
+        top={
+          <div className="rise px-5 pt-5 pb-1">
+            <Eyebrow>{benchmark}{index + 1 >= total && index === 0 ? ' · the next depends on this one' : ''}</Eyebrow>
+            <h1 className="display mt-1.5 text-[30px] leading-[1.04]">{ex.name}</h1>
+            <p className="mt-2 text-[14.5px] leading-snug">{test.prompt}</p>
+            {ex.standard && <p className="mt-2 border-l-2 pl-3 text-[12.5px] leading-snug text-ink-2" style={{ borderColor: color }}>Counts when: {ex.standard}</p>}
+            {ex.safety && <p className="mt-1.5 text-[12px] leading-snug text-warn">{ex.safety}</p>}
+          </div>
+        }
+        bottom={
+          <div className="safe-bottom px-5 pt-1 pb-4">
+            <div className="flex flex-col items-center">
+              <div className="flex items-baseline justify-center">
+                <input
+                  aria-label={hold ? 'Seconds' : 'Repetitions'} type="number" inputMode="numeric" min={0} max={limit} disabled={!!started}
+                  value={shown === 0 && !started ? '' : shown} placeholder="0"
+                  onChange={(e) => setValue(Math.max(0, Math.min(limit, Math.round(Number(e.target.value) || 0))))}
+                  style={{ width: `${String(shown || 0).length * 0.5 + 0.25}em` }}
+                  className="display num bg-transparent text-center text-[72px] leading-none outline-none placeholder:text-ink-3 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                />
+                {hold && <span className="text-[17px] text-ink-3">s</span>}
+              </div>
+              {harder && beyondTarget(test, shown) && <div className="mt-1 text-center text-[12.5px] font-medium" style={{ color }}>Past the suggested range. You may be ready for {exerciseById[harder.exerciseId].name}.</div>}
+              <div className="mt-1 min-h-5 text-center text-[12.5px] text-ink-2">
+                {readingLine ?? <span className="text-ink-3">{test.target ? `Suggested: ${targetLabel(test)}. ` : ''}{hold ? 'Time it, or type the seconds' : 'Type it, or count up below'}</span>}
+              </div>
+              <div className="mt-2.5 flex gap-2">
+                <button className="btn btn-quiet btn-sm !px-3" onClick={() => bump(hold ? -5 : -1)} aria-label="Less"><Minus size={14} />{hold ? 5 : 1}</button>
+                <button className="btn btn-quiet btn-sm !px-3" onClick={() => bump(1)} aria-label="Plus one"><Plus size={14} />1</button>
+                <button className="btn btn-quiet btn-sm !px-3" onClick={() => bump(5)} aria-label="Plus five"><Plus size={14} />5</button>
+                <button className="btn btn-quiet btn-sm !px-3" onClick={() => bump(10)} aria-label="Plus ten"><Plus size={14} />10</button>
+              </div>
+            </div>
+            <div className="mt-4">{primary}</div>
+            <div className="mt-3 flex items-center justify-between text-[12.5px] text-ink-2">
+              <button className="flex h-8 items-center hover:text-ink" onClick={onSkip}>Can’t test this today</button>
+              {footer}
+            </div>
+          </div>
+        }
+        miniTop={
+          <div className="px-5 pt-5">
+            <Eyebrow>{benchmark}</Eyebrow>
+            <div className="display mt-1 text-[24px] leading-tight">{ex.name}</div>
+          </div>
+        }
+        miniBottom={
+          <div className="safe-bottom px-5 pb-4">
+            {(started || value > 0) && (
+              <div className="mb-3 text-center" aria-live="off">
+                <span className="display num text-[84px] leading-none">{shown}</span>{hold && <span className="ml-1 text-[18px] text-ink-3">s</span>}
+                {readingLine && <div className="mt-1 text-[12.5px] text-ink-2">{readingLine}</div>}
+              </div>
+            )}
+            {primary}
+          </div>
+        }
+      />
+    )
+  }
+
   return (
     <>
       <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-3">
@@ -428,16 +512,7 @@ function TestCard({
       <footer className="safe-bottom relative z-10 shrink-0 px-5 pt-2 pb-4">
         {test.kind === 'choice' ? (
           <button className="btn btn-primary btn-lg w-full" disabled={choice === null} onClick={() => choice !== null && onRecord(choice)}><Check size={17} strokeWidth={2.6} /> Record</button>
-        ) : started ? (
-          <button className="btn btn-accent btn-lg w-full" onClick={() => { setValue(Math.min(limit, Math.max(1, elapsed))); setStarted(null) }}><Pause size={16} fill="currentColor" /> Stop at {elapsed}s</button>
-        ) : (
-          <div className="flex gap-2.5">
-            {hold && <button className={cx('btn btn-lg', value ? 'btn-outline flex-1' : 'btn-primary flex-[1.4]')} onClick={() => { setValue(0); setStarted(Date.now()) }}><Play size={15} fill="currentColor" /> {value ? 'Again' : 'Start timer'}</button>}
-            <button className={cx('btn btn-lg', hold && !value ? 'btn-outline flex-1' : 'btn-primary flex-[1.4]')} onClick={() => onRecord(value)}>
-              <Check size={17} strokeWidth={2.6} /> {value === 0 ? 'Not yet' : `Record ${value}${hold ? 's' : ''}`}
-            </button>
-          </div>
-        )}
+        ) : primary}
         <div className="mt-3 flex items-center justify-between text-[12.5px] text-ink-2">
           <button className="flex h-8 items-center hover:text-ink" onClick={onSkip}>Can’t test this today</button>
           {footer}

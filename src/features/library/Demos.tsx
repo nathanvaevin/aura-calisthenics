@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useState, type Ref } from 'react'
 import type { CharacterId, DemoAsset } from '@/domain/media'
 import { useStore } from '@/data/store'
 import { performerOf, standardLook } from '@/theme/cast'
 import { personalOf } from '@/theme/personal'
 import { useWearing } from '@/theme/useTheme'
 import { Segmented, Toggle } from '@/ui/primitives'
-import Demo from '@/visual/Demo'
+import Demo, { type DemoHandle } from '@/visual/Demo'
 import { MOTIONS } from '@/visual/motions'
 import { STAGE_RATIO } from '@/visual/motions/types'
 
@@ -20,7 +20,13 @@ import { STAGE_RATIO } from '@/visual/motions/types'
  * A published version is shown only while the movement is the one that was
  * approved. If the movement has been changed since, it waits for review again.
  */
-export default function ExerciseDemos({ animations, official }: { animations: Partial<Record<CharacterId, DemoAsset>>; official?: boolean }) {
+export default function ExerciseDemos({ animations, official, stage, handle }: {
+  animations: Partial<Record<CharacterId, DemoAsset>>
+  official?: boolean
+  /** Fill the screen behind its controls, which cover this much of it from the top and the bottom. No controls of its own. */
+  stage?: { top: number; bottom: number }
+  handle?: Ref<DemoHandle>
+}) {
   const worn = useWearing()
   const prefersMuscles = useStore((s) => personalOf(s.meId ? s.athletes[s.meId] : null).muscles)
   const current = (['male', 'female'] as const).filter((c) => {
@@ -34,6 +40,16 @@ export default function ExerciseDemos({ animations, official }: { animations: Pa
   const recipe = asset.animation
   const motion = MOTIONS[recipe.motion]
   const look = official ? standardLook(recipe.character) : { ...worn, character: recipe.character }
+
+  if (stage) {
+    return (
+      <Demo
+        fill safe={stage} controls="none" margin={1.08} handle={handle}
+        cast={[performerOf(look, { motion: recipe.motion, revision: recipe.revision, muscles: muscles ? 'exercise' : null, aura: 'off' })]}
+        angle={recipe.camera !== motion.camera ? recipe.camera : undefined} label={`${official ? 'Official demonstration' : 'Demonstration'} of the movement`}
+      />
+    )
+  }
 
   return (
     <div className="rise">

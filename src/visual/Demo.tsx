@@ -4,22 +4,20 @@ import { cx } from '@/lib/format'
 import { Player, type PerformerSpec, type PlayerState } from './player'
 import type { CameraAngle } from './stage'
 
-export interface DemoHandle { release: () => void; restart: () => void }
-
-const ANGLES: { value: CameraAngle; label: string }[] = [
-  { value: 'front', label: 'Front' }, { value: 'three-quarter', label: '¾' }, { value: 'side', label: 'Side' }, { value: 'back', label: 'Back' },
-]
+export interface DemoHandle { release: () => void; restart: () => void; /** Turns the camera round the subject by so many degrees. */ turn: (degrees: number) => void }
 
 /**
- * A stage with characters on it. `simple` is what an athlete gets (play,
- * pause, camera angle); `spin` is for looking at a character rather than a
- * movement (one button that turns it all the way round, and it follows a
- * finger dragged across it); `review` adds what an administrator needs to inspect
- * a movement (scrub, slow motion, drag to look round, the release on demand).
+ * A stage with characters on it. Looking round the subject is always the
+ * same two things: one 360° button that turns it all the way round, and a
+ * finger dragged across it. `spin` is only that, for looking at a character
+ * rather than a movement; `simple` adds play and pause, which is what an
+ * athlete gets with an exercise; `review` adds what an administrator needs
+ * to inspect a movement (scrub, slow motion, looking from above, the Aura on
+ * demand).
  *
  * This file brings in the 3D engine: load it lazily.
  */
-export default function Demo({ cast, ratio = 1, controls = 'simple', margin, angle: opening, className, handle, label }: {
+export default function Demo({ cast, ratio = 1, controls = 'simple', margin, angle: opening, className, handle, label, fill, safe }: {
   cast: PerformerSpec[]
   /** Width over height of the stage. */
   ratio?: number
@@ -31,6 +29,10 @@ export default function Demo({ cast, ratio = 1, controls = 'simple', margin, ang
   className?: string
   handle?: Ref<DemoHandle>
   label?: string
+  /** Fills its parent instead of having a shape of its own: a stage behind a whole screen. */
+  fill?: boolean
+  /** With `fill`: how much of it the screen's controls cover from the top and the bottom, in pixels. The subject is kept between them. */
+  safe?: { top: number; bottom: number }
 }) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const box = useRef<HTMLDivElement>(null)
@@ -39,11 +41,18 @@ export default function Demo({ cast, ratio = 1, controls = 'simple', margin, ang
   const [failed, setFailed] = useState(false)
   const [state, setState] = useState<PlayerState | null>(null)
   const [playing, setPlaying] = useState(true)
-  const [angle, setAngle] = useState<CameraAngle | null>(null)
   const [slow, setSlow] = useState(false)
   const key = JSON.stringify(cast)
+  const safeRef = useRef(safe)
+  safeRef.current = safe
+  const shown = useRef(false)
+  shown.current = ready
+  // What covers the stage changes as a screen's controls come and go: the subject glides to its new place, except before it has been seen at all.
+  useEffect(() => {
+    if (safe) player.current?.setSafeArea(safe.top, safe.bottom, !shown.current)
+  }, [safe?.top, safe?.bottom]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useImperativeHandle(handle, () => ({ release: () => player.current?.release(), restart: () => { player.current?.restart(); setPlaying(true) } }), [])
+  useImperativeHandle(handle, () => ({ release: () => player.current?.release(), restart: () => { player.current?.restart(); setPlaying(true) }, turn: (degrees) => player.current?.turn(degrees) }), [])
 
   useEffect(() => {
     const el = box.current
@@ -53,6 +62,7 @@ export default function Demo({ cast, ratio = 1, controls = 'simple', margin, ang
     try { p = new Player(cv) } catch { setFailed(true); return }
     player.current = p
     if (margin) p.margin = margin
+    if (safeRef.current) p.setSafeArea(safeRef.current.top, safeRef.current.bottom, true)
     p.onState = setState
     const size = () => p.resize(el.clientWidth, el.clientHeight)
     size()
@@ -82,15 +92,14 @@ export default function Demo({ cast, ratio = 1, controls = 'simple', margin, ang
       setReady(false)
       p.setCast(specs).then(() => { if (player.current !== p) return; if (opening) p.reframe(opening); setReady(true) }, () => setFailed(true))
     } else {
-      setAngle(null)
       p.update(specs)
     }
   }, [key, margin, opening])
 
   const drag = useRef<{ x: number; y: number } | null>(null)
-  /** Dragging looks round the subject: freely in a review, sideways only where the point is to turn a character. */
-  const orbit = controls === 'review' || controls === 'spin'
-  const level = controls === 'spin'
+  /** Dragging looks round the subject: sideways for an athlete, from above as well in a review. */
+  const orbit = controls !== 'none'
+  const level = controls !== 'review'
 
   // One full turn, eased in and out. Pressing again, or taking hold of the character, stops it where it is.
   const [turning, setTurning] = useState(false)
@@ -114,9 +123,18 @@ export default function Demo({ cast, ratio = 1, controls = 'simple', margin, ang
     spin.current = requestAnimationFrame(step)
   }
   useEffect(() => () => cancelAnimationFrame(spin.current), [])
+  const spinButton = (look: string) => (
+    <button
+      aria-label={turning ? 'Stop turning' : 'Turn the character all the way round'} aria-pressed={turning} title="Turn all the way round. You can also drag the character."
+      onClick={turnRound}
+      className={cx('pointer-events-auto flex items-center gap-1.5 rounded-full px-3.5 font-mono text-[11px] tracking-[0.06em] backdrop-blur-md transition-colors', turning ? 'bg-white text-black' : cx('text-white', look))}
+    >
+      <Rotate3d size={17} className={cx(turning && 'animate-spin [animation-duration:3.4s]')} />360°
+    </button>
+  )
 
   return (
-    <div ref={box} className={cx('relative w-full overflow-hidden rounded-card border border-line bg-(--stage)', className)} style={{ aspectRatio: String(ratio) }}>
+    <div ref={box} className={cx(fill ? 'absolute inset-0 overflow-hidden bg-(--stage)' : 'relative w-full overflow-hidden rounded-card border border-line bg-(--stage)', className)} style={fill ? undefined : { aspectRatio: String(ratio) }}>
       <canvas
         ref={canvas} role="img" aria-label={label ?? 'Animated demonstration'}
         className={cx('block h-full w-full transition-opacity duration-500', ready ? 'opacity-100' : 'opacity-0', orbit && 'cursor-grab active:cursor-grabbing', orbit && (level ? 'touch-pan-y' : 'touch-none'))}
@@ -129,15 +147,7 @@ export default function Demo({ cast, ratio = 1, controls = 'simple', margin, ang
       {!ready && !failed && <div className="absolute inset-0 flex items-center justify-center font-mono text-[10.5px] tracking-[0.14em] text-(--stage-ink) uppercase">Loading</div>}
       {failed && <div className="absolute inset-0 flex items-center justify-center px-8 text-center text-[13px] text-(--stage-ink)">This device could not start the 3D view.</div>}
 
-      {controls === 'spin' && ready && (
-        <button
-          aria-label={turning ? 'Stop turning' : 'Turn the character all the way round'} aria-pressed={turning} title="Turn all the way round. You can also drag the character."
-          onClick={turnRound}
-          className={cx('absolute right-3 bottom-3 flex h-11 items-center gap-1.5 rounded-full px-3.5 font-mono text-[11px] tracking-[0.06em] backdrop-blur-md transition-colors', turning ? 'bg-white text-black' : 'bg-black/45 text-white hover:bg-black/60')}
-        >
-          <Rotate3d size={17} className={cx(turning && 'animate-spin [animation-duration:3.4s]')} />360°
-        </button>
-      )}
+      {controls === 'spin' && ready && <div className="absolute right-3 bottom-3">{spinButton('h-11 bg-black/45 hover:bg-black/60')}</div>}
       {controls !== 'none' && controls !== 'spin' && ready && (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col gap-2 bg-gradient-to-t from-black/55 to-transparent p-3 pt-10">
           {controls === 'review' && state && (
@@ -162,11 +172,7 @@ export default function Demo({ cast, ratio = 1, controls = 'simple', margin, ang
                 {cast.some((c) => c.aura.mode !== 'off') && <button onClick={() => player.current?.release()} className="pointer-events-auto flex h-9 items-center gap-1.5 rounded-full bg-white/14 px-3 font-mono text-[11px] text-white backdrop-blur-md hover:bg-white/22"><Sparkles size={12} />Aura burst</button>}
               </>
             )}
-            <div className="pointer-events-auto ml-auto flex rounded-full bg-white/14 p-0.5 backdrop-blur-md">
-              {ANGLES.map((a) => (
-                <button key={a.value} onClick={() => { setAngle(a.value); player.current?.reframe(a.value) }} className={cx('h-8 rounded-full px-2.5 text-[11.5px] font-medium', angle === a.value ? 'bg-white text-black' : 'text-white/80 hover:text-white')}>{a.label}</button>
-              ))}
-            </div>
+            <div className="ml-auto">{spinButton('h-9 bg-white/14 hover:bg-white/22')}</div>
           </div>
           {controls === 'review' && state && (
             <div className="num flex justify-between font-mono text-[10px] tracking-[0.08em] text-white/50 uppercase">

@@ -229,6 +229,11 @@ export class Player {
     v.azimuth -= dx * 0.4
     v.elevation = Math.max(-8, Math.min(70, v.elevation + dy * 0.3))
   }
+  /** Parts of the canvas covered by a screen's own controls: the subject is kept in the band between them (see Stage.setCover). */
+  setSafeArea(top: number, bottom: number, now = false) {
+    this.stage.setCover(top, bottom, now)
+    if (now) this.stage.view.distance = this.stage.fit(this.room.height, this.room.width, this.margin)
+  }
   /** Turns the camera round the subject by so many degrees, at the height it is at. */
   turn(degrees: number) { this.stage.view.azimuth += degrees }
   zoom(factor: number) { this.stage.view.distance = Math.max(1.2, Math.min(14, this.stage.view.distance * factor)) }
@@ -317,6 +322,7 @@ export class Player {
     }
     // Paused: the body is still, the light is not.
     this.pose(this.playing ? step : dt * 0.35)
+    if (this.stage.settleCover(dt)) this.stage.view.distance = this.stage.fit(this.room.height, this.room.width, this.margin)
     this.stage.render()
     this.frames++
     this.fpsClock += dt

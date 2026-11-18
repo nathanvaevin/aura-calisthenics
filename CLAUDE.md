@@ -47,7 +47,8 @@ Never present simulated or sample behaviour as real. If something cannot work wi
 - Characters, costumes, artwork and form names are original. They may take a genre's manner; never an existing character's likeness, costume, logo, artwork or quotes. The theme names "Goku" and "Baki", Goku's five form names and its paper, vermilion and navy palette are the owner's own decisions (2026-11-18, taken knowing whose they are); they are data in `src/theme/themes.ts` and `src/visual/styles.ts`. Do not go further towards a source than the owner has asked: no likeness, symbol, logo or artwork, and no picture he supplies as reference goes into the app.
 - A light stage (`StageLook.paint`) paints its Aura instead of lighting it. Check a new Aura theme on the paper stage as well as a dark one.
 - Two themes may share a universe (Goku and Goku Light): same character file, forms, finishes and release switch; what differs is a `variant` in `src/visual/styles.ts`, read through `styleOf()`, and a poster named by `posterOf()`. A new theme id needs no database step since 0013.
-- An exercise's demonstration is shown through `DemoSlot`, wherever the exercise appears. Do not attach an animation to a screen.
+- An exercise's demonstration is shown through `DemoSlot`, wherever the exercise appears, or through `StageScreen` where it is the background of a whole screen (a workout, an assessment test). Do not attach an animation to a screen any other way. A screen on `StageScreen` keeps its plain layout for exercises with no approved demonstration (`useHasDemo`).
+- Looking round a character is one 360° button and a drag, everywhere. Do not bring back camera-angle buttons (Front, ¾, Side, Back).
 
 ## Standing rule: location and presence
 
