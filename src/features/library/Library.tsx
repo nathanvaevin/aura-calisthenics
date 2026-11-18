@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { ChevronRight, Search, X } from 'lucide-react'
+import { ChevronRight, Play, Search, X } from 'lucide-react'
 import type { DisciplineId, Exercise, MuscleId } from '@/domain/types'
 import { DISCIPLINES, EXERCISES, MUSCLES, PROGRESSIONS, exerciseById, formatValue, placementsOf } from '@/domain/catalog'
 import { bandOf } from '@/domain/scoring/config'
@@ -9,16 +9,20 @@ import { workingLevel } from '@/domain/scoring/skills'
 import { useMe } from '@/data/hooks'
 import { MuscleLegend, MuscleMap } from '@/ui/MuscleMap'
 import { DisciplineDot, Empty, Eyebrow, PageHeader, Segmented } from '@/ui/primitives'
+import { useAnimated, useHasDemo } from './DemoSlot'
 import { cx, dvar } from '@/lib/format'
 
 type View = 'exercises' | 'ladders' | 'muscles'
 
 export function ExerciseRow({ ex, best, onClick, trailing }: { ex: Exercise; best?: number; onClick: () => void; trailing?: React.ReactNode }) {
   const placement = placementsOf(ex.id)[0]
+  // An exercise with an approved animation says so on its row, wherever the row is; the animation is shown when it is opened.
+  const animated = useHasDemo(ex.id)
   return (
     <button onClick={onClick} className="flex w-full items-center gap-3.5 px-4 py-3 text-left transition-colors first:rounded-t-card last:rounded-b-card hover:bg-surface-2">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-mono text-[11px] font-medium" style={{ background: `color-mix(in oklab, ${dvar(ex.discipline)} 14%, transparent)`, color: dvar(ex.discipline) }}>
+      <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-mono text-[11px] font-medium" style={{ background: `color-mix(in oklab, ${dvar(ex.discipline)} 14%, transparent)`, color: dvar(ex.discipline) }}>
         {placement ? `L${placement.level}` : '·'}
+        {animated && <span className="absolute -right-1 -bottom-1 flex h-[18px] w-[18px] items-center justify-center rounded-full border-2 border-surface bg-ink text-bg" title="Animated demonstration"><Play size={8} fill="currentColor" className="ml-px" /></span>}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[14.5px] font-medium">{ex.name}</span>
@@ -38,6 +42,8 @@ export function Library() {
   const [query, setQuery] = useState('')
   const [discipline, setDiscipline] = useState<DisciplineId | 'all'>('all')
   const [mine, setMine] = useState(false)
+  const [moving, setMoving] = useState(false)
+  const animated = useAnimated()
   const [muscle, setMuscle] = useState<MuscleId | null>('lats')
 
   const best = useMemo(() => bestEvidence(me.evidence), [me.evidence])
@@ -47,6 +53,7 @@ export function Library() {
     return EXERCISES.filter((e) => {
       if (discipline !== 'all' && e.discipline !== discipline) return false
       if (mine && !e.equipment.some((eq) => me.athlete.equipment.includes(eq))) return false
+      if (moving && !animated.has(e.id)) return false
       if (!q) return true
       return (
         e.name.toLowerCase().includes(q) ||
@@ -54,7 +61,7 @@ export function Library() {
         e.primary.some((m) => MUSCLES[m].name.toLowerCase().includes(q))
       )
     })
-  }, [query, discipline, mine, me.athlete.equipment])
+  }, [query, discipline, mine, moving, animated, me.athlete.equipment])
 
   const byMuscle = useMemo(() => {
     if (!muscle) return []
@@ -72,6 +79,7 @@ export function Library() {
       ))}
       <span className="mx-1 w-px shrink-0 self-stretch bg-line" />
       <button className="chip" data-on={mine} onClick={() => setMine(!mine)}>My equipment</button>
+      {animated.size > 0 && <button className="chip" data-on={moving} onClick={() => setMoving(!moving)}><Play size={10} fill="currentColor" />Animated · {animated.size}</button>}
     </div>
   )
 

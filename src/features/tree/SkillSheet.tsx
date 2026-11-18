@@ -186,7 +186,7 @@ export function SkillSheet({ skillId, onClose, onOpenSkill }: { skillId: string 
         {/* The movement */}
         <section className="mt-7">
           <Eyebrow className="mb-3">The movement</Eyebrow>
-          <DemoSlot exerciseId={ex.id} className="mb-2.5" />
+          <DemoSlot exerciseId={ex.id} open className="mb-2.5" />
           <div className="card flex items-center gap-4 p-4">
             <MuscleMap primary={ex.primary} secondary={ex.secondary} stabilizers={ex.stabilizers} color={color} height={132} className="shrink-0" />
             <div className="min-w-0">

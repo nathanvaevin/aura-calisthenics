@@ -18,6 +18,12 @@ export function useHasDemo(exerciseId: string | null | undefined) {
   }, [demos, exerciseId])
 }
 
+/** Every exercise that has an approved animation showing the movement as it is now. For lists, which only say so. */
+export function useAnimated(): Set<string> {
+  const demos = useStore((s) => s.demos)
+  return useMemo(() => new Set(demos.filter((d) => d.kind === 'animation' && d.status === 'published' && !!d.animation && isCurrentRevision(d.animation.motion, d.animation.revision)).map((d) => d.exerciseId)), [demos])
+}
+
 /**
  * The approved demonstration of an exercise, wherever that exercise is shown.
  * Every screen asks the same question of the same exercise record, so one

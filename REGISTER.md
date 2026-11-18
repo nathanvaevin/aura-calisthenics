@@ -3,7 +3,7 @@
 The single source of truth for what works, what only looks finished, and what still has to be connected.
 Update it in the same change as any feature, integration or dependency (rule in `CLAUDE.md`).
 
-Last updated: 2026-11-18 · after the owner's first corrections (not published)
+Last updated: 2026-11-18 · after putting the animation where the exercise is
 
 ## Read this first
 
@@ -167,7 +167,7 @@ Reference: [VISUALS.md](VISUALS.md) §11 to §13. Theme data: `src/theme/`. "Pro
 | F-133 | **Approve once, shown everywhere**: one tap makes a version the official demonstration of its exercise (*Approve both characters* does the pair; the next one waiting opens by itself). Every screen asks the same exercise record: library page, skill sheet in the Skill Tree, technique sheet during a workout (so coach-built sessions and courses too), both kinds of assessment. Replacing or taking down a version reaches all of them; earlier versions stay and can be made official again. Where there is none, the screen shows what it showed before | Working (local) | One tap → official for both characters → library with the athlete's character → assessment with the standard character (T-17); the review journey re-run (T-15) | In a workout and an assessment it is one closed row until tapped, so nothing heavy loads unasked. Not in the coach's course editor or exercise pickers. Videos follow the same one-tap rule | F-109 |
 | F-134 | **Releasing a universe**: Studio → Characters shows each universe's characters in three states with their finishes, and a switch to release Goku or Baki to athletes. Unreleased: listed as "in preparation", cannot be chosen, and an athlete who somehow has it stored sees the original | Working (local). To athletes: **needs your account** | Unreleased → refused and falls back; released → takes effect (T-17) | The switch is saved with the Aura settings (0009, already live); **not run with your real account** | F-109 |
 | F-135 | **Profile tidied**: settings, privacy and account moved behind one button (and one row); the profile itself is the athlete: identity card, Aura, DNA, ratings, records, skills | Working (local) | T-17 | – | – |
-| F-136 | **The demonstration as the whole screen** in a workout and in an assessment test, where the exercise has an approved animation. The controls lie over it; touching the stage (or *Watch*) leaves only the exercise's name, a running clock and the next button; starting a hold timer does that by itself. The character is always framed in the part of the screen that is free, and can be turned by dragging. An exercise without an approved animation keeps the plain screen | Working (local) | In a browser at phone size: 14 checks in a workout (every state, Aura Light, Goku Light) and in the journeys (T-15 29 checks, T-17 42) | **Not tried on a real phone**: a full-screen 3D view for the length of a workout costs battery and heat nobody has measured. The classic "Watch the demonstration" row remains in the skill sheet and the assessment's station menu, which are lists | F-133 |
+| F-136 | **The demonstration as the whole screen** in a workout and in an assessment test, where the exercise has an approved animation. The controls lie over it; touching the stage (or *Watch*) leaves only the exercise's name, a running clock and the next button; starting a hold timer does that by itself. The character is always framed in the part of the screen that is free, and can be turned by dragging. An exercise without an approved animation keeps the plain screen | Working (local) | In a browser at phone size: 14 checks in a workout (every state, Aura Light, Goku Light) and in the journeys (T-15 29 checks, T-17 42) | **Not tried on a real phone**: a full-screen 3D view for the length of a workout costs battery and heat nobody has measured. The skill sheet shows the movement at once; library rows mark animated exercises and can be filtered to them. The "Watch the demonstration" row remains only in the assessment's station menu, which lists several variations | F-133 |
 | F-137 | **One way to look round a character, everywhere**: a 360° button and a drag. The Front / ¾ / Side / Back buttons are gone from every viewer, the Studio's included | Working (local) | Character Studio 12 checks; the journeys | A coach who wants a fixed side view of a movement now turns to it by hand | – |
 
 ### Identity, places and presence (added 2026-11-14)
@@ -383,6 +383,12 @@ Reference: [VISUALS.md](VISUALS.md) §11 to §13. Theme data: `src/theme/`. "Pro
 | Data protection | Any real athletes | Privacy notice, deletion and export, consent for under-18s in classes |
 
 ## F · Change log
+
+**2026-11-18 · The animation where the exercise is**
+
+- The owner reported seeing animations in the assessment and nowhere else. Checked on the live site as it then was: the library page of an approved exercise did show its animation (in every theme, as an administrator too); what was not live was everything built since, which puts the animation on the whole screen of a workout and of an assessment test (F-136), because it had not been published.
+- Added, so the animation is at the exercise wherever one is opened or listed: the **skill sheet** shows the movement at once instead of a "Watch the demonstration" row; **library rows** carry a small play mark when the exercise has an approved animation, and the library has an **Animated · n** filter. The only "Watch the demonstration" row left is in the assessment's station menu, which lists several variations at once.
+- Checked with the 60 exercises approved on the live project: 6 checks (list, filter, exercise page, skill sheet). 639 tests; journeys 31 and 42.
 
 **2026-11-18 · The owner's first corrections: five movements, and the body's shoulders and forearms**
 
