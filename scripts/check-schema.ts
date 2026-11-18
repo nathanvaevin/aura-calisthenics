@@ -98,7 +98,7 @@ const EARLY = '00000000-0000-0000-0000-0000000000e1'
 const CHOSE = '00000000-0000-0000-0000-0000000000e2'
 console.log('Applying schema')
 await db.exec(PRELUDE)
-for (const file of ['0001_core.sql', '0002_storage.sql', '0003_evidence_observed.sql', '0004_assessments.sql', '0005_places.sql', '0006_live.sql', '0007_coach_access.sql', '0008_course_weeks_and_station_mode.sql', '0009_visual_content.sql', '0010_start_over.sql', '0011_personal_style.sql', '0012_ratings_open.sql']) {
+for (const file of ['0001_core.sql', '0002_storage.sql', '0003_evidence_observed.sql', '0004_assessments.sql', '0005_places.sql', '0006_live.sql', '0007_coach_access.sql', '0008_course_weeks_and_station_mode.sql', '0009_visual_content.sql', '0010_start_over.sql', '0011_personal_style.sql', '0012_ratings_open.sql', '0013_more_themes.sql']) {
   // Two athletes from before ratings were opened: one who never chose, one who chose to keep them.
   if (file === '0012_ratings_open.sql') await db.exec(`insert into auth.users (id) values ('${EARLY}'), ('${CHOSE}'); insert into public.athlete_identity (athlete_id) values ('${EARLY}'); insert into public.athlete_identity (athlete_id, sharing_at) values ('${CHOSE}', now());`)
   await db.exec(read(`../supabase/migrations/${file}`))
@@ -490,7 +490,8 @@ const P2 = '00000000-0000-0000-0000-0000000000a2'
 const P3 = '00000000-0000-0000-0000-0000000000a3'
 await db.exec(`insert into auth.users (id) values ('${P1}'), ('${P2}'), ('${P3}');`)
 await expectOk('an athlete chooses a theme, a character and a form', P1, `insert into public.athlete_identity (athlete_id, theme, persona, form_power, intensity, interests, country, themed_at) values ('${P1}', 'power', 'female', 'awakened', 80, '{handstand,pull}', 'Portugal', now());`)
-await expectDenied('a theme that does not exist is refused', P1, `update public.athlete_identity set theme = 'neon' where athlete_id = '${P1}';`)
+await expectDenied('something that is not a theme id is refused', P1, `update public.athlete_identity set theme = 'Neon; drop' where athlete_id = '${P1}';`)
+await expectOk('a theme added later needs no database step', P1, `update public.athlete_identity set theme = 'power-light' where athlete_id = '${P1}'; update public.athlete_identity set theme = 'power' where athlete_id = '${P1}';`)
 await expectDenied('…and an intensity out of range', P1, `update public.athlete_identity set intensity = 140 where athlete_id = '${P1}';`)
 await as(P2, 'authenticated', () => db.exec(`update public.athlete_identity set theme = 'iron' where athlete_id = '${P1}';`))
 ;(await count(`select 1 from public.athlete_identity where athlete_id = '${P1}' and theme = 'power'`)) === 1 ? ok('nobody else can change it') : bad('athlete_identity', 'another athlete changed a theme')

@@ -128,8 +128,78 @@
   --shadow-pop: 0 24px 60px -24px rgba(40, 30, 10, 0.28);
 }
 
-/* Goku: ink on paper under a red sun. Black line, grey wash, one vermilion, one navy; condensed italics. */
+/* Goku: storm dark, fire and embers. Charcoal blue, one burning orange, one cold blue; condensed italics. */
 [data-theme='power'] {
+  color-scheme: dark;
+  --bg: #06080c;
+  --bg-2: #0a0d12;
+  --surface: #0f141b;
+  --surface-2: #171d26;
+  --surface-3: #232b37;
+  --line: rgba(190, 205, 230, 0.11);
+  --line-strong: rgba(200, 214, 236, 0.26);
+  --text: #f4f6f9;
+  --text-2: rgba(236, 240, 247, 0.72);
+  --text-3: rgba(236, 240, 247, 0.46);
+  --accent: #ff8a1f;
+  --accent-ink: #1a0c00;
+  --good: #3ee6a0;
+  --warn: #ff6a45;
+  --navy: #8fb0ff;
+
+  --d-handstand: #ffc933;
+  --d-pull: #5fa8ff;
+  --d-push: #ff6a45;
+  --d-core: #b98cff;
+  --d-legs: #a6ea45;
+  --d-mobility: #2fe3c2;
+
+  --aura-blend: screen;
+  --aura-opacity: 0.78;
+  --aura-blur: 22px;
+  --aura-core: rgba(255, 246, 230, 0.9);
+  --shadow-pop: 0 24px 60px -20px rgba(0, 0, 0, 0.85);
+
+  --display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --display-weight: 800;
+  --display-style: italic;
+  --display-case: uppercase;
+  --display-tracking: 0.004em;
+  --display-leading: 0.94;
+  --label: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --label-weight: 700;
+  --label-style: italic;
+  --label-case: uppercase;
+  --label-tracking: 0.045em;
+  --label-size: 1.12;
+  --r-card: 14px;
+  --r-pill: 9px;
+  --r-field: 9px;
+  --stage: #06080c;
+  --stage-ink: rgba(255, 255, 255, 0.45);
+
+  /* Fire below the page, storm cloud above it. */
+  --glow:
+    radial-gradient(70% 34% at 50% 108%, color-mix(in oklab, #ff7a1a 34%, transparent), transparent 72%),
+    radial-gradient(46% 30% at 0% 100%, color-mix(in oklab, #ff4d1a 16%, transparent), transparent 70%),
+    radial-gradient(46% 30% at 100% 96%, color-mix(in oklab, #ffb347 12%, transparent), transparent 70%),
+    radial-gradient(90% 44% at 30% -10%, rgba(120, 150, 190, 0.16), transparent 70%),
+    radial-gradient(60% 36% at 100% 8%, rgba(90, 120, 170, 0.1), transparent 72%);
+  /* Embers rising through the lower half. */
+  --glow-over:
+    radial-gradient(circle, rgba(255, 178, 80, 0.9) 0 1px, transparent 1.6px) 14px 22px / 157px 131px,
+    radial-gradient(circle, rgba(255, 122, 26, 0.8) 0 1.3px, transparent 2px) 91px 67px / 233px 197px,
+    radial-gradient(circle, rgba(255, 220, 150, 0.75) 0 0.8px, transparent 1.4px) 47px 103px / 113px 89px;
+  --glow-mask: linear-gradient(to top, #000 0%, rgba(0, 0, 0, 0.5) 34%, transparent 68%);
+  --glow-over-opacity: 0.7;
+  --glow-over-blend: screen;
+  --card-bg: linear-gradient(165deg, var(--surface) 55%, color-mix(in oklab, var(--surface) 90%, #ff7a1a) 100%);
+  --card-line: var(--line);
+  --eyebrow-tracking: 0.14em;
+}
+
+/* Goku Light: ink on paper under a red sun. Black line, grey wash, one vermilion, one navy. */
+[data-theme='power-light'] {
   color-scheme: light;
   --bg: #e9e7e2;
   --bg-2: #e0ddd7;

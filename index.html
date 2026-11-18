@@ -11,9 +11,9 @@
       try {
         var s = JSON.parse(localStorage.getItem('aura:v1') || '{}');
         var t = s && s.state && s.state.settings && s.state.settings.theme;
-        if (t === 'light' || t === 'dark' || t === 'power' || t === 'iron') {
+        if (t === 'light' || t === 'dark' || t === 'power' || t === 'power-light' || t === 'iron') {
           document.documentElement.dataset.theme = t;
-          document.documentElement.dataset.scheme = t === 'light' || t === 'power' ? 'light' : 'dark';
+          document.documentElement.dataset.scheme = t === 'light' || t === 'power-light' ? 'light' : 'dark';
         }
       } catch (e) {}
     </script>

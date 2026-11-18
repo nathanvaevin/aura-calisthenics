@@ -154,14 +154,14 @@ Expect it to need a person to correct most movements, at least at first. A reali
 
 ## 11 · Universes: a character for each theme
 
-The four themes of the app (`src/theme/themes.ts`) stand on three **universes**: Aura (Aura Dark and Aura Light), Goku, Baki. A universe is what a theme shares with the 3D side.
+The five themes of the app (`src/theme/themes.ts`) stand on three **universes**: Aura (Aura Dark and Aura Light), Goku (Goku and Goku Light), Baki. A universe is what a theme shares with the 3D side.
 
 | | Aura | Goku | Baki |
 | --- | --- | --- | --- |
 | Body (`build`) | the two masters | hero build: broad shoulders, tapered waist; swept spiked hair; wristbands and sash | heavy build: thick neck and traps, wide lats, deep separation; hand wraps |
 | Files | `aura-*.glb` | `power-*.glb` | `iron-*.glb` |
-| Shading | modelled by studio light | flat colour in two tones (a grey wash in the shade), a black drawn outline | three ink tones, hatching, the lines between muscles drawn in |
-| Stage | cool key, two cool rims | **a sheet of paper**: pale ground, a vermilion sun behind the subject (`sun`), an ink wash on the floor. The only light stage: its Aura is **painted**, not lit (`paint`) | one hard key from the side, a faint red rim |
+| Shading | modelled by studio light | flat colour in two tones and a black outline. **Goku**: a warm shade, black in the deepest shadow, an edge lit from behind in the colour of the fire. **Goku Light**: a grey wash, skin drawn almost as pale as the paper |
+| Stage | cool key, two cool rims | **Goku**: storm dark, a fire with a ring of white heat behind the subject (`sun.blaze`), which takes the colour of the form while an Aura is shown (`sun.follows`). **Goku Light**: a sheet of paper, a vermilion sun behind the subject, an ink wash on the floor; the only light stage, its Aura **painted**, not lit (`paint`) | one hard key from the side, a faint red rim |
 | Muscle colour | Aura pink | crimson | red |
 | Hair | as the finish | takes the colour of the Aura as it rises | as the finish |
 
@@ -172,13 +172,15 @@ The four themes of the app (`src/theme/themes.ts`) stand on three **universes**:
 - **A universe reaches athletes only when an administrator releases it** (Studio → Characters; stored with the Aura settings). Until then `wearing()` gives the original theme and the Aura character: an athlete is never shown a character nobody approved, and never a different universe's character in place of a missing one.
 - Original designs. They take a genre's manner (flat colour and speed lines; ink and anatomy), not any existing character's likeness, costume or mark. The themes are *named* Goku and Baki by the owner's decision (2026-11-18; until then Anime Power and Iron Will). That is a name only: the characters, their clothes, the forms and their names stay Aura's own, and must not be drawn towards the characters those names belong to. The Aura wordmark keeps its own typeface in every theme.
 
-- **Goku is ink on paper** (2026-11-18, after a picture the owner supplied: black line, grey wash, vermilion, navy; the palette and manner were taken, not the artwork). Shorts vermilion, sash and wristbands navy, hair black; finishes Paper, Clay, Earth change the skin. On a pale stage additive light disappears, so `StageLook.paint` makes `AuraField.setPaint()` lay every component on with normal blending, deepen what was a white-hot core, and draw the outline shells from behind only, so paint never coats the body. A dark stage is untouched by this: `paint` is off for Aura and Baki.
+- **Two themes, one universe** (2026-11-18). Goku and Goku Light share the character files, the forms, the finishes (Dawn, Dusk, Night: skin tones) and the release switch. `STYLES.power` is the dark rendition; `STYLES.power.variants.light` lists what the paper one changes, and `styleOf({ universe, variant })` lays it over. A theme names its variant (`AppTheme.variant`); `cast.ts` passes it on. The Aura universe has no variant: its stage is dark in both of its themes.
+- **Zeno, the body as sky** (2026-11-18). An Aura theme may set `cosmos`: as the Aura rises the body itself is drawn as night sky (cloud in the theme's second and fourth colours, stars fixed to the body in three sizes, a white edge) and the drawn outline turns to light; with the Aura off the body is as it always is, so a demonstration is unchanged. One uniform on the body's material (`uCosmos`), driven by the player like the hair.
+- **Goku Light is ink on paper** (2026-11-18, after a picture the owner supplied: black line, grey wash, vermilion, navy; the palette and manner were taken, not the artwork). Shorts vermilion, sash and wristbands navy, hair black; finishes Paper, Clay, Earth change the skin. On a pale stage additive light disappears, so `StageLook.paint` makes `AuraField.setPaint()` lay every component on with normal blending, deepen what was a white-hot core, and draw the outline shells from behind only, so paint never coats the body. A dark stage is untouched by this: `paint` is off for Aura and Baki.
 
 Known limits: on paper the palest forms (Ultra Instinct's pale gold) read faintly. The new bodies were looked at in nine poses as stills, not through every movement. Goku hair goes through the floor when the head is close to it. The drawn outline draws each body a second time.
 
 ## 12 · Forms: the Aura variations of a universe
 
-A **form** is an Aura theme (§6) given a name, a place in a universe and a condition (`Form` in `themes.ts`). Aura has six (Cosmic, Signature, Lunar, Solar, Ethereal, Electric), Goku five (ids `ignition` → `transcendent`; shown as Saiyan, God, Destruction, Kaio-ken, Ultra Instinct, the owner's names of 2026-11-18), Baki five (Pressure → Apex). The ten new ones are ordinary entries in `aura/themes.ts`, marked with their universe; Baki's use no rays and no ribbons, only heat, steam, sparks and the ground.
+A **form** is an Aura theme (§6) given a name, a place in a universe and a condition (`Form` in `themes.ts`). Aura has six (Cosmic, Signature, Lunar, Solar, Ethereal, Electric), Goku six (ids `ignition` → `transcendent`, then `zeno`; shown as Saiyan, God, Destruction, Kaio-ken, Ultra Instinct, Zeno, the owner's names of 2026-11-18; Saiyan is gold and Ultra Instinct silver-blue since then), Baki five (Pressure → Apex). The ten new ones are ordinary entries in `aura/themes.ts`, marked with their universe; Baki's use no rays and no ribbons, only heat, steam, sparks and the ground.
 
 - The first form of a universe is everyone's. The others are unlocked by an Aura class reached, a number of skills mastered, or a skill verified by a coach (`Unlock`). **An unlock reads the scoring and nothing reads a form**: `personal.ts` imports the class thresholds, and no file under `src/domain/scoring` knows a theme exists.
 - A form that is chosen but not earned is not worn; the first one is, and the choice is kept for when it is earned. An administrator can wear all of them, to review them.

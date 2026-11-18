@@ -5,13 +5,13 @@
  * The layers are uniforms on one material, so they change smoothly and
  * independently of each other and of the pose.
  */
-import { BackSide, CanvasTexture, Color, Group, MeshStandardMaterial, ShaderMaterial, SkinnedMesh, SRGBColorSpace, type Bone, type Mesh, type Object3D, type Texture } from 'three'
+import { BackSide, CanvasTexture, Color, Group, MeshStandardMaterial, ShaderMaterial, SkinnedMesh, SRGBColorSpace, Vector3, type Bone, type Mesh, type Object3D, type Texture } from 'three'
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import { BONES, type BoneName, type BuildId, type CharacterId } from './body/skeleton'
 import { SLOTS } from './body/muscles'
 import { Rig, type Pose } from './rig'
-import { STYLES, type CharacterStyle, type PerformerStyle } from './styles'
+import { STYLES, styleOf, type CharacterStyle, type PerformerStyle } from './styles'
 
 const assets = new Map<string, Promise<GLTF>>()
 
@@ -72,6 +72,14 @@ export interface Look {
   rim: { value: number }
   /** How the body is drawn: 0 modelled by light, 1 flat colour in two tones, 2 ink. */
   shade: { value: number }
+  rimColor: { value: Color }
+  shadeTint: { value: Vector3 }
+  deep: { value: number }
+  /** How far the body has become a night sky (0 to 1), its two colours, and the time its stars twinkle by. */
+  cosmos: { value: number }
+  cosmosA: { value: Color }
+  cosmosB: { value: Color }
+  clock: { value: number }
   /** Hair that takes the colour of the Aura: the colour, and how far it has turned. */
   hairGlow: { value: Color }
   hairCharge: { value: number }
@@ -98,7 +106,24 @@ varying vec2 vMus;
 varying vec3 vRest;
 varying float vFront;
 uniform float uMuscle, uCharge, uRim, uCloth, uShade, uHair, uHairCharge;
-uniform vec3 uGlowA, uGlowB, uChargeColor, uHairGlow;
+uniform vec3 uGlowA, uGlowB, uChargeColor, uHairGlow, uRimColor, uShadeTint, uCosmosA, uCosmosB;
+uniform float uDeep, uCosmos, uClock;
+float skyHash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float skyNoise(vec3 x) {
+  vec3 i = floor(x), f = fract(x);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(skyHash(i), skyHash(i + vec3(1, 0, 0)), f.x), mix(skyHash(i + vec3(0, 1, 0)), skyHash(i + vec3(1, 1, 0)), f.x), f.y),
+             mix(mix(skyHash(i + vec3(0, 0, 1)), skyHash(i + vec3(1, 0, 1)), f.x), mix(skyHash(i + vec3(0, 1, 1)), skyHash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
+// Stars that stay where they are on the body: one, perhaps, in each cell of a grid laid through it.
+float skyStars(vec3 p, float cells, float share, float size) {
+  vec3 g = p * cells, id = floor(g);
+  float h = skyHash(id);
+  vec3 at = vec3(skyHash(id + 3.1), skyHash(id + 7.7), skyHash(id + 5.3)) * 0.6 + 0.2;
+  float d = length(fract(g) - at);
+  float twinkle = 0.65 + 0.35 * sin(uClock * (1.0 + 3.0 * h) + h * 40.0);
+  return step(1.0 - share, h) * pow(max(0.0, 1.0 - d / size), 2.5) * twinkle;
+}
 uniform sampler2D uLogo;
 uniform vec4 uLogoRect;
 `
@@ -119,7 +144,7 @@ const FRAG_MAIN = /* glsl */ `
   metalnessFactor *= 1.0 - saturate(lit);
   totalEmissiveRadiance += uGlowA * lit * (0.3 + 0.5 * fres) + uGlowB * (edge * 0.7 + lit * fres * 0.5);
   // Base: a quiet rim of light. Charge: the body itself glows.
-  totalEmissiveRadiance += vec3(0.62, 0.7, 1.0) * fres * uRim * mix(1.0, 0.35, uCloth);
+  totalEmissiveRadiance += uRimColor * fres * min(uRim, 0.6) * mix(1.0, 0.35, uCloth);
   // A drawn body keeps its colours: the charge shows at its edge only.
   float drawnBody = step(0.5, uShade);
   totalEmissiveRadiance += uChargeColor * uCharge * mix(0.1 + 1.5 * fres, 0.9 * pow(fres, 1.6), drawnBody) * mix(1.0, 0.5, uCloth);
@@ -163,8 +188,11 @@ if (uShade > 0.5) {
     // Cel: light and shade, a small highlight, and a cool tint in the shade.
     float lit = smoothstep(0.6, 0.62, lightv);
     float hot = smoothstep(0.9, 0.925, lightv);
-    drawn = mix(base * vec3(0.5, 0.48, 0.66), base, lit) + base * 0.14 * hot;
-    drawn += vec3(0.55, 0.72, 1.0) * smoothstep(0.62, 0.66, edge) * (1.0 - lit) * uRim * 0.5;
+    drawn = mix(base * uShadeTint, base, lit) + base * 0.14 * hot;
+    // A third tone where the light does not reach at all: black, as a brush would leave it.
+    drawn = mix(drawn, base * 0.06, uDeep * (1.0 - smoothstep(0.3, 0.32, lightv)));
+    // Light from behind catches the edge that is turned away from the key.
+    drawn += uRimColor * smoothstep(0.62, 0.66, edge) * (1.0 - lit) * uRim * 0.5;
   } else {
     // Ink: black, a hatched middle tone, and bare paper where the light lands.
     float mid = smoothstep(0.36, 0.375, lightv);
@@ -180,6 +208,16 @@ if (uShade > 0.5) {
   }
   outgoingLight = drawn + totalEmissiveRadiance;
 }
+// A body that has become a piece of night sky: cloud in two colours, stars near and far, and light at its edge.
+if (uCosmos > 0.001) {
+  vec3 p = vRest;
+  float cloud = skyNoise(p * 3.2 + vec3(0.0, uClock * 0.05, 0.0)) * 0.6 + skyNoise(p * 8.5 - vec3(uClock * 0.03)) * 0.4;
+  vec3 sky = mix(uCosmosA, uCosmosB, smoothstep(0.42, 0.8, cloud)) * (0.2 + 0.5 * cloud);
+  float stars = skyStars(p, 30.0, 0.34, 0.24) + skyStars(p + 4.7, 13.0, 0.26, 0.3) * 1.3 + skyStars(p + 9.1, 64.0, 0.45, 0.34) * 0.7;
+  float rim = pow(1.0 - saturate(dot(normal, normalize(vViewPosition))), 3.2);
+  vec3 night = sky + vec3(1.0, 0.97, 1.0) * stars * 2.4 + mix(uCosmosA, vec3(1.0), 0.8) * rim * 1.1;
+  outgoingLight = mix(outgoingLight, night, uCosmos);
+}
 `
 
 type Kind = 'skin' | 'cloth' | 'hair' | 'accent'
@@ -194,7 +232,7 @@ function material(kind: Kind, look: Look, logo: { x: number; y: number; width: n
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
       uAct: { value: look.act }, uMuscle: look.muscle, uGlowA: look.glowA, uGlowB: look.glowB,
-      uCharge: look.charge, uChargeColor: look.chargeColor, uRim: look.rim,
+      uCharge: look.charge, uChargeColor: look.chargeColor, uRim: look.rim, uRimColor: look.rimColor, uShadeTint: look.shadeTint, uDeep: look.deep, uCosmos: look.cosmos, uClock: look.clock, uCosmosA: look.cosmosA, uCosmosB: look.cosmosB,
       uCloth: { value: kind === 'cloth' || kind === 'accent' ? 1 : 0 },
       uShade: look.shade, uHair: { value: kind === 'hair' ? 1 : 0 }, uHairGlow: look.hairGlow, uHairCharge: look.hairCharge,
       uLogo: { value: logoTexture() }, uLogoRect: { value: [logo.x, logo.y, logo.width, logo.height] },
@@ -224,6 +262,13 @@ export class Actor {
     chargeColor: { value: new Color(0xa78bff) },
     rim: { value: 0.22 },
     shade: { value: 0 },
+    rimColor: { value: new Color('#cfdaff') },
+    shadeTint: { value: new Vector3(0.5, 0.48, 0.66) },
+    deep: { value: 0 },
+    cosmos: { value: 0 },
+    cosmosA: { value: new Color('#7a4dff') },
+    cosmosB: { value: new Color('#ff7ad9') },
+    clock: { value: 0 },
     hairGlow: { value: new Color(0xffffff) },
     hairCharge: { value: 0 },
   }
@@ -265,15 +310,18 @@ export class Actor {
 
   /** Draws the character the way a universe does, in the colours the athlete chose. */
   setStyle(spec: PerformerStyle | undefined) {
-    const style = STYLES[spec?.universe ?? 'aura']
+    const style = styleOf(spec)
     this.style = style
+    this.look.rimColor.value.set(style.rimColour)
+    this.look.shadeTint.value.set(...(style.shadeTint ?? [0.5, 0.48, 0.66]))
+    this.look.deep.value = style.deep ?? 0
     const drawn = style.shading !== 'studio'
     this.look.shade.value = style.shading === 'cel' ? 1 : style.shading === 'ink' ? 2 : 0
     this.look.rim.value = style.rim
     if (!style.hairGlow) this.look.hairCharge.value = 0
     for (const mat of this.materials) {
       const kind = this.kinds.get(mat)!
-      if (kind === 'skin') { mat.color.set(spec?.skin ?? '#c6c6ce'); mat.roughness = style.roughness; mat.metalness = style.metalness }
+      if (kind === 'skin') { mat.color.set(spec?.skin ?? '#c6c6ce'); if (style.skinWash) mat.color.lerp(new Color(style.skinWash.colour), style.skinWash.amount); mat.roughness = style.roughness; mat.metalness = style.metalness }
       else if (kind === 'hair') { mat.color.set(spec?.hair ?? '#b9b9c2'); mat.roughness = drawn ? 1 : 0.5; mat.metalness = drawn ? 0 : 0.3 }
       else if (kind === 'accent') mat.color.set(spec?.accent ?? '#ecc77f')
       else mat.color.set(style.cloth)
@@ -288,7 +336,7 @@ export class Actor {
       for (const src of this.meshes as SkinnedMesh[]) {
         const m = new SkinnedMesh(src.geometry, new ShaderMaterial({
           side: BackSide,
-          uniforms: { uWidth: { value: style.outline * this.rig.body.scale }, uColour: { value: new Color(style.outlineColour) } },
+          uniforms: { uWidth: { value: style.outline * this.rig.body.scale }, uColour: { value: new Color(style.outlineColour) }, uCosmos: this.look.cosmos },
           vertexShader: /* glsl */ `
             #include <common>
             #include <skinning_pars_vertex>
@@ -302,7 +350,8 @@ export class Actor {
               transformed += normalize(objectNormal) * uWidth;
               gl_Position = projectionMatrix * modelViewMatrix * vec4(transformed, 1.0);
             }`,
-          fragmentShader: 'uniform vec3 uColour; void main() { gl_FragColor = vec4(uColour, 1.0); }',
+          // The drawn line turns to light when the body turns to sky.
+          fragmentShader: 'uniform vec3 uColour; uniform float uCosmos; void main() { gl_FragColor = vec4(mix(uColour, vec3(1.0), uCosmos), 1.0); }',
         }))
         m.bind(src.skeleton, src.bindMatrix)
         m.frustumCulled = false

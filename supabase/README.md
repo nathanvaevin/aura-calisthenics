@@ -257,6 +257,12 @@ Paste **all of `supabase/migrations/0011_personal_style.sql`** into the SQL edit
 
 To check it took: `select theme, persona, ratings_audience from public.athlete_identity limit 1;` runs without an error.
 
+## 13 · More themes
+
+Paste **all of `supabase/migrations/0013_more_themes.sql`** into the SQL editor and run it once. *Success. No rows returned.* The database listed the four theme names it would accept; a fifth (Goku Light) would have been refused. It now accepts any value shaped like a theme name, so later themes need no database step. Nothing stored changes, and running it twice is harmless.
+
+**Run it before the build that uses it is published.** Otherwise choosing Goku Light cannot be saved to an account.
+
 ## 12 · Ratings open unless closed
 
 Paste **all of `supabase/migrations/0012_ratings_open.sql`** into the SQL editor and run it once. *Success. No rows returned.* An athlete's Aura and ratings are now shown to other signed-in athletes unless the athlete closes them (Profile → settings → Privacy, or the sharing step of Personalize). It changes the starting point for new athletes and for everyone who has not yet made a choice; a choice already made is kept, and a profile hidden from discovery still shares nothing. Running it a second time does nothing.

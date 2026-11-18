@@ -16,7 +16,7 @@ import { useViewer } from '@/features/places/shared'
 import { canSee, privacyOf } from '@/domain/places'
 import { isVerified } from '@/domain/scoring/config'
 import { personalOf, wearing } from '@/theme/personal'
-import { THEMES } from '@/theme/themes'
+import { THEMES, posterOf } from '@/theme/themes'
 import { cx, dvar, initials, num } from '@/lib/format'
 
 type Filter = 'all' | 'following' | 'level' | 'city'
@@ -257,7 +257,7 @@ function TheirLook({ model }: { model: NonNullable<ReturnType<typeof useAthleteM
   const look = wearing(personalOf(athlete), { aura: model.aura.aura, skills: mastered.length, verified }, released)
   return (
     <section className="rise rise-2 card flex items-center gap-4 overflow-hidden p-2.5">
-      <img src={`${import.meta.env.BASE_URL}themes/${look.universe}-${look.character}.jpg`} alt="" loading="lazy" className="h-[92px] w-[68px] shrink-0 rounded-[calc(var(--r-card)*0.6)] bg-(--stage) object-cover object-top" onError={(e) => { e.currentTarget.style.visibility = 'hidden' }} />
+      <img src={`${import.meta.env.BASE_URL}${posterOf(look.theme, look.character)}`} alt="" loading="lazy" className="h-[92px] w-[68px] shrink-0 rounded-[calc(var(--r-card)*0.6)] bg-(--stage) object-cover object-top" onError={(e) => { e.currentTarget.style.visibility = 'hidden' }} />
       <span className="min-w-0">
         <Eyebrow>{THEMES[look.theme].name}</Eyebrow>
         <span className="mt-1 flex items-center gap-2">

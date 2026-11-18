@@ -5,7 +5,7 @@
 -- once. It creates the schema, the access rules and the catalog + demo data.
 -- See supabase/README.md for the full setup, including Google sign-in.
 --
--- Contents: 0001_core.sql, 0002_storage.sql, 0003_evidence_observed.sql, 0004_assessments.sql, 0005_places.sql, 0006_live.sql, 0007_coach_access.sql, 0008_course_weeks_and_station_mode.sql, 0009_visual_content.sql, 0010_start_over.sql, 0011_personal_style.sql, 0012_ratings_open.sql, then seed.sql.
+-- Contents: 0001_core.sql, 0002_storage.sql, 0003_evidence_observed.sql, 0004_assessments.sql, 0005_places.sql, 0006_live.sql, 0007_coach_access.sql, 0008_course_weeks_and_station_mode.sql, 0009_visual_content.sql, 0010_start_over.sql, 0011_personal_style.sql, 0012_ratings_open.sql, 0013_more_themes.sql, then seed.sql.
 
 
 -- ════════════════════════════════════════════════════════════════════════
@@ -1797,6 +1797,23 @@ begin
     alter table public.athlete_identity alter column ratings_audience set default 'everyone';
   end if;
 end $$;
+
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 0013_more_themes.sql
+-- ════════════════════════════════════════════════════════════════════════
+
+-- A fifth theme (Goku Light), and room for the ones after it.
+--
+-- 0011 listed the four theme ids in a check on athlete_identity.theme, so
+-- every new theme needed a database step. A theme is presentation and the
+-- app knows which ids exist (an id it does not know is shown as the original
+-- theme), so the database now only checks that the value looks like an id.
+--
+-- Nothing stored is changed. Safe to run twice.
+
+alter table public.athlete_identity drop constraint if exists athlete_identity_theme_check;
+alter table public.athlete_identity add constraint athlete_identity_theme_check check (theme ~ '^[a-z][a-z-]{1,23}$');
 
 
 -- ════════════════════════════════════════════════════════════════════════

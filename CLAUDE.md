@@ -46,6 +46,7 @@ Never present simulated or sample behaviour as real. If something cannot work wi
 - Every build of a character stands on the same skeleton. Do not move a joint for one build.
 - Characters, costumes, artwork and form names are original. They may take a genre's manner; never an existing character's likeness, costume, logo, artwork or quotes. The theme names "Goku" and "Baki", Goku's five form names and its paper, vermilion and navy palette are the owner's own decisions (2026-11-18, taken knowing whose they are); they are data in `src/theme/themes.ts` and `src/visual/styles.ts`. Do not go further towards a source than the owner has asked: no likeness, symbol, logo or artwork, and no picture he supplies as reference goes into the app.
 - A light stage (`StageLook.paint`) paints its Aura instead of lighting it. Check a new Aura theme on the paper stage as well as a dark one.
+- Two themes may share a universe (Goku and Goku Light): same character file, forms, finishes and release switch; what differs is a `variant` in `src/visual/styles.ts`, read through `styleOf()`, and a poster named by `posterOf()`. A new theme id needs no database step since 0013.
 - An exercise's demonstration is shown through `DemoSlot`, wherever the exercise appears. Do not attach an animation to a screen.
 
 ## Standing rule: location and presence
@@ -60,7 +61,7 @@ Never present simulated or sample behaviour as real. If something cannot work wi
 
 - `npm run dev` · `npm test` · `npm run build`
 - `npm run db:seed` regenerates `supabase/seed.sql` from `src/domain`
-- `npm run db:check` applies all twelve migrations + seed to an in-process Postgres and checks the access rules
+- `npm run db:check` applies all thirteen migrations + seed to an in-process Postgres and checks the access rules
 - `npm run db:bundle` regenerates `supabase/apply.sql` (the one-paste setup) from the migrations and seed — run it after changing either
 - `npm run deploy` tests, builds for the public address and replaces the `gh-pages` branch. Publishing is outward-facing: run it only when the owner says so
 - `npm run character:build` regenerates the six characters in `public/characters/` (`-- power`, `-- iron male` build some of them; `-- --draft` is quick and coarse, for sculpting)
@@ -72,7 +73,7 @@ Never present simulated or sample behaviour as real. If something cannot work wi
 - `src/data/store.ts` is the only place state changes. Screens read and write it and never wait for the network.
 - `src/data/cloud/` keeps that store and Supabase in step while someone is signed in: `rows.ts` (tables and who may write a row), `mappers.ts` (state ↔ rows), `engine.ts` (push, fetch, merge), `remote.ts` (Supabase). A new synced table is added in `rows.ts` and `mappers.ts`; the engine does not change. `cloud.test.ts` runs two simulated devices against a pretend server.
 - `src/visual/` is the 3D side, loaded lazily (never import it from a screen every athlete opens, except through `lazy()`): `body/` (skeleton and muscle channels, shared with the generator), `rig.ts` (pose → joints), `motions/` (one movement per exercise), `aura/` (themes, field, behaviour), `player.ts`, `Demo.tsx`. `src/visual/pilot.ts` and `aura/themes.ts` are plain data and safe to import anywhere.
-- `src/theme/` is personalization, pure data and rules except `useTheme.ts`: `themes.ts` (the four themes, three universes, forms, finishes), `personal.ts` (an athlete's choices, unlocks, what is worn, completion), `voice.ts` (copy per voice), `cast.ts` (a look → a character on stage). `src/features/personalize/` holds the flow and the athlete's Character Studio. An athlete's choices live on `Athlete.style` and sync as columns of `athlete_identity`.
+- `src/theme/` is personalization, pure data and rules except `useTheme.ts`: `themes.ts` (the five themes, three universes, forms, finishes), `personal.ts` (an athlete's choices, unlocks, what is worn, completion), `voice.ts` (copy per voice), `cast.ts` (a look → a character on stage). `src/features/personalize/` holds the flow and the athlete's Character Studio. An athlete's choices live on `Athlete.style` and sync as columns of `athlete_identity`.
 - `src/visual/styles.ts` says how each universe draws its character and lights its stage; `src/visual/revisions.ts` repeats each movement's revision as plain data (a test keeps it true).
 - `src/domain/media.ts` holds the review rules; `src/data/cloud/content.ts` keeps admin-managed content in step with the server on its own channel, apart from the sync engine, and must keep working when its tables are missing.
 - A schema change is a new numbered migration, added to `scripts/check-schema.ts` and `scripts/build-bundle.ts`, and the owner has to run it on the live project: say so. After a catalogue change the live database needs the new `seed.sql` too.

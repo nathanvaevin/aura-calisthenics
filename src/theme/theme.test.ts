@@ -1,22 +1,23 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { Athlete } from '@/domain/types'
 import { AURA_CLASSES } from '@/domain/scoring/config'
 import { build, project } from '@/data/cloud/mappers'
 import { themeById } from '@/visual/aura/themes'
-import { STYLES } from '@/visual/styles'
+import { STYLES, styleOf } from '@/visual/styles'
 import { performerOf, standardLook } from './cast'
 import { completion, formsFor, isReleased, isUnlocked, nextForm, personalOf, unlockText, wearing, type Personal, type Standing } from './personal'
-import { STANDARD_THEME, THEME_IDS, THEMES, UNIVERSE_IDS, UNIVERSES } from './themes'
+import { STANDARD_THEME, THEME_IDS, THEMES, UNIVERSE_IDS, UNIVERSES, posterOf } from './themes'
 import { VOICE_KEYS, linesOf, say } from './voice'
 
 const none: Standing = { aura: 0, skills: 0, verified: 0 }
 const css = readFileSync(resolve(__dirname, '../styles/index.css'), 'utf8')
 
-describe('the four themes', () => {
-  it('are four, on three universes, and the original is the standard for assessments', () => {
-    expect(THEME_IDS).toEqual(['dark', 'light', 'power', 'iron'])
+describe('the five themes', () => {
+  it('are five, on three universes, and the original is the standard for assessments', () => {
+    expect(THEME_IDS).toEqual(['dark', 'light', 'power', 'power-light', 'iron'])
+    expect(THEMES['power-light'].universe).toBe('power')
     expect(THEMES.dark.universe).toBe('aura')
     expect(THEMES.light.universe).toBe('aura')
     expect(STANDARD_THEME).toBe('dark')
@@ -24,7 +25,7 @@ describe('the four themes', () => {
 
   it('each has its own block of tokens in the stylesheet', () => {
     for (const id of THEME_IDS) expect(css, id).toContain(`[data-theme='${id}']`)
-    for (const id of ['power', 'iron']) {
+    for (const id of ['power', 'power-light', 'iron']) {
       const block = css.slice(css.indexOf(`[data-theme='${id}'] {`))
       for (const token of ['--bg:', '--text:', '--accent:', '--display:', '--r-card:', '--stage:']) expect(block.slice(0, block.indexOf('}')), `${id} ${token}`).toContain(token)
     }
@@ -44,6 +45,21 @@ describe('the four themes', () => {
       expect(finishes.length).toBe(3)
       expect(STYLES[u].universe).toBe(u)
     }
+  })
+
+  it('a second theme on a universe shows the same character another way, and has its own picture', () => {
+    const dark = performerOf({ ...standardLook('male'), universe: 'power', theme: 'power' }).style!
+    const light = performerOf({ ...standardLook('male'), universe: 'power', theme: 'power-light' }).style!
+    expect(styleOf(dark).build).toBe(styleOf(light).build)
+    expect(styleOf(dark).stage.paint ?? false).toBe(false)
+    expect(styleOf(light).stage.paint).toBe(true)
+    expect(styleOf(light).shading).toBe('cel')
+    // The original universe has one stage for both of its themes: an Aura is light and needs the dark.
+    expect(styleOf(performerOf({ ...standardLook('male'), theme: 'light' }).style)).toBe(STYLES.aura)
+    expect(posterOf('power', 'male')).toBe('themes/power-male.jpg')
+    expect(posterOf('power-light', 'female')).toBe('themes/power-light-female.jpg')
+    expect(posterOf('light', 'male')).toBe('themes/aura-male.jpg')
+    for (const id of THEME_IDS) for (const c of ['male', 'female'] as const) expect(existsSync(resolve(__dirname, '../../public', posterOf(id, c))), posterOf(id, c)).toBe(true)
   })
 
   it('every universe draws its character differently', () => {

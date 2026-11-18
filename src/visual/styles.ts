@@ -25,8 +25,13 @@ export interface StageLook {
    * over the page) instead of as light, which a pale ground would swallow.
    */
   paint?: boolean
-  /** A flat disc standing behind the subject, like a sun in a print. Radius and height above the subject's middle, in metres. */
-  sun?: { colour: string; radius: number; lift: number }
+  /**
+   * What stands behind the subject. On paper a flat disc, like a sun in a
+   * print; `blaze` makes it a burning glow instead, for a dark stage. Radius
+   * and height above the subject's middle, in metres. `follows`: it takes the
+   * colour of the Aura while one is shown.
+   */
+  sun?: { colour: string; radius: number; lift: number; blaze?: boolean; follows?: boolean }
 }
 
 export interface CharacterStyle {
@@ -44,19 +49,27 @@ export interface CharacterStyle {
   cloth: string
   roughness: number
   metalness: number
-  /** The quiet light on the body's edge in the base state. */
+  /** The quiet light on the body's edge in the base state, and its colour. */
   rim: number
+  rimColour: string
+  /** Cel only: the tint of the shaded tone, and how black the deepest shadow is drawn (0: no third tone). */
+  shadeTint?: [number, number, number]
+  deep?: number
+  /** Skin drawn nearer to this colour than to the finish: a figure in ink on paper keeps only a trace of its skin tone. */
+  skinWash?: { colour: string; amount: number }
   /** Hair takes the colour of the Aura as it rises. */
   hairGlow: boolean
   /** How far the top of the head (hair included) stands above the head joint, as a share of body scale: what the camera leaves room for. */
   headroom: number
   stage: StageLook
+  /** Other renditions of the same character, for a second theme on the same universe. Each lists only what differs. */
+  variants?: Record<string, Partial<Omit<CharacterStyle, 'universe' | 'build' | 'variants'>>>
 }
 
 export const STYLES: Record<UniverseId, CharacterStyle> = {
   aura: {
     universe: 'aura', build: 'aura', shading: 'studio', outline: 0, outlineColour: '#000000',
-    cloth: '#121216', roughness: 0.4, metalness: 0.32, rim: 0.22, hairGlow: false, headroom: 0.22,
+    cloth: '#121216', roughness: 0.4, metalness: 0.32, rim: 0.22, rimColour: '#cfdaff', hairGlow: false, headroom: 0.22,
     stage: {
       backdrop: '#08090d',
       key: { colour: '#ffffff', power: 2.1, from: [1.6, 4.2, 3.2] },
@@ -66,24 +79,40 @@ export const STYLES: Record<UniverseId, CharacterStyle> = {
       floor: { colour: '#9ea8d9', shadow: 0.42 },
     },
   },
-  // Ink on paper: black line, grey wash, one red and one blue. The stage is a sheet with a red sun on it.
+  // Storm dark, lit from behind by fire: flat colour, a warm shade and black in the deepest shadow.
   power: {
-    universe: 'power', build: 'power', shading: 'cel', outline: 0.0052, outlineColour: '#0d0d10',
-    cloth: '#e0492b', roughness: 1, metalness: 0, rim: 0.12, hairGlow: true, headroom: 0.33,
+    universe: 'power', build: 'power', shading: 'cel', outline: 0.0046, outlineColour: '#050506',
+    cloth: '#e2552a', roughness: 1, metalness: 0, rim: 1.5, rimColour: '#ff8a2a', shadeTint: [0.56, 0.36, 0.32], deep: 0.9, hairGlow: true, headroom: 0.33,
     stage: {
-      backdrop: '#e9e7e2',
-      key: { colour: '#ffffff', power: 2.4, from: [1.9, 4.0, 3.0] },
-      rims: [{ colour: '#ffffff', power: 0.6 }, { colour: '#ffffff', power: 0.4 }],
-      fill: { sky: '#ffffff', ground: '#b9b5ad', power: 0.6 },
+      backdrop: '#06080c',
+      key: { colour: '#f1f4ff', power: 2.2, from: [2.2, 3.6, 2.6] },
+      rims: [{ colour: '#ff7a1a', power: 2.2 }, { colour: '#ffb347', power: 1.4 }],
+      fill: { sky: '#8fa6c9', ground: '#1a0d06', power: 0.4 },
       room: 0, exposure: 1.0,
-      floor: { colour: '#17171b', shadow: 0.3, wash: 2.2 },
-      paint: true,
-      sun: { colour: '#e4502e', radius: 1.02, lift: 0.34 },
+      floor: { colour: '#ff7a1a', shadow: 0.55, wash: 1.6 },
+      sun: { colour: '#ff7d1f', radius: 1.5, lift: 0.5, blaze: true, follows: true },
+    },
+    variants: {
+      // Ink on paper: black line, grey wash, one red and one blue. The stage is a sheet with a red sun on it.
+      light: {
+        outline: 0.0052, outlineColour: '#0d0d10', cloth: '#e0492b', rim: 0.12, rimColour: '#c4ddff', shadeTint: [0.5, 0.48, 0.66], deep: 0,
+        skinWash: { colour: '#f1eee8', amount: 0.78 },
+        stage: {
+          backdrop: '#e9e7e2',
+          key: { colour: '#ffffff', power: 2.4, from: [1.9, 4.0, 3.0] },
+          rims: [{ colour: '#ffffff', power: 0.6 }, { colour: '#ffffff', power: 0.4 }],
+          fill: { sky: '#ffffff', ground: '#b9b5ad', power: 0.6 },
+          room: 0, exposure: 1.0,
+          floor: { colour: '#17171b', shadow: 0.3, wash: 2.2 },
+          paint: true,
+          sun: { colour: '#e4502e', radius: 1.02, lift: 0.34 },
+        },
+      },
     },
   },
   iron: {
     universe: 'iron', build: 'iron', shading: 'ink', outline: 0.0034, outlineColour: '#050403',
-    cloth: '#100e0c', roughness: 1, metalness: 0, rim: 0.12, hairGlow: false, headroom: 0.22,
+    cloth: '#100e0c', roughness: 1, metalness: 0, rim: 0.12, rimColour: '#cfdaff', hairGlow: false, headroom: 0.22,
     stage: {
       backdrop: '#090807',
       key: { colour: '#fff1e2', power: 3.0, from: [2.7, 4.6, 1.5] },
@@ -96,4 +125,11 @@ export const STYLES: Record<UniverseId, CharacterStyle> = {
 }
 
 /** What the athlete chose about the look: which universe, and the colours of its finish. */
-export interface PerformerStyle { universe: UniverseId; skin?: string; hair?: string; accent?: string }
+export interface PerformerStyle { universe: UniverseId; variant?: string; skin?: string; hair?: string; accent?: string }
+
+/** How a performer is drawn and staged: its universe's style, with the variant its theme asks for laid over it. */
+export function styleOf(spec?: Pick<PerformerStyle, 'universe' | 'variant'>): CharacterStyle {
+  const base = STYLES[spec?.universe ?? 'aura']
+  const over = spec?.variant ? base.variants?.[spec.variant] : undefined
+  return over ? { ...base, ...over } : base
+}

@@ -18,7 +18,7 @@ import { stand } from './motions/stand'
 import { emptyPose, type Pose } from './rig'
 import { buildProps } from './props'
 import { ANGLE, Stage, type CameraAngle } from './stage'
-import { STYLES, type PerformerStyle } from './styles'
+import { styleOf, type PerformerStyle } from './styles'
 import type { Group } from 'three'
 
 export interface PerformerSpec {
@@ -59,6 +59,8 @@ interface Performer {
   base: Float32Array
   target: Float32Array
   lastPhase: number
+  /** How far this performer's Aura turns the body itself into sky at full strength. */
+  cosmos: number
   /** The equipment this performer is on. */
   props: Group | null
 }
@@ -101,7 +103,7 @@ export class Player {
   /** Puts these performers on stage, replacing whoever was there. */
   async setCast(specs: PerformerSpec[], opts: { keepView?: boolean } = {}) {
     const generation = ++this.generation
-    const actors = await Promise.all(specs.map((s) => createActor(s.character, STYLES[s.style?.universe ?? 'aura'].build)))
+    const actors = await Promise.all(specs.map((s) => createActor(s.character, styleOf(s.style).build)))
     if (generation !== this.generation || this.disposed) { actors.forEach((a) => a.dispose()); return }
     for (const p of this.cast) { p.field.dispose(); p.actor.dispose(); p.props?.removeFromParent() }
     this.cast = specs.map((spec, i) => {
@@ -111,7 +113,7 @@ export class Player {
       this.stage.add(actor.group)
       const field = new AuraField(actor)
       this.stage.add(field.group, field.world)
-      const p: Performer = { spec, actor, field, motion: null, pose: emptyPose(), base: new Float32Array(SLOTS), target: new Float32Array(SLOTS), lastPhase: 0, props: null }
+      const p: Performer = { spec, actor, field, motion: null, pose: emptyPose(), base: new Float32Array(SLOTS), target: new Float32Array(SLOTS), lastPhase: 0, cosmos: 0, props: null }
       this.apply(p, spec)
       // Each performer has their own equipment, sized to them.
       const props = p.motion?.props?.(actor.rig.body)
@@ -123,9 +125,10 @@ export class Player {
       }
       return p
     })
-    const look = STYLES[specs[0]?.style?.universe ?? 'aura'].stage
+    const look = styleOf(specs[0]?.style).stage
     this.stage.setLook(look)
     for (const p of this.cast) p.field.setPaint(!!look.paint)
+    this.tint()
     this.sets = specs.some((s) => s.aura.mode === 'living')
     this.time = 0
     this.settle = -1
@@ -135,8 +138,9 @@ export class Player {
 
   /** Changes how the performers already on stage look, without reloading them. */
   update(specs: PerformerSpec[]) {
-    if (specs.length !== this.cast.length || specs.some((s, i) => s.character !== this.cast[i].spec.character || (s.style?.universe ?? 'aura') !== (this.cast[i].spec.style?.universe ?? 'aura') || s.motion !== this.cast[i].spec.motion || s.revision !== this.cast[i].spec.revision || (s.x ?? 0) !== (this.cast[i].spec.x ?? 0) || (s.facing ?? 0) !== (this.cast[i].spec.facing ?? 0))) return void this.setCast(specs, { keepView: specs.length === this.cast.length })
+    if (specs.length !== this.cast.length || specs.some((s, i) => s.character !== this.cast[i].spec.character || (s.style?.universe ?? 'aura') !== (this.cast[i].spec.style?.universe ?? 'aura') || s.style?.variant !== this.cast[i].spec.style?.variant || s.motion !== this.cast[i].spec.motion || s.revision !== this.cast[i].spec.revision || (s.x ?? 0) !== (this.cast[i].spec.x ?? 0) || (s.facing ?? 0) !== (this.cast[i].spec.facing ?? 0))) return void this.setCast(specs, { keepView: specs.length === this.cast.length })
     specs.forEach((s, i) => this.apply(this.cast[i], s))
+    this.tint()
     const sets = specs.some((s) => s.aura.mode === 'living')
     if (sets !== this.sets) { this.sets = sets; this.settle = -1 }
   }
@@ -155,6 +159,20 @@ export class Player {
     const theme = themeById[spec.aura.theme] ?? THEMES[0]
     p.field.setTheme(theme, spec.aura.tuning)
     p.actor.look.hairGlow.value.set(theme.palette[0])
+    p.cosmos = theme.cosmos ?? 0
+    p.actor.look.cosmosA.value.set(theme.palette[1] ?? theme.palette[0])
+    p.actor.look.cosmosB.value.set(theme.palette[3] ?? theme.palette[0])
+    // Where the stage burns behind the figure, the light it throws on the body's edge is the Aura's colour while one is shown.
+    const style = styleOf(spec.style)
+    if (style.stage.sun?.follows) p.actor.look.rimColor.value.set(spec.aura.mode !== 'off' ? theme.palette[0] : style.rimColour)
+  }
+
+  /** The fire behind the figures takes the colour of the first performer's Aura while one is shown. */
+  private tint() {
+    const spec = this.cast[0]?.spec
+    if (!spec || !styleOf(spec.style).stage.sun?.follows) return
+    const theme = themeById[spec.aura.theme] ?? THEMES[0]
+    this.stage.setAccent(spec.aura.mode !== 'off' ? theme.palette[1] ?? theme.palette[0] : null)
   }
 
   /** Frames everything the performers do over a whole cycle. */
@@ -269,6 +287,10 @@ export class Player {
       p.lastPhase = phase
       const level = this.settle >= 0 && mode === 'living' ? 0.1 : levelOf(mode, m?.kind ?? 'hold', { progress: Math.min(1, this.time / length), effort, phase, time: this.time }, p.spec.aura.level)
       p.field.update(dt, level, this.stage.camera, this.stage.renderer.domElement.height)
+      // A body that becomes sky does so as the Aura rises, and goes back as it settles.
+      const sky = p.actor.look.cosmos
+      sky.value += (p.cosmos * Math.min(1, level * 1.6) - sky.value) * (dt > 0 ? 1 - Math.exp(-dt * 4) : 1)
+      p.actor.look.clock.value += dt
       // Hair that takes the colour of the Aura turns with it.
       if (p.actor.style.hairGlow) {
         const charge = p.actor.look.hairCharge

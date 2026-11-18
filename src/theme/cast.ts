@@ -7,12 +7,13 @@ import type { PerformerSpec } from '@/visual/player'
 import type { AuraMode } from '@/visual/aura/director'
 import type { ThemeTuning } from '@/visual/aura/themes'
 import type { Wearing } from './personal'
-import { UNIVERSES, type UniverseId } from './themes'
+import { THEMES, UNIVERSES, type ThemeId, type UniverseId } from './themes'
 
 /** The colour working muscles light up in. */
 export const MUSCLE_GLOW: Record<UniverseId, string> = { aura: '#ff2f8f', power: '#e0245e', iron: '#e3261c' }
 
-export type Look = Pick<Wearing, 'universe' | 'character' | 'form' | 'finish' | 'intensity'>
+/** `theme` says which rendition of the universe is shown, where a universe has two (Goku and Goku Light). */
+export type Look = Pick<Wearing, 'universe' | 'character' | 'form' | 'finish' | 'intensity'> & { theme?: ThemeId }
 
 /** The official presentation: the Aura master character under the Cosmic Aura. Used for every assessment. */
 export const standardLook = (character: Wearing['character']): Look => ({
@@ -33,7 +34,7 @@ export function performerOf(look: Look, o: {
   return {
     character: look.character, motion: o.motion ?? null, revision: o.revision, muscles: o.muscles ?? null, glow: MUSCLE_GLOW[look.universe],
     aura: { theme: look.form.aura, mode: o.aura ?? 'off', level: o.level ?? (o.aura === 'full' ? look.intensity : undefined), tuning: o.tuning },
-    style: { universe: look.universe, skin: look.finish.skin, hair: look.finish.hair, accent: look.finish.accent },
+    style: { universe: look.universe, variant: look.theme ? THEMES[look.theme].variant : undefined, skin: look.finish.skin, hair: look.finish.hair, accent: look.finish.accent },
     x: o.x, facing: o.facing,
   }
 }

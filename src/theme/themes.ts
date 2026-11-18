@@ -1,19 +1,21 @@
 /**
- * The four visual themes, as data.
+ * The five visual themes, as data.
  *
  * A theme is how Aura looks and speaks to one athlete: colours and type
  * (tokens in src/styles/index.css, keyed by the theme id), a voice
  * (voice.ts), and a universe. A universe is what the theme shares with the
  * 3D side: which body the character has, how it is drawn, and the Aura forms
- * it can take. Aura Dark and Aura Light are two views of one universe.
+ * it can take. Aura Dark and Aura Light are two views of one universe, and
+ * so are Goku and Goku Light; the second pair also changes the stage and the
+ * drawing of the character (`variant`).
  *
  * Nothing here touches exercises, ratings, courses or assessments: a theme
- * is presentation only, and adding a fifth is a new entry here, a block of
+ * is presentation only, and adding another is a new entry here, a block of
  * tokens, and a column of copy.
  */
 import type { BuildId } from '@/visual/body/skeleton'
 
-export const THEME_IDS = ['dark', 'light', 'power', 'iron'] as const
+export const THEME_IDS = ['dark', 'light', 'power', 'power-light', 'iron'] as const
 export type ThemeId = (typeof THEME_IDS)[number]
 
 export const UNIVERSE_IDS = ['aura', 'power', 'iron'] as const
@@ -29,6 +31,8 @@ export interface AppTheme {
   blurb: string
   scheme: 'dark' | 'light'
   universe: UniverseId
+  /** Which rendition of its universe's character and stage it shows (`visual/styles.ts`). Unset: the universe's own. */
+  variant?: 'light'
   voice: VoiceId
   /** Browser chrome colour. */
   chrome: string
@@ -52,8 +56,14 @@ export const THEMES: Record<ThemeId, AppTheme> = {
   },
   power: {
     id: 'power', name: 'Goku', line: 'Unlock your next form.',
-    blurb: 'Ink on paper under a red sun. Every level is a new form.',
-    scheme: 'light', universe: 'power', voice: 'power', chrome: '#e9e7e2',
+    blurb: 'Storm dark, fire and embers. Every level is a new form.',
+    scheme: 'dark', universe: 'power', voice: 'power', chrome: '#06080c',
+    type: 'Barlow Condensed, italic', tone: 'Energetic, ambitious',
+  },
+  'power-light': {
+    id: 'power-light', name: 'Goku Light', line: 'Unlock your next form.',
+    blurb: 'The same fighter as ink on paper, under a red sun.',
+    scheme: 'light', universe: 'power', variant: 'light', voice: 'power', chrome: '#e9e7e2',
     type: 'Barlow Condensed, italic', tone: 'Energetic, ambitious',
   },
   iron: {
@@ -63,6 +73,10 @@ export const THEMES: Record<ThemeId, AppTheme> = {
     type: 'Anton, capitals', tone: 'Direct, disciplined',
   },
 }
+
+/** The still picture of a theme's character, for where the 3D view is not loaded. */
+export const posterOf = (theme: ThemeId, character: 'male' | 'female') =>
+  `themes/${THEMES[theme].universe}${THEMES[theme].variant ? `-${THEMES[theme].variant}` : ''}-${character}.jpg`
 
 export const isThemeId = (v: unknown): v is ThemeId => typeof v === 'string' && (THEME_IDS as readonly string[]).includes(v)
 
@@ -140,16 +154,17 @@ export const UNIVERSES: Record<UniverseId, Universe> = {
     character: 'A hero drawn in ink and flat colour, with hair that takes the colour of the form.',
     build: 'power',
     list: [
-      { id: 'ignition', name: 'Saiyan', line: 'The first flame. Everyone starts here.', aura: 'ignition', unlock: { kind: 'start' }, colour: '#ff9a2f' },
+      { id: 'ignition', name: 'Saiyan', line: 'Gold fire. Everyone starts here.', aura: 'ignition', unlock: { kind: 'start' }, colour: '#ffc21f' },
       { id: 'awakened', name: 'God', line: 'Jade fire. The work has started to show.', aura: 'awakened', unlock: { kind: 'skills', count: 3 }, colour: '#1fe0a0' },
       { id: 'ascended', name: 'Destruction', line: 'Violet, with the first lightning.', aura: 'ascended', unlock: { kind: 'class', index: 1 }, colour: '#a45cff' },
       { id: 'overdrive', name: 'Kaio-ken', line: 'Crimson and white lightning.', aura: 'overdrive', unlock: { kind: 'class', index: 3 }, colour: '#ff3355' },
-      { id: 'transcendent', name: 'Ultra Instinct', line: 'Every colour at once, and quiet.', aura: 'transcendent', unlock: { kind: 'class', index: 5 }, colour: '#ffe9a8' },
+      { id: 'transcendent', name: 'Ultra Instinct', line: 'Silver and still. Power that no longer needs to shout.', aura: 'transcendent', unlock: { kind: 'class', index: 5 }, colour: '#b9ccff' },
+      { id: 'zeno', name: 'Zeno', line: 'The last form. A galaxy in the shape of a body.', aura: 'zeno', unlock: { kind: 'class', index: 7 }, colour: '#a97bff' },
     ],
     finishes: [
-      { id: 'dawn', name: 'Paper', skin: '#f1eee8', hair: '#121215', accent: '#25365f' },
-      { id: 'dusk', name: 'Clay', skin: '#dcae88', hair: '#121215', accent: '#25365f' },
-      { id: 'night', name: 'Earth', skin: '#8a5c3d', hair: '#0d0d10', accent: '#2c4173' },
+      { id: 'dawn', name: 'Dawn', skin: '#f2c9a3', hair: '#121215', accent: '#2a4585' },
+      { id: 'dusk', name: 'Dusk', skin: '#cf9868', hair: '#121215', accent: '#2a4585' },
+      { id: 'night', name: 'Night', skin: '#8a5c3d', hair: '#0d0d10', accent: '#34539c' },
     ],
   },
   iron: {

@@ -28,6 +28,8 @@ export interface AuraTheme {
   flow: number
   /** How strongly the body itself lights up at full intensity. */
   body: number
+  /** The body itself becomes a night sky as the Aura rises: cloud in the second and fourth colours, stars in it. 0 to 1; unset: never. */
+  cosmos?: number
   /** Level of each component (0 leaves it out) and the intensity at which it starts to show. */
   shell: { level: number; from: number; reach: number; flame: number }
   halo: { level: number; from: number; size: number }
@@ -130,7 +132,7 @@ export const THEMES: AuraTheme[] = [
   }),
 
   // ── Goku: flame-like, tall, loud. One per form. ───────────────────
-  { ...theme('ignition', 'Ignition', 'A first flame: amber, close to the body.', ['#ffb347', '#ff7a1f', '#ffe2a6', '#ff4d2e'], {
+  { ...theme('ignition', 'Ignition', 'Gold fire, close to the body.', ['#ffd23a', '#ff9a1f', '#fff0a8', '#ff5a1f'], {
     breath: 0.4, flow: 1.6, body: 0.7,
     shell: { level: 1.2, reach: 1.1, flame: 1 },
     halo: { level: 0.7, size: 0.9 },
@@ -176,7 +178,7 @@ export const THEMES: AuraTheme[] = [
     sparks: { count: 140, speed: 1.8, crackle: 1 },
     arcs: { level: 1, from: 0.1, count: 10 },
   }), universe: 'power' },
-  { ...theme('transcendent', 'Transcendent', 'Every colour at once, and quiet: power that no longer needs to shout.', ['#fff6d8', '#ffd76b', '#9be8ff', '#ff9ee6', '#c6a6ff'], {
+  { ...theme('transcendent', 'Transcendent', 'Silver and blue-white, and quiet: power that no longer needs to shout.', ['#dfe8ff', '#8fb0ff', '#ffffff', '#5f86ea', '#c3cfe8'], {
     breath: 0.14, flow: 0.8, body: 1,
     shell: { level: 1.2, reach: 1.2, flame: 0.5 },
     halo: { level: 1.4, size: 1.4 },
@@ -187,6 +189,19 @@ export const THEMES: AuraTheme[] = [
     rings: { level: 1, dashes: 48, spin: 0.2 },
     sparks: { count: 90, speed: 0.8 },
   }), universe: 'power' },
+
+  // The last form: no flame at all. The body turns into a piece of night sky, and stars drift round it.
+  { ...theme('zeno', 'Zeno', 'A galaxy in the shape of a body: violet cloud, stars, and a white edge.', ['#efe6ff', '#7a4dff', '#ffffff', '#ff6fd0', '#5f8cff'], {
+    breath: 0.1, flow: 0.6, body: 0.3,
+    shell: { level: 0.55, reach: 1.5, flame: 0.15 },
+    halo: { level: 0.8, size: 1.5 },
+    rays: { level: 0, from: 1 },
+    ribbons: { level: 0, from: 1 },
+    motes: { level: 1.6, count: 260, rise: 0.12, size: 1.25, swirl: 0.35, twinkle: 1.6 },
+    streams: { level: 0, from: 1 },
+    rings: { level: 0.7, dashes: 64, spin: 0.1 },
+    sparks: { count: 60, speed: 0.4 },
+  }), universe: 'power', cosmos: 1 },
 
   // ── Baki: restrained. Heat, steam and the ground; no rays, no ribbons. ──
   { ...theme('pressure', 'Pressure', 'Heat coming off a body at work. Pale steam, close to the skin.', ['#e9e2d6', '#b8ada0', '#8a8078', '#ffffff'], {

@@ -48,7 +48,7 @@ export function CharacterStudio({ theme }: { theme?: ThemeId }) {
   const [moving, setMoving] = useState<string | null>(null)
   const shown = forms.find((f) => f.form.id === trying) ?? saved
 
-  const look: Look = { universe, character, form: formOf(universe, shown.form.id), finish: finishOf(universe, personal.finishes[universe]), intensity: personal.intensity / 100 }
+  const look: Look = { theme: theme ?? worn.theme, universe, character, form: formOf(universe, shown.form.id), finish: finishOf(universe, personal.finishes[universe]), intensity: personal.intensity / 100 }
 
   // Only what the owner has approved moves here: the published demonstrations of this character.
   const moves = useMemo(

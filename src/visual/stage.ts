@@ -4,8 +4,8 @@
  * angles. One WebGL canvas.
  */
 import {
-  ACESFilmicToneMapping, CircleGeometry, Color, DirectionalLight, HemisphereLight, Mesh,
-  PCFSoftShadowMap, PerspectiveCamera, PMREMGenerator, Scene, ShaderMaterial, ShadowMaterial, SRGBColorSpace, Vector3, WebGLRenderer,
+  ACESFilmicToneMapping, AdditiveBlending, CircleGeometry, Color, DirectionalLight, HemisphereLight, Mesh,
+  NormalBlending, PCFSoftShadowMap, PerspectiveCamera, PMREMGenerator, Scene, ShaderMaterial, ShadowMaterial, SRGBColorSpace, Vector3, WebGLRenderer,
 } from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { STYLES, type StageLook } from './styles'
@@ -94,25 +94,41 @@ export class Stage {
     shadow.renderOrder = -1
     scene.add(sheen, shadow)
 
-    // A sun as a print has one: a flat disc behind the subject, its edge broken like dry brush.
+    // What stands behind the subject. On paper: a flat disc, its edge broken like dry brush. On a dark stage: a fire.
     this.sun = new Mesh(new CircleGeometry(1, 72), new ShaderMaterial({
       transparent: true, depthWrite: false,
-      uniforms: { uColour: { value: new Color(0xe4502e) } },
+      uniforms: { uColour: { value: new Color(0xe4502e) }, uBlaze: { value: 0 }, uTime: { value: 0 } },
       vertexShader: 'varying vec2 vP; void main(){ vP = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
       fragmentShader: `
-        uniform vec3 uColour; varying vec2 vP;
+        uniform vec3 uColour; uniform float uBlaze, uTime; varying vec2 vP;
         float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
         float noise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y); }
+        float fbm(vec2 p){ return noise(p) * 0.5 + noise(p * 2.03 + 7.1) * 0.3 + noise(p * 4.1 + 3.3) * 0.2; }
         void main(){
           float r = length(vP);
-          vec2 q = mat2(0.8, -0.6, 0.6, 0.8) * vP;
-          float cloud = noise(q * 2.3) * 0.55 + noise(q * 5.1 + 3.7) * 0.3 + noise(q * 11.0 + 9.1) * 0.15;
-          float streak = noise(vec2(vP.x * 2.4 + 4.0, vP.y * 38.0));
-          // Solid to the edge above; washed away by a wet brush towards the bottom.
-          float edge = 1.0 - smoothstep(0.962, 0.978, r + (cloud - 0.5) * 0.035);
-          float worn = smoothstep(-1.0, 0.05, vP.y + (cloud - 0.5) * 0.9);
-          float a = edge * worn * (0.94 + 0.06 * streak);
-          gl_FragColor = vec4(uColour, a);
+          if (uBlaze > 0.5) {
+            // Flames that climb: the noise travels upward, and the glow reaches higher than it reaches down.
+            vec2 q = vec2(vP.x * 2.6, vP.y * 1.7 - uTime * 0.55);
+            float f = fbm(q + fbm(q * 1.7 + uTime * 0.2) * 0.9);
+            float reach = r * mix(1.5, 0.86, smoothstep(-0.5, 0.8, vP.y));
+            float body = exp(-reach * reach * 5.2);
+            float tongues = smoothstep(0.5, 0.86, f) * exp(-reach * reach * 2.3);
+            // A ring of white heat, as round a sun that is covered.
+            float ring = exp(-pow((r - 0.2) * 11.0, 2.0));
+            float core = exp(-r * r * 26.0);
+            float a = (body * (0.3 + 0.8 * f) + tongues * 0.9 + ring * 0.42 + core * 0.35) * (1.0 - smoothstep(0.8, 1.0, r));
+            vec3 hot = mix(uColour, vec3(1.0, 0.93, 0.78), saturate(ring * 0.75 + core * 0.8 + tongues * 0.22));
+            // Laid on as light, like the Aura itself: undo the conversion below so the colour stays as deep as it was chosen.
+            gl_FragColor = vec4(pow(hot, vec3(2.2)), a);
+          } else {
+            vec2 q = mat2(0.8, -0.6, 0.6, 0.8) * vP;
+            float cloud = noise(q * 2.3) * 0.55 + noise(q * 5.1 + 3.7) * 0.3 + noise(q * 11.0 + 9.1) * 0.15;
+            float streak = noise(vec2(vP.x * 2.4 + 4.0, vP.y * 38.0));
+            // Solid to the edge above; washed away by a wet brush towards the bottom.
+            float edge = 1.0 - smoothstep(0.962, 0.978, r + (cloud - 0.5) * 0.035);
+            float worn = smoothstep(-1.0, 0.05, vP.y + (cloud - 0.5) * 0.9);
+            gl_FragColor = vec4(uColour, edge * worn * (0.94 + 0.06 * streak));
+          }
           #include <colorspace_fragment>
         }`,
     }))
@@ -139,7 +155,22 @@ export class Stage {
     ;(this.sheen.uniforms.uColour.value as Color).set(look.floor.colour)
     this.sheen.uniforms.uWash.value = look.floor.wash ?? 1
     this.sun.visible = !!look.sun
-    if (look.sun) { (this.sun.material.uniforms.uColour.value as Color).set(look.sun.colour); this.sun.scale.setScalar(look.sun.radius) }
+    if (look.sun) {
+      const m = this.sun.material
+      ;(m.uniforms.uColour.value as Color).set(look.sun.colour)
+      m.uniforms.uBlaze.value = look.sun.blaze ? 1 : 0
+      m.blending = look.sun.blaze ? AdditiveBlending : NormalBlending
+      this.sun.scale.setScalar(look.sun.radius)
+    }
+  }
+
+  /** The colour of what burns behind the subject, and of the light it throws. `null`: the stage's own. */
+  setAccent(colour: string | null) {
+    const sun = this.look.sun
+    if (!sun) return
+    ;(this.sun.material.uniforms.uColour.value as Color).set(colour ?? sun.colour)
+    this.rims[0].color.set(colour ?? this.look.rims[0].colour)
+    ;(this.sheen.uniforms.uColour.value as Color).set(colour ?? this.look.floor.colour)
   }
 
   resize(width: number, height: number) {
@@ -164,6 +195,7 @@ export class Stage {
     const [kx, ky, kz] = this.look.key.from
     this.key.position.set(target.x + kx, ky, target.z + kz)
     if (this.look.sun) {
+      this.sun.material.uniforms.uTime.value = performance.now() / 1000
       // Always behind the subject as the camera goes round it, and facing the camera.
       this.back.set(-Math.sin(a), 0, -Math.cos(a))
       this.sun.position.set(target.x + this.back.x * 2.6, target.y + this.look.sun.lift, target.z + this.back.z * 2.6)

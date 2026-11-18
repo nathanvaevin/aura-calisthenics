@@ -9,7 +9,7 @@ import { useStore } from '@/data/store'
 import { useCloud } from '@/data/cloud'
 import { performerOf } from '@/theme/cast'
 import { completion, isReleased, personalOf, STEPS, type Step } from '@/theme/personal'
-import { THEME_IDS, THEMES, UNIVERSES, type ThemeId } from '@/theme/themes'
+import { THEME_IDS, THEMES, UNIVERSES, posterOf, type ThemeId } from '@/theme/themes'
 import { ThemeContext, usePersonalTheme, useVoice, useWearing } from '@/theme/useTheme'
 import { say } from '@/theme/voice'
 import { SharingRows } from '@/features/places/Identity'
@@ -19,7 +19,7 @@ import { cx } from '@/lib/format'
 import { CharacterStudio } from './CharacterStudio'
 
 const TITLES: Record<Step, { title: string; sub: string }> = {
-  theme: { title: 'Choose your theme', sub: 'Four ways to experience Aura. Your training, ratings and progress are the same in all of them, and you can change at any time.' },
+  theme: { title: 'Choose your theme', sub: 'Five ways to experience Aura. Your training, ratings and progress are the same in all of them, and you can change at any time.' },
   character: { title: 'Make the character yours', sub: 'This is who performs your exercises and stands on your profile.' },
   about: { title: 'A little about you', sub: 'All of it is optional. Skip it now and fill it in whenever you like.' },
   sharing: { title: 'What you share', sub: 'You decide what other athletes see, part by part. You can change any of it later.' },
@@ -146,7 +146,7 @@ function ThemeStep({ value, onChange, released, admin, character }: { value: The
             {/* The character of this universe, in its own light. */}
             <span className="relative z-10 m-2.5 ml-0 w-[38%] shrink-0 overflow-hidden rounded-[calc(var(--r-card)*0.7)] bg-(--stage)">
               {open
-                ? <img src={`${import.meta.env.BASE_URL}themes/${t.universe}-${character}.jpg`} alt="" loading="lazy" className="h-full w-full object-cover object-top" onError={(e) => { e.currentTarget.style.visibility = 'hidden' }} />
+                ? <img src={`${import.meta.env.BASE_URL}${posterOf(id, character)}`} alt="" loading="lazy" className="h-full w-full object-cover object-top" onError={(e) => { e.currentTarget.style.visibility = 'hidden' }} />
                 : <span className="flex h-full flex-col items-center justify-center gap-2 px-3 text-center text-[11.5px] text-ink-3"><Lock size={15} />In preparation</span>}
             </span>
             {on && <span className="absolute top-3 right-3 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-accent text-accent-ink"><Check size={14} strokeWidth={3} /></span>}
