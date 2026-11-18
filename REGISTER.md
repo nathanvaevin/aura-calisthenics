@@ -38,7 +38,7 @@ Last updated: 2026-11-18 · after publishing the animation where the exercise is
 | 3j | ~~Publish this build~~ | **Done, 2026-11-18**, on your word | The public site serves it: the new characters and posters load, and the phone-size athlete check passes there (T-17) |
 | 3m | ~~Paste `supabase/migrations/0013_more_themes.sql`~~ | **Done by you, 2026-11-18** | You reported success. I cannot read this one from outside; the first time Goku Light is chosen on a signed-in account will show it |
 | 3k | **Look at Goku and Baki, then release them**: Studio → Characters → choose the universe → *Show … to athletes*. One switch each | **You** | Their characters, shading and Aura forms are my work and nobody else has seen them. Until released, athletes can choose only Aura Dark and Aura Light |
-| 3f | **Go through the exercises in the Studio**: 60 of the 68 are approved and live (2026-11-18). Still waiting for you: the five corrected movements (wall handstand shoulder taps, dip, negative dip, freestanding handstand, crow pose) and the three you held back for the shoulders (chin-up, elevated pike push-up, overhead wall reach), which now have the corrected body | **You** | Open each under Studio → Exercises: *Approve and send both*, or *Needs correction* with a note (A-13) |
+| 3f | ~~Go through the exercises in the Studio~~ | **Done by you, 2026-11-18** | All 68 exercises that have a movement are approved on the live project, both characters (136 animations), each showing the current revision of its movement: read from the live project, signed out. The other 48 exercises in the library have no movement written yet |
 | 3c | Try a group assessment **and a check-in at a real park** on real phones over the public address | **You** + codebase fixes | Verified in desktop Chrome only, with separate browser profiles standing in for phones (T-04, T-10). Camera scanning, real GPS, small screens, gym Wi-Fi and outdoor conditions are untested |
 | 4 | Review the assessment protocol as a coach: tests, gates, caps, order | **You** | The benchmarks and thresholds are my proposal (F-21). They decide what 20 people do in your class |
 | 6 | Read SCORING.md §9 and decide on proposals P1–P7 | **You** | Nothing in scoring was changed. Seven improvements are described with their measured effect; each changes numbers athletes have seen, so each is your call (A-10) |
@@ -383,6 +383,11 @@ Reference: [VISUALS.md](VISUALS.md) §11 to §13. Theme data: `src/theme/`. "Pro
 | Data protection | Any real athletes | Privacy notice, deletion and export, consent for under-18s in classes |
 
 ## F · Change log
+
+**2026-11-18 · Every movement approved**
+
+- Read from the live project, signed out: 136 published animations, 68 exercises, both characters each, none showing an out-of-date movement. That includes the five corrected movements at revision 2 and the three held back for the shoulders. Action 3f is done.
+- Not yet built: movements for the remaining 48 exercises of the library.
 
 **2026-11-18 · Published: the animation where the exercise is, the corrections, 360° everywhere**
 
