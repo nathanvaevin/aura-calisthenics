@@ -247,22 +247,9 @@ export function Onboarding() {
                 <button onClick={() => setAccountStep(false)} aria-label="Back" className="pressable -ml-2 flex h-10 w-10 items-center justify-center rounded-full text-ink-2 hover:text-ink"><ArrowLeft size={19} /></button>
               </header>
               <div className="flex flex-1 flex-col justify-center">
-                <Eyebrow>One tap to begin</Eyebrow>
-                <h1 className="display mt-2 text-[44px] leading-[1.02]">Make it <span className="italic">yours.</span></h1>
-                <p className="mt-3 text-[15.5px] leading-relaxed text-ink-2">Sign in, and everything you build here stays with you: your Aura, your skills, every session.</p>
-                <ol className="mt-7 space-y-3.5">
-                  {[
-                    ['A few quick questions', 'Where you are today, and what you want.'],
-                    ['Your first Aura', 'One number for your strength, balance and control.'],
-                    ['Your next step', 'A skill tree that shows exactly what to work on.'],
-                  ].map(([title, line], i) => (
-                    <li key={title} className="flex items-start gap-3.5">
-                      <span className="display num mt-[-2px] w-5 shrink-0 text-[24px] leading-none text-accent">{i + 1}</span>
-                      <span className="min-w-0"><span className="block text-[15px] font-medium">{title}</span><span className="block text-[13px] leading-snug text-ink-3">{line}</span></span>
-                    </li>
-                  ))}
-                </ol>
-                <p className="mt-6 text-[12.5px] text-ink-3">On your own, or with a coach: it works both ways.</p>
+                <h1 className="display text-[42px] leading-[1.04]">Sign in to start.</h1>
+                <p className="mt-4 text-[16px] leading-relaxed text-ink-2">So your results are saved, and still here the next time you open Aura.</p>
+                <p className="mt-4 text-[16px] leading-relaxed text-ink-2">Next come a few questions about what you can do today. It takes two minutes, and you get your first Aura score.</p>
               </div>
               <div className="mt-8 flex flex-col gap-3">
                 <GoogleButton />

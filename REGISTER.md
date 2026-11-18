@@ -386,7 +386,7 @@ Reference: [VISUALS.md](VISUALS.md) §11 to §13. Theme data: `src/theme/`. "Pro
 
 **2026-11-18 · The account step of the welcome, rewritten**
 
-- At the owner's request: the screen after *Get started* no longer speaks of laptops or opens with a coach. It says in one line why to sign in ("everything you build here stays with you"), then the three things that follow (a few quick questions, your first Aura, your next step), and one closing line that it works alone or with a coach. Same sign-in button and terms line. Fits one phone screen without scrolling (seen at 390×844, 375×667 and desktop). Not published.
+- At the owner's request: the screen after *Get started* no longer speaks of laptops or of a coach. A first rewrite read as written by a machine and was rejected; it now says, in plain words, "Sign in to start", why (your results are saved), and what comes next (a few questions, two minutes, your first Aura score). Same sign-in button and terms line. Not published.
 
 **2026-11-18 · Every movement approved**
 
