@@ -270,7 +270,7 @@ export function build(set: RowSet, uid: string, prev: Synced): Synced {
       const privacy = {
         origin: identity.origin_audience as Audience, base: identity.base_audience as Audience,
         places: identity.places_audience as Audience, visits: identity.visits_audience as Audience,
-        style: (identity.style_audience as Audience) ?? 'everyone', ratings: (identity.ratings_audience as Audience) ?? 'me',
+        style: (identity.style_audience as Audience) ?? 'everyone', ratings: (identity.ratings_audience as Audience) ?? 'everyone',
         interests: (identity.interests_audience as Audience) ?? 'everyone',
       }
       // What the device holds is kept as it is while it says the same thing, parts left to their default included.

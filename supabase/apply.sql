@@ -5,7 +5,7 @@
 -- once. It creates the schema, the access rules and the catalog + demo data.
 -- See supabase/README.md for the full setup, including Google sign-in.
 --
--- Contents: 0001_core.sql, 0002_storage.sql, 0003_evidence_observed.sql, 0004_assessments.sql, 0005_places.sql, 0006_live.sql, 0007_coach_access.sql, 0008_course_weeks_and_station_mode.sql, 0009_visual_content.sql, 0010_start_over.sql, 0011_personal_style.sql, then seed.sql.
+-- Contents: 0001_core.sql, 0002_storage.sql, 0003_evidence_observed.sql, 0004_assessments.sql, 0005_places.sql, 0006_live.sql, 0007_coach_access.sql, 0008_course_weeks_and_station_mode.sql, 0009_visual_content.sql, 0010_start_over.sql, 0011_personal_style.sql, 0012_ratings_open.sql, then seed.sql.
 
 
 -- ════════════════════════════════════════════════════════════════════════
@@ -1773,6 +1773,30 @@ $$;
 
 revoke execute on function public.shares_ratings(uuid), public.style_of(uuid), public.about_of(uuid) from public, anon;
 grant execute on function public.shares_ratings(uuid), public.style_of(uuid), public.about_of(uuid) to authenticated;
+
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 0012_ratings_open.sql
+-- ════════════════════════════════════════════════════════════════════════
+
+-- An athlete's Aura and ratings are open to other athletes unless they close
+-- them. 0011 started them at "only me"; the owner decided the other way round.
+--
+-- Athletes who have not been through the sharing step have chosen nothing
+-- yet, so the new starting point is theirs too. A choice already made is
+-- kept. A hidden profile still shares nothing (shares_ratings, 0011).
+--
+-- Safe to run twice: the second run finds the new default and does nothing,
+-- so it can never reopen ratings someone closed afterwards.
+
+do $$
+begin
+  if (select column_default from information_schema.columns
+      where table_schema = 'public' and table_name = 'athlete_identity' and column_name = 'ratings_audience') like '''me''%' then
+    update public.athlete_identity set ratings_audience = 'everyone' where ratings_audience = 'me' and sharing_at is null;
+    alter table public.athlete_identity alter column ratings_audience set default 'everyone';
+  end if;
+end $$;
 
 
 -- ════════════════════════════════════════════════════════════════════════

@@ -251,8 +251,16 @@ Paste **all of `supabase/migrations/0010_start_over.sql`** into the SQL editor a
 
 ## 11 · Personal style and sharing
 
-Paste **all of `supabase/migrations/0011_personal_style.sql`** into the SQL editor and run it once. *Success. No rows returned.* It adds columns to each athlete's own identity row (their theme, character, Aura form, a few optional profile details, and three sharing choices) and three small functions. Nothing that exists is moved or rewritten, and everyone's results stay as private as they were until they choose otherwise.
+Paste **all of `supabase/migrations/0011_personal_style.sql`** into the SQL editor and run it once. *Success. No rows returned.* It adds columns to each athlete's own identity row (their theme, character, Aura form, a few optional profile details, and three sharing choices) and three small functions. Nothing that exists is moved or rewritten. It starts everyone's ratings at "only me"; step 12 changes that.
 
 **Run it before the build that uses it is published.** That build saves the new columns with every profile; without them a signed-in device cannot save and keeps waiting.
 
 To check it took: `select theme, persona, ratings_audience from public.athlete_identity limit 1;` runs without an error.
+
+## 12 · Ratings open unless closed
+
+Paste **all of `supabase/migrations/0012_ratings_open.sql`** into the SQL editor and run it once. *Success. No rows returned.* An athlete's Aura and ratings are now shown to other signed-in athletes unless the athlete closes them (Profile → settings → Privacy, or the sharing step of Personalize). It changes the starting point for new athletes and for everyone who has not yet made a choice; a choice already made is kept, and a profile hidden from discovery still shares nothing. Running it a second time does nothing.
+
+**Run it before the build that uses it is published**, so no device ever records the old starting point as a choice.
+
+To check it took: `select ratings_audience, count(*) from public.athlete_identity group by 1;` shows `everyone`.

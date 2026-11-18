@@ -68,7 +68,7 @@ export const AUDIENCES: Record<Audience, { label: string; short: string }> = {
  * Defaults when an athlete has chosen nothing. Declared, coarse facts are open;
  * anything about where a person actually is or goes starts closed.
  */
-export const DEFAULT_PRIVACY: AthletePrivacy = { origin: 'everyone', base: 'everyone', places: 'following', visits: 'me', style: 'everyone', ratings: 'me', interests: 'everyone' }
+export const DEFAULT_PRIVACY: AthletePrivacy = { origin: 'everyone', base: 'everyone', places: 'following', visits: 'me', style: 'everyone', ratings: 'everyone', interests: 'everyone' }
 
 export const privacyOf = (a: Pick<Athlete, 'privacy'>): AthletePrivacy => ({ ...DEFAULT_PRIVACY, ...a.privacy })
 

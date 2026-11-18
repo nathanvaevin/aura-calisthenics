@@ -426,8 +426,6 @@ export function buildWorld(now: Date, demoMe: boolean): World {
     const universe = look.theme === 'power' || look.theme === 'iron' ? look.theme : 'aura'
     athletes[id] = { ...athletes[id], interests: look.interests, style: { theme: look.theme, character: look.character, forms: { [universe]: look.form }, finishes: {}, intensity: 60, muscles: true, steps: { theme: iso(t - 30 * DAY), character: iso(t - 30 * DAY) } } }
   }
-  // The sample athletes show their ratings: that is what the demo's athlete list is for. A real athlete's stay private until they open them.
-  for (const id of Object.keys(athletes)) if (id !== ME) athletes[id] = { ...athletes[id], privacy: { ...athletes[id].privacy, ratings: 'everyone' } }
   const evidence = personas.flatMap((p) => toEvidence(p.athlete.id, p.evidence, t))
 
   const handstand = courseFromTemplate('handstand-foundations', 'elena', mondayOffset(-2), { status: 'active' })

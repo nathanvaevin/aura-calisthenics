@@ -94,12 +94,22 @@ async function expectDenied(label: string, user: string | null, sql: string, rol
   }
 }
 
+const EARLY = '00000000-0000-0000-0000-0000000000e1'
+const CHOSE = '00000000-0000-0000-0000-0000000000e2'
 console.log('Applying schema')
 await db.exec(PRELUDE)
-for (const file of ['0001_core.sql', '0002_storage.sql', '0003_evidence_observed.sql', '0004_assessments.sql', '0005_places.sql', '0006_live.sql', '0007_coach_access.sql', '0008_course_weeks_and_station_mode.sql', '0009_visual_content.sql', '0010_start_over.sql', '0011_personal_style.sql']) {
+for (const file of ['0001_core.sql', '0002_storage.sql', '0003_evidence_observed.sql', '0004_assessments.sql', '0005_places.sql', '0006_live.sql', '0007_coach_access.sql', '0008_course_weeks_and_station_mode.sql', '0009_visual_content.sql', '0010_start_over.sql', '0011_personal_style.sql', '0012_ratings_open.sql']) {
+  // Two athletes from before ratings were opened: one who never chose, one who chose to keep them.
+  if (file === '0012_ratings_open.sql') await db.exec(`insert into auth.users (id) values ('${EARLY}'), ('${CHOSE}'); insert into public.athlete_identity (athlete_id) values ('${EARLY}'); insert into public.athlete_identity (athlete_id, sharing_at) values ('${CHOSE}', now());`)
   await db.exec(read(`../supabase/migrations/${file}`))
   ok(`${file} applies cleanly`)
 }
+;(await count(`select 1 from public.athlete_identity where athlete_id = '${EARLY}' and ratings_audience = 'everyone'`)) === 1 ? ok('0012 opens the ratings of an athlete who had not chosen') : bad('0012', 'an athlete who never chose is still closed')
+;(await count(`select 1 from public.athlete_identity where athlete_id = '${CHOSE}' and ratings_audience = 'me'`)) === 1 ? ok('…and keeps a choice already made') : bad('0012', 'a choice that was made was overwritten')
+await db.exec(`update public.athlete_identity set ratings_audience = 'me' where athlete_id = '${EARLY}';`)
+await db.exec(read('../supabase/migrations/0012_ratings_open.sql'))
+;(await count(`select 1 from public.athlete_identity where athlete_id = '${EARLY}' and ratings_audience = 'me'`)) === 1 ? ok('…run a second time it reopens nothing') : bad('0012', 'a second run reopened ratings that were closed')
+await db.exec(`delete from auth.users where id in ('${EARLY}', '${CHOSE}');`)
 await db.exec(read('../supabase/seed.sql'))
 ok('seed.sql applies cleanly')
 await db.exec(read('../supabase/seed.sql'))
@@ -491,7 +501,9 @@ await expectCount('…nor the favourite disciplines, while the country follows t
 await expectCount('they still see their own', P1, `select 1 from public.style_of('${P1}')`, 1)
 
 await expectOk('the athlete has results', P1, `insert into public.evidence (athlete_id, exercise_id, value, tier, source) values ('${P1}', 'pushup', 20, 'self', 'manual');`)
-await expectCount('results are private by default, as before', P2, `select 1 from public.evidence where athlete_id = '${P1}'`, 0)
+await expectCount('results are open to other athletes unless closed', P2, `select 1 from public.evidence where athlete_id = '${P1}'`, 1)
+await expectOk('one switch closes them', P1, `update public.athlete_identity set ratings_audience = 'me' where athlete_id = '${P1}';`)
+await expectCount('then nobody else reads them', P2, `select 1 from public.evidence where athlete_id = '${P1}'`, 0)
 await expectOk('they open their ratings to the people they follow', P1, `update public.athlete_identity set ratings_audience = 'following' where athlete_id = '${P1}'; insert into public.follows (follower_id, followee_id) values ('${P1}', '${P2}');`)
 await expectCount('someone they follow can now read them', P2, `select 1 from public.evidence where athlete_id = '${P1}'`, 1)
 await expectCount('a stranger still cannot', P3, `select 1 from public.evidence where athlete_id = '${P1}'`, 0)

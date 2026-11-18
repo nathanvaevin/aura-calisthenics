@@ -105,7 +105,7 @@ export function MyIdentity({ athlete, onEdit }: { athlete: Athlete; onEdit: () =
 
 const PRIVACY_ROWS: { key: keyof AthletePrivacy; title: string; sub: string }[] = [
   { key: 'style', title: 'Your character and theme', sub: 'The character, Aura form and theme you chose' },
-  { key: 'ratings', title: 'Your Aura and ratings', sub: 'Aura, discipline ratings and the benchmarks behind them. Your coach always sees these' },
+  { key: 'ratings', title: 'Your Aura and ratings', sub: 'Your Aura, your rating in each discipline, the skills you mastered and the results behind them. Your coach always sees these' },
   { key: 'interests', title: 'Favourite disciplines', sub: 'The ones you named as yours' },
   { key: 'base', title: 'Where you are based', sub: 'Your city and country. Also what the “My city” filter uses' },
   { key: 'origin', title: 'Where you are from', sub: 'The line you wrote yourself' },

@@ -22,7 +22,7 @@ const stay = (athleteId: string, placeId: string, startAgoMin: number, minutes: 
 
 describe('privacy', () => {
   it('opens declared facts and closes behaviour by default', () => {
-    expect(privacyOf({})).toEqual({ origin: 'everyone', base: 'everyone', places: 'following', visits: 'me', style: 'everyone', ratings: 'me', interests: 'everyone' })
+    expect(privacyOf({})).toEqual({ origin: 'everyone', base: 'everyone', places: 'following', visits: 'me', style: 'everyone', ratings: 'everyone', interests: 'everyone' })
   })
 
   it('treats "people I follow" as the owner\'s list, not their followers', () => {

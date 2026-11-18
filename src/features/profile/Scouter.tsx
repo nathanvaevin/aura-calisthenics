@@ -30,8 +30,8 @@ export function Athletes() {
   const following = useStore((s) => s.following)
   const [filter, setFilter] = useState<Filter>('all')
   const viewer = useViewer()
-  // With accounts, an athlete's results are private to them and their coach. Listing someone
-  // whose results cannot be read would show them as unrated, which would be untrue.
+  // With accounts, an athlete's results are read by them, their coach and whoever they share them with
+  // (everyone, unless they closed them). Listing someone whose results cannot be read would show them as unrated, which would be untrue.
   const account = useStore((s) => !!s.cloudUid)
   /** The city an athlete lets this viewer see, if any. */
   const cityOf = (a: Athlete) => identityFor(a, viewer.relationTo(a)).city

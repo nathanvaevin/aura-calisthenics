@@ -164,7 +164,7 @@ describe('personal style in the database', () => {
   it('an athlete who chose nothing is sent the defaults, and stays as they were', () => {
     const mine = world(athlete())
     const rows = project(mine, uid)
-    expect(rows.athlete_identity.get(uid)).toMatchObject({ theme: 'dark', persona: null, intensity: 60, show_muscles: true, ratings_audience: 'me' })
+    expect(rows.athlete_identity.get(uid)).toMatchObject({ theme: 'dark', persona: null, intensity: 60, show_muscles: true, ratings_audience: 'everyone' })
     expect(rows.profiles.get(uid)!.is_public).toBe(true)
     expect(build(rows, uid, mine).athletes[uid]).toBe(mine.athletes[uid])
   })
