@@ -43,6 +43,8 @@ export interface Settings {
   /** Audience chosen at the last check-in, offered again next time. */
   audience?: Audience
   stayMinutes?: number
+  /** Who demonstrates the assessment on this device, and the session it was last chosen for (it is asked at the start of each). */
+  instructor?: { character: 'male' | 'female'; sessionId: string }
   /** The introduction on the profile: seen to the end, or waved away. Unset: not offered yet on this device. */
   tour?: 'done' | 'skipped'
 }

@@ -4,7 +4,7 @@ import { cx } from '@/lib/format'
 import { Player, type PerformerSpec, type PlayerState } from './player'
 import type { CameraAngle } from './stage'
 
-export interface DemoHandle { release: () => void; restart: () => void; /** Turns the camera round the subject by so many degrees. */ turn: (degrees: number) => void }
+export interface DemoHandle { /** The Aura let go at once: everyone on stage, or one performer by their place in the cast. */ release: (who?: number) => void; restart: () => void; /** Turns the camera round the subject by so many degrees. */ turn: (degrees: number) => void }
 
 /**
  * A stage with characters on it. Looking round the subject is always the
@@ -52,7 +52,7 @@ export default function Demo({ cast, ratio = 1, controls = 'simple', margin, ang
     if (safe) player.current?.setSafeArea(safe.top, safe.bottom, !shown.current)
   }, [safe?.top, safe?.bottom]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useImperativeHandle(handle, () => ({ release: () => player.current?.release(), restart: () => { player.current?.restart(); setPlaying(true) }, turn: (degrees) => player.current?.turn(degrees) }), [])
+  useImperativeHandle(handle, () => ({ release: (who) => player.current?.release(who), restart: () => { player.current?.restart(); setPlaying(true) }, turn: (degrees) => player.current?.turn(degrees) }), [])
 
   useEffect(() => {
     const el = box.current

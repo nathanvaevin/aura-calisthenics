@@ -3,7 +3,7 @@
 The single source of truth for what works, what only looks finished, and what still has to be connected.
 Update it in the same change as any feature, integration or dependency (rule in `CLAUDE.md`).
 
-Last updated: 2026-11-19 · after publishing "Simpler to enter" and "A coach sees their students"
+Last updated: 2026-11-19 · after the instructor choice and the shorter session summary (not published)
 
 ## Read this first
 
@@ -185,6 +185,9 @@ Reference: [VISUALS.md](VISUALS.md) §11 to §13. Theme data: `src/theme/`. "Pro
 | F-143 | **"Start here" and a one-minute introduction** on the profile: a small card once personalizing is done; six steps, each lighting one real thing (Personalize, Aura, ratings, Skills, Train, Library) with one sentence in the theme's voice; forward, back, skip, leave; ends on *Start training*. Never opens by itself. Opened again from Settings → Introduction | Working (local) | T-18: order, back, skip, end, not offered twice, reopened, Baki's voice | **Remembered per device, not per account**: on a second phone the small card is offered once more. Saving it to the account needs a column and a database step | F-128 |
 | F-144 | **Less on the page** (phone): Profile 5.2 → 2.3 screens (ratings one line each; DNA, where you train, records, skills and training folded to one line until wanted; the four Aura sub-scores are behind the Aura card). Home 3.0 → 2.1 (next session straight under the Aura; goals one line each; "recommended next steps" only for someone with no goal, since each goal names its next step; the numbers after what there is to do). Train 2.3 → 1.2 (quick sessions, assessments and history folded). Course page: milestones, feedback and about folded; the first week speaks to the athlete. With room for two columns the folds start open | Working (local) | Measured and seen at 390×844 and 1280×900 (T-18) | Judged by my eye, not by a student. Skill tree, Places and Library pages were looked at and left as they are | – |
 | F-145 | **Students and coaches**: a student has no Coach Studio or Studio entry and cannot open either by address; a coach keeps both. Nothing was removed from the coach's side | Working (local) | T-18 | Unchanged rules, re-checked | F-109 |
+
+| F-148 | **Choose your instructor** at the start of each assessment: the male and the female master character side by side, large; the one touched answers with a burst of the Electric Aura and the assessment opens. That character then performs every demonstration in it. Changed later from the overview ("Instructor: … · change") | Working (local) | In a browser, 8 checks: shown first, both standing, only the chosen one bursts, opens by itself, kept on reopening, demonstrations follow it, changeable; the class assessment re-run with it (17) | Kept per device, for that assessment: on another phone it is asked again. Loads the 3D view and both characters at the start of the assessment; the two buttons work before, and without, the 3D view | F-138 |
+| F-149 | **The end of a workout shows the session and nothing else**: title, one line of numbers, what was done, and one switch on any result that is a new best (marked self-reported). The explanations are gone; effort and a note are folded under one optional row; Save, and a quiet Discard | Working (local) | In a browser, 6 checks: no explanations, fits one phone screen, saving records the session and the best as self-reported | The theme's closing line on this screen was removed with the rest; its heading still speaks in the theme's voice | F-136 |
 
 ### A coach sees their students (added 2026-11-19)
 
@@ -407,6 +410,12 @@ Reference: [VISUALS.md](VISUALS.md) §11 to §13. Theme data: `src/theme/`. "Pro
 | Data protection | Any real athletes | Privacy notice, deletion and export, consent for under-18s in classes |
 
 ## F · Change log
+
+**2026-11-19 · Choose your instructor; the end of a workout, stripped down**
+
+- At the owner's request. An assessment now opens by asking who demonstrates it (F-148): the two master characters, the chosen one bursting in the Electric Aura. The assessment's own presentation is otherwise unchanged.
+- The session-complete screen lost its explanations (F-149): what was logged is the screen. Nothing about what is saved changed: sessions, new bests and their self-reported tier are recorded as before.
+- `Player.release(who)` and `DemoHandle.release(who)` let one performer's Aura go. 649 tests; journeys 21, 21, 17, 44, 31. **Not on a real phone.** Not published.
 
 **2026-11-19 · Published: simpler to enter, and a coach sees their students**
 

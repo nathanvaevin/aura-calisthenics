@@ -10,7 +10,7 @@ import { exerciseById, formatValue, progressionById, stepAt } from '@/domain/cat
 import { candidatesIn, useStore, type ActiveWorkout } from '@/data/store'
 import { useNow } from '@/data/hooks'
 import { MuscleMap } from '@/ui/MuscleMap'
-import { Eyebrow, Ring, Sheet, Stepper, Toggle } from '@/ui/primitives'
+import { TierTag, Fold, Eyebrow, Ring, Sheet, Stepper, Toggle } from '@/ui/primitives'
 import { VideoEmbed } from '@/features/library/ExerciseDetail'
 import { tick } from '@/lib/sound'
 import { KIND_LABEL, clock, cx, dvar } from '@/lib/format'
@@ -623,113 +623,89 @@ function Summary({ a }: { a: ActiveWorkout }) {
     finish({ rpe, note, claims })
   }
 
+  const discardIt = () => {
+    if (window.confirm('Discard this session? Nothing from it will be saved.')) {
+      exit.to = '/'
+      discard()
+    }
+  }
+  const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`
+
+  // The session speaks for itself: what was done, and one switch where a result is a new best.
   return (
-    <div className="relative z-10 flex min-h-0 flex-1 flex-col">
+    <div className="relative z-10 flex min-h-0 flex-1 flex-col" data-summary>
       <div className="safe-top min-h-0 flex-1 overflow-y-auto px-5 pb-6">
         <div className="rise pt-10">
           <Eyebrow>{open >= 0 ? 'Session summary' : say('workout.done')}</Eyebrow>
-          <h1 className="display mt-2 text-[44px]">{a.log.title}</h1>
-          {open < 0 && <p className="mt-2 text-[13.5px] leading-relaxed text-ink-2">{say('workout.done.line')}</p>}
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            {[['Minutes', minutes], ['Exercises', performed.length], ['Sets', sets]].map(([l, v]) => (
-              <div key={l} className="card px-3.5 py-3"><Eyebrow>{l}</Eyebrow><div className="display num mt-1 text-[30px]">{v}</div></div>
-            ))}
-          </div>
+          <h1 className="display mt-2 text-[40px] leading-[1.04]">{a.log.title}</h1>
+          <p className="num mt-2 text-[13.5px] text-ink-3">{minutes} min · {plural(performed.length, 'exercise')} · {plural(sets, 'set')}</p>
         </div>
 
         {performed.length === 0 ? (
           <p className="mt-8 text-[14px] text-ink-2">No sets were logged, so there is nothing to save yet.</p>
         ) : (
           <>
-            {candidates.length > 0 && (
-              <section className="rise rise-1 mt-7">
-                <Eyebrow className="mb-1.5">New bests in this session</Eyebrow>
-                <p className="mb-3 text-[13px] leading-snug text-ink-2">
-                  Training is saved either way. Mastery only moves when you put a performance on record, so choose which of these count.
-                </p>
-                <div className="card divide-y divide-line">
-                  {candidates.map((c) => {
-                    const x = exerciseById[c.exerciseId]
-                    return (
-                      <div key={c.exerciseId} className="flex items-start gap-3 p-4">
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[14.5px] font-medium">{x.name}</div>
-                          <div className="num mt-0.5 flex items-center gap-1.5 text-[13px] text-ink-2">
-                            {c.previous ? formatValue(x, c.previous) : 'No record'} <ArrowRight size={12} className="text-ink-3" />
-                            <span className="font-semibold" style={{ color: dvar(x.discipline) }}>{formatValue(x, c.value, true)}</span>
-                          </div>
-                          {x.standard && <div className="mt-1.5 text-[12px] leading-snug text-ink-3">Counts when: {x.standard}</div>}
-                        </div>
-                        <Toggle on={!off[c.exerciseId]} onChange={(v) => setOff({ ...off, [c.exerciseId]: !v })} label={`Record ${x.name}`} />
-                      </div>
-                    )
-                  })}
-                </div>
-                <p className="mt-2 text-[12px] text-ink-3">Recorded as self-reported. Your coach can verify them from this session.</p>
-              </section>
-            )}
-
-            <section className="rise rise-2 mt-7">
-              <Eyebrow className="mb-3">What you did</Eyebrow>
-              <div className="card divide-y divide-line">
-                {performed.map((e) => {
-                  const done = e.sets.filter((s) => s.done)
-                  const names = [...new Set(done.map((s) => s.exerciseId))]
-                  const x = exerciseById[names[names.length - 1]]
-                  const differs = names.some((n) => n !== e.assignedExerciseId)
-                  return (
-                    <div key={e.blockId} className="px-4 py-3">
-                      <div className="flex items-baseline justify-between gap-3">
-                        <span className="min-w-0 truncate text-[14px] font-medium">{names.map((n) => exerciseById[n].name).join(' → ')}</span>
-                        <span className="num shrink-0 text-[13px] text-ink-2">{done.map((s) => s.value).join(' · ')}{x.metric === 'hold' ? ' s' : ''}</span>
-                      </div>
-                      <div className="mt-0.5 text-[12px] text-ink-3">
-                        {differs ? (
-                          <>{planned} {exerciseById[e.assignedExerciseId].name}{e.assignedLevel ? ` (L${e.assignedLevel})` : ''} · done at L{done[done.length - 1].level}</>
-                        ) : (
-                          <>{e.level ? `Level ${e.level} · ` : ''}as {planned.toLowerCase()}</>
-                        )}
-                        {done.length < e.sets.length && ` · ${done.length} of ${e.sets.length} sets`}
-                      </div>
+            <div className="rise rise-1 card mt-6 divide-y divide-line">
+              {performed.map((e) => {
+                const done = e.sets.filter((s) => s.done)
+                const names = [...new Set(done.map((s) => s.exerciseId))]
+                const x = exerciseById[names[names.length - 1]]
+                const differs = names.some((n) => n !== e.assignedExerciseId)
+                const bests = candidates.filter((c) => names.includes(c.exerciseId))
+                return (
+                  <div key={e.blockId} className="px-4 py-3">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="min-w-0 truncate text-[14.5px] font-medium">{names.map((n) => exerciseById[n].name).join(' → ')}</span>
+                      <span className="num shrink-0 text-[13.5px] text-ink-2">{done.map((s) => s.value).join(' · ')}{x.metric === 'hold' ? ' s' : ''}</span>
                     </div>
-                  )
-                })}
-              </div>
-            </section>
+                    {(differs || done.length < e.sets.length) && (
+                      <div className="mt-0.5 text-[12px] text-ink-3">
+                        {differs && <>{planned} {exerciseById[e.assignedExerciseId].name}{e.assignedLevel ? ` (L${e.assignedLevel})` : ''} · done at L{done[done.length - 1].level}</>}
+                        {differs && done.length < e.sets.length && ' · '}
+                        {done.length < e.sets.length && `${done.length} of ${e.sets.length} sets`}
+                      </div>
+                    )}
+                    {bests.map((c) => {
+                      const b = exerciseById[c.exerciseId]
+                      return (
+                        <div key={c.exerciseId} className="mt-2.5 flex items-center gap-2.5 rounded-xl bg-surface-2 py-2 pr-2 pl-3" data-best={c.exerciseId}>
+                          <TierTag tier="self" compact />
+                          <span className="num min-w-0 flex-1 truncate text-[13px]">
+                            <span className="text-ink-2">New best · </span>
+                            {c.previous ? <span className="text-ink-3">{formatValue(b, c.previous)} → </span> : null}
+                            <span className="font-semibold" style={{ color: dvar(b.discipline) }}>{formatValue(b, c.value, true)}</span>
+                          </span>
+                          <Toggle on={!off[c.exerciseId]} onChange={(v) => setOff({ ...off, [c.exerciseId]: !v })} label={`Record ${b.name} as a new best`} />
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })}
+            </div>
 
-            <section className="rise rise-3 mt-7">
-              <Eyebrow className="mb-3">How hard was it? · optional</Eyebrow>
-              <div className="flex gap-1">
-                {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-                  <button key={n} onClick={() => setRpe(rpe === n ? undefined : n)} className={cx('num h-10 flex-1 rounded-xl border text-[13.5px] font-medium transition-colors', rpe === n ? 'border-ink bg-ink text-bg' : 'border-line text-ink-2')}>
-                    {n}
-                  </button>
-                ))}
-              </div>
-              <div className="mt-1.5 flex justify-between text-[11.5px] text-ink-3"><span>Very easy</span><span>Maximal</span></div>
-              <textarea className="field mt-4" rows={2} placeholder="A note for yourself or your coach" value={note} onChange={(e) => setNote(e.target.value)} />
-            </section>
+            <div className="rise rise-2 mt-3">
+              <Fold id="effort" title="Effort and a note" summary={rpe || note ? `${rpe ? `Effort ${rpe}/10` : ''}${rpe && note ? ' · ' : ''}${note ? 'note added' : ''}` : 'Optional'}>
+                <div className="flex gap-1">
+                  {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                    <button key={n} onClick={() => setRpe(rpe === n ? undefined : n)} aria-label={`Effort ${n} of 10`} className={cx('num h-10 flex-1 rounded-xl border text-[13.5px] font-medium transition-colors', rpe === n ? 'border-ink bg-ink text-bg' : 'border-line text-ink-2')}>
+                      {n}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-1.5 flex justify-between text-[11.5px] text-ink-3"><span>Very easy</span><span>Maximal</span></div>
+                <textarea className="field mt-3" rows={2} placeholder="A note for yourself or your coach" value={note} onChange={(e) => setNote(e.target.value)} />
+              </Fold>
+            </div>
           </>
         )}
       </div>
 
-      <footer className="safe-bottom shrink-0 border-t border-line px-5 pt-3 pb-4">
-        <button className="btn btn-primary btn-lg w-full" disabled={performed.length === 0} onClick={save}>
-          {claims.length ? `Save and record ${claims.length} new ${claims.length === 1 ? 'best' : 'bests'}` : 'Save workout'}
-        </button>
-        <div className="mt-2.5 flex gap-2.5">
-          {open >= 0 && <button className="btn btn-outline flex-1" onClick={() => goTo(open)}>Back to session</button>}
-          <button
-            className="btn btn-outline flex-1"
-            onClick={() => {
-              if (window.confirm('Discard this session? Nothing from it will be saved.')) {
-                exit.to = '/'
-                discard()
-              }
-            }}
-          >
-            Discard
-          </button>
+      <footer className="safe-bottom shrink-0 border-t border-line px-5 pt-3 pb-3">
+        <button className="btn btn-primary btn-lg w-full" disabled={performed.length === 0} onClick={save}>Save</button>
+        <div className="mt-1 flex items-center justify-center gap-6">
+          {open >= 0 && <button className="h-10 text-[13px] text-ink-2 hover:text-ink" onClick={() => goTo(open)}>Back to session</button>}
+          <button className="h-10 text-[13px] text-ink-3 hover:text-ink" onClick={discardIt}>Discard</button>
         </div>
       </footer>
     </div>

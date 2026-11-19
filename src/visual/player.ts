@@ -255,7 +255,8 @@ export class Player {
   }
   restart() { this.seek(0); this.playing = true }
   /** The end-of-set release, on demand. */
-  release() { for (const p of this.cast) p.field.release() }
+  /** `who`: one performer only, by their place in the cast. */
+  release(who?: number) { this.cast.forEach((p, i) => { if (who === undefined || who === i) p.field.release() }) }
 
   private get length() { return setLength(this.cast.find((p) => p.motion)?.motion ?? null) }
 

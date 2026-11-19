@@ -35,7 +35,9 @@ export default function ExerciseDemos({ animations, official, stage, handle, pre
     const a = animations[c]?.animation
     return !!a && MOTIONS[a.motion]?.revision === (a.revision ?? 1)
   })
-  const [who, setWho] = useState<CharacterId>(worn.character)
+  // In an assessment, the instructor the athlete chose at its start performs. Elsewhere, their own character.
+  const instructor = useStore((s) => s.settings.instructor?.character)
+  const [who, setWho] = useState<CharacterId>(official ? instructor ?? worn.character : worn.character)
   const [muscles, setMuscles] = useState(official ? true : prefersMuscles)
   const asset = animations[current.includes(who) ? who : current[0]]
   if (!asset?.animation) return null

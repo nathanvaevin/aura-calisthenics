@@ -16,6 +16,7 @@ import { useStore } from '@/data/store'
 import { useLive } from '@/data/cloud'
 import { SyncLine } from '@/features/account/Account'
 import { StationMenu, targetLabel } from './StationMenu'
+import { InstructorChoice } from './Instructor'
 import { DisciplineDot, Eyebrow, Ring, TierTag } from '@/ui/primitives'
 import { tick } from '@/lib/sound'
 import { cx, dvar } from '@/lib/format'
@@ -67,6 +68,9 @@ export function AssessHub() {
   const toggleStationSkip = useStore((s) => s.toggleStationSkip)
   const submit = useStore((s) => s.submitAssessment)
   const cloud = useStore((s) => !!s.cloudUid)
+  const instructor = useStore((s) => s.settings.instructor)
+  const setSettings = useStore((s) => s.setSettings)
+  const [choosing, setChoosing] = useState(false)
   useLive('assess', 10000)
 
   if (!session) return <Navigate to="/train" replace />
@@ -84,6 +88,9 @@ export function AssessHub() {
   const suggested = start && open.includes(start) ? start : open[0]
 
   const firstName = session.coachName.split(' ')[0]
+  // An assessment opens by asking who demonstrates it: once for each assessment, before anything is recorded.
+  if (choosing || (!closed && recorded === 0 && instructor?.sessionId !== session.id))
+    return <InstructorChoice initial={instructor?.character} onDone={(character) => { setSettings({ instructor: { character, sessionId: session.id } }); setChoosing(false) }} />
   const finish = () => {
     if (!closed || !mine.submittedAt) submit(mine.id)
     navigate(`/assess/${session.id}/done`)
@@ -169,7 +176,10 @@ export function AssessHub() {
           </label>
         )}
 
-        <p className="mt-4 text-[12px] leading-relaxed text-ink-3">
+        {!closed && instructor && (
+          <button className="mt-4 text-[12.5px] text-ink-2 underline decoration-line-strong underline-offset-4 hover:text-ink" onClick={() => setChoosing(true)}>Instructor: {instructor.character === 'female' ? 'female' : 'male'} · change</button>
+        )}
+        <p className="mt-3 text-[12px] leading-relaxed text-ink-3">
           {cloud ? 'Saved as you go.' : 'Kept on this phone as you go.'}{!solo && !closed ? ` You record your own results; ${firstName} can confirm what they watch.` : ''}
         </p>
         {cloud && <SyncLine className="mt-1.5" saved="Everything so far is saved" />}
