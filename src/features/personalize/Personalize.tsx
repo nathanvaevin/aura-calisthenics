@@ -142,7 +142,7 @@ function ThemeStep({ value, onChange, released, admin, character }: { value: The
             {/* One row, read left to right: the character in this theme's light, then its name, its line and its Auras, then whether it is the one chosen. */}
             <span className="relative z-10 h-[116px] w-[92px] shrink-0 overflow-hidden rounded-[calc(var(--r-card)*0.6)] bg-(--stage) sm:w-[104px]">
               {open
-                ? <img src={`${import.meta.env.BASE_URL}${posterOf(id, character)}`} alt="" loading="lazy" className="h-full w-full scale-[1.4] object-cover object-[50%_45%]" onError={(e) => { e.currentTarget.style.visibility = 'hidden' }} />
+                ? <img src={`${import.meta.env.BASE_URL}${posterOf(id, character)}`} alt="" loading="lazy" className="h-full w-full object-cover object-[50%_40%]" onError={(e) => { e.currentTarget.style.visibility = 'hidden' }} />
                 : <span className="flex h-full flex-col items-center justify-center gap-1.5 px-2 text-center text-[10.5px] leading-tight text-ink-3"><Lock size={14} />In preparation</span>}
             </span>
             <span className="relative z-10 min-w-0 flex-1">

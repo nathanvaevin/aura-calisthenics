@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { DemoSlot, useHasDemo } from '@/features/library/DemoSlot'
-import { StageScreen } from '@/features/library/StageScreen'
+import { StageScreen, useBurst } from '@/features/library/StageScreen'
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router'
 import { ArrowLeft, ArrowRight, Check, Hand, Minus, Pause, Play, Plus } from 'lucide-react'
 import type { DisciplineId } from '@/domain/types'
@@ -406,6 +406,9 @@ function TestCard({
   // Where the official demonstration exists, it is the screen: the test is written over it.
   const staged = useHasDemo(ex.id) && test.kind !== 'choice'
   const [watching, setWatching] = useState(false)
+  // A result put on record: the instructor activates before the assessment moves on. "Not yet" passes quietly.
+  const { count: bursts, bursting, burst } = useBurst(setWatching)
+  const recordNow = () => (staged && value > 0 ? burst(() => onRecord(value)) : onRecord(value))
   const start = () => { setValue(0); setStarted(Date.now()); setWatching(true) }
   const stop = () => { setValue(Math.min(limit, Math.max(1, elapsed))); setStarted(null); setWatching(false) }
   const primary = started ? (
@@ -413,7 +416,7 @@ function TestCard({
   ) : (
     <div className="flex gap-2.5">
       {hold && <button className={cx('btn btn-lg', value ? 'btn-outline flex-1' : 'btn-primary flex-[1.4]')} onClick={start}><Play size={15} fill="currentColor" /> {value ? 'Again' : 'Start timer'}</button>}
-      <button className={cx('btn btn-lg', hold && !value ? 'btn-outline flex-1' : 'btn-primary flex-[1.4]')} onClick={() => onRecord(value)}>
+      <button className={cx('btn btn-lg', hold && !value ? 'btn-outline flex-1' : 'btn-primary flex-[1.4]')} disabled={bursting} onClick={recordNow}>
         <Check size={17} strokeWidth={2.6} /> {value === 0 ? 'Not yet' : `Record ${value}${hold ? 's' : ''}`}
       </button>
     </div>
@@ -424,7 +427,7 @@ function TestCard({
     const benchmark = `Benchmark ${index + 1}${index + 1 < total ? ` of ${total}` : ''}`
     return (
       <StageScreen
-        exerciseId={ex.id} official focus={watching} onFocus={setWatching}
+        exerciseId={ex.id} official focus={watching} onFocus={setWatching} burst={bursts}
         top={
           <div className="rise px-5 pt-5 pb-1">
             <Eyebrow>{benchmark}{index + 1 >= total && index === 0 ? ' · the next depends on this one' : ''}</Eyebrow>

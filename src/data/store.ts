@@ -12,7 +12,7 @@ import { bestEvidence } from '@/domain/scoring/mastery'
 import { adaptTarget, skillStatuses } from '@/domain/scoring/skills'
 import { startOfWeek } from '@/domain/scoring/aura'
 import { courseFromTemplate, uid } from './courseTemplates'
-import { personalOf, type Personal, type Step } from '@/theme/personal'
+import { DEFAULT_PERSONAL, MIN_INTENSITY, personalOf, type Personal, type Step } from '@/theme/personal'
 import type { ThemeId } from '@/theme/themes'
 import { ME, buildWorld, isoDay, sampleCommunity } from './seed'
 
@@ -397,6 +397,9 @@ export const useStore = create<State>()(
           const me: Athlete = {
             ...was, id: account, name: r.name.trim() || was?.name || 'Athlete', handle: r.handle.trim(), bio: was?.bio ?? '', roles: [...roles],
             goals: r.goals, joinedAt: was?.joinedAt ?? now.toISOString(), weeklyTarget: r.weeklyTarget, equipment: r.equipment,
+            // Someone new starts with their Aura at its lowest and turns it up themselves. Said here because the profile the
+            // server made at sign-up carries its own starting value.
+            style: { ...DEFAULT_PERSONAL, ...was?.style, intensity: MIN_INTENSITY },
           }
           const estimates: Evidence[] = Object.entries(r.estimates)
             .filter(([, v]) => v > 0)

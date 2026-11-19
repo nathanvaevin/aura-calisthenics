@@ -349,6 +349,49 @@ export class AuraField {
           float mask = smoothstep(spread, spread * 0.3, abs(q.x)) * smoothstep(0.0, 0.25, y0) * (1.0 - smoothstep(0.5 + 1.3 * grow, 0.9 + 1.4 * grow, y0));
           col = mix(mix(uPal[0], uPal[1], n2), mix(uPal[0], vec3(1.0), 0.7), uManner * smoothstep(0.2, 1.2, y0));
           a = billow * mask * 0.85 * inn * fade;
+        } else if (uKind > 13.5) {
+          // Blaze: a wall of fire stands round the body in spikes, beating, far above the head, with white lightning through it and down the sky behind.
+          float y0 = q.y + 0.5;
+          float beat = 0.5 + 0.5 * sin(uTime * 17.0);
+          float swell = (0.72 + 0.28 * grow) * (1.0 + 0.07 * beat);
+          // Its outline: widest at the hips and shoulders, drawn up to a point well above the head.
+          float H = 1.95 * swell;
+          float body = 0.46 * swell * pow(max(0.0, 1.0 - y0 / H), 0.62) * smoothstep(-0.03, 0.2, y0);
+          // Spikes: teeth that lean up and out, large ones and small ones, climbing all the time.
+          // The two sides are out of step and never quite regular, so it reads as fire and not as a pattern.
+          float side = step(0.0, q.x);
+          float lean = y0 * 3.1 - abs(q.x) * 2.3 + side * 0.41 + (noise(vec3(y0 * 1.7, side * 5.0, uTime * 0.6)) - 0.5) * 0.9;
+          float big = abs(fract(lean - uTime * 1.7) - 0.5) * 2.0;
+          float small = abs(fract(lean * 2.7 + 0.3 - uTime * 2.9) - 0.5) * 2.0;
+          float teeth = (pow(big, 1.6) * 0.17 + pow(small, 1.4) * 0.06) * (0.55 + y0 * 0.6) * smoothstep(H * 1.02, H * 0.6, y0);
+          float d = body + teeth - abs(q.x);
+          float flame = smoothstep(0.0, 0.035, d);
+          float core = smoothstep(0.05, 0.3, d);
+          float edge = flame * (1.0 - smoothstep(0.0, 0.07, d));
+          // White lightning: short forks that jump about inside the fire, and two great bolts behind it.
+          float flick = floor(uTime * 15.0);
+          float forks = 0.0;
+          for (int i = 0; i < 6; i++) {
+            float fi = float(i), seed = fi * 3.7 + flick * 1.3;
+            float h1 = hash(vec3(seed, 2.0, 5.0)), h2 = hash(vec3(seed, 7.0, 1.0));
+            vec2 c = vec2((h1 - 0.5) * 1.1, -0.4 + h2 * 1.6);
+            vec2 e = q - c;
+            float tilt = (hash(vec3(seed, 9.0, 4.0)) - 0.5) * 1.6;
+            float along = e.x * sin(tilt) + e.y * cos(tilt), across = e.x * cos(tilt) - e.y * sin(tilt) + (noise(vec3(along * 13.0, seed, 0.0)) - 0.5) * 0.16;
+            forks += step(0.3, h1) * (0.007 / (abs(across) + 0.005)) * exp(-abs(across) * 9.0) * smoothstep(0.27, 0.16, abs(along));
+          }
+          float sky = 0.0;
+          for (int i = 0; i < 2; i++) {
+            float fi = float(i), seed = fi * 9.1 + floor(uTime * 7.0) * 2.1;
+            float px = (fi * 2.0 - 1.0) * (0.72 + 0.22 * hash(vec3(seed, 3.0, 3.0))) + (noise(vec3(q.y * 3.0, seed, 0.0)) - 0.5) * 0.4 + (noise(vec3(q.y * 12.0, seed, 4.0)) - 0.5) * 0.08;
+            float bd = abs(q.x - px);
+            sky += step(0.4, hash(vec3(seed, 5.0, 8.0))) * (0.009 / (bd + 0.007)) * exp(-bd * 4.0);
+          }
+          // Gold through and through: a darker rim, and near white where it is deepest.
+          vec3 fire = mix(uPal[1], uPal[0], smoothstep(0.0, 0.07, d));
+          fire = mix(fire, uPal[2], core * (0.5 + 0.3 * beat));
+          col = mix(fire, vec3(1.0), min(1.0, forks * 0.9 + sky));
+          a = (flame * (0.66 + 0.26 * core + 0.12 * beat) + min(forks, 2.0) * (0.35 + 0.65 * flame) + min(sky, 2.0) * 0.85 * (1.0 - flame)) * inn * fade;
         } else {
           // Strike: one blow at the floor, as a hammer on an anvil: a white line, spikes of light, and the red of struck metal left behind.
           vec2 d2 = q - vec2(0.0, -0.46);

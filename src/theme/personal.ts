@@ -29,7 +29,9 @@ export interface Personal {
 export const STEPS = ['theme', 'character', 'about', 'sharing'] as const
 export type Step = (typeof STEPS)[number]
 
-export const DEFAULT_PERSONAL: Personal = { theme: 'dark', forms: {}, finishes: {}, intensity: 60, muscles: true, steps: {} }
+/** Intensity starts at its lowest (the owner's choice, 2026-11-19): an athlete turns their Aura up, it is not handed to them at strength. */
+export const MIN_INTENSITY = 10
+export const DEFAULT_PERSONAL: Personal = { theme: 'dark', forms: {}, finishes: {}, intensity: MIN_INTENSITY, muscles: true, steps: {} }
 
 export function personalOf(a: Pick<Athlete, 'style'> | null | undefined): Personal {
   const s = a?.style

@@ -4,14 +4,12 @@ import { exerciseById } from '@/domain/catalog'
 import { useIsAdmin } from '@/data/hooks'
 import { useStore } from '@/data/store'
 import { MUSCLE_GLOW, performerOf, type Look } from '@/theme/cast'
-import { formsFor, personalOf, type CharacterId } from '@/theme/personal'
+import { MIN_INTENSITY, formsFor, personalOf, type CharacterId } from '@/theme/personal'
 import { THEMES, UNIVERSES, finishOf, formOf, type ThemeId } from '@/theme/themes'
 import { useStanding, useWearing } from '@/theme/useTheme'
 import { Eyebrow, Segmented, Toggle } from '@/ui/primitives'
 import { Stage3D } from '@/ui/Stage3D'
 import { isCurrentRevision } from '@/visual/revisions'
-import { MOTIONS } from '@/visual/motions'
-import { STAGE_RATIO } from '@/visual/motions/types'
 import { cx } from '@/lib/format'
 
 type Preview = 'base' | 'muscles' | 'aura'
@@ -75,19 +73,29 @@ export function CharacterStudio({ theme }: { theme?: ThemeId }) {
             </select>
           )}
         </div>
-        <Stage3D
-          cast={cast} ratio={move ? STAGE_RATIO[MOTIONS[move.motion]?.stage ?? 'square'] : 0.9} controls="spin" activate="large" margin={preview === 'aura' ? 1.36 : 1.12}
-          className="mx-auto max-h-[52dvh] lg:max-h-[66dvh]" label={`Your character, ${shown.form.name}`}
-        />
+        {/* Who it is and how strongly it glows are chosen in the frame the character stands in; its forms come straight under it. */}
+        {/* The frame is tall, and the character is kept in the part of it the controls leave free (`safe`), so nothing stands in front of it. */}
+        <div className="relative mx-auto h-[min(70dvh,580px)] w-full overflow-hidden rounded-card border border-line lg:h-[min(74dvh,700px)]" data-studio-frame>
+          <Stage3D
+            cast={cast} fill safe={{ top: 64, bottom: 124 }} controls="spin" activate="large" margin={preview === 'aura' ? 1.2 : 1.06}
+            label={`Your character, ${shown.form.name}`}
+          />
+          <div className="pointer-events-none absolute inset-x-3 top-3 flex justify-center">
+            <Segmented<CharacterId> className="pointer-events-auto shadow-(--shadow-pop)" value={character} onChange={(c) => setStyle({ character: c }, 'character')} options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} />
+          </div>
+          <label className="absolute inset-x-3 bottom-[68px] flex items-center gap-3 rounded-full bg-black/45 px-4 py-2.5 text-white backdrop-blur-md" data-intensity>
+            <span className="font-mono text-[10.5px] tracking-[0.1em] uppercase">Intensity</span>
+            <input
+              type="range" min={MIN_INTENSITY} max={100} step={5} value={personal.intensity} aria-label="Aura intensity"
+              onChange={(e) => { setStyle({ intensity: Number(e.target.value) }); setPreview('aura') }}
+              className="h-1.5 min-w-0 flex-1 cursor-pointer" style={{ accentColor: shown.form.colour }}
+            />
+            <span className="num w-9 text-right text-[12px]">{personal.intensity}%</span>
+          </label>
+        </div>
       </div>
 
-      <div className="mt-7 space-y-7 lg:mt-0">
-        <section>
-          <Eyebrow className="mb-2.5">Character</Eyebrow>
-          <Segmented<CharacterId> className="w-full [&>button]:flex-1" value={character} onChange={(c) => setStyle({ character: c }, 'character')} options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} />
-          <p className="mt-2.5 text-[12.5px] leading-relaxed text-ink-3">{u.character} It is the one you see on your profile and performing your exercises.</p>
-        </section>
-
+      <div className="mt-4 space-y-7 lg:mt-0">
         <section>
           <Eyebrow className="mb-2.5">{u.forms === 'Aura' ? 'Your Aura' : `Your ${u.forms.toLowerCase()}`}</Eyebrow>
           <div className="grid grid-cols-2 gap-2">
@@ -118,18 +126,6 @@ export function CharacterStudio({ theme }: { theme?: ThemeId }) {
             </p>
           )}
           {admin && <p className="mt-2.5 text-[12px] text-ink-3">As an administrator you can wear every one. Athletes earn them.</p>}
-        </section>
-
-        <section>
-          <label className="block">
-            <span className="mb-2 flex items-center justify-between"><Eyebrow>Intensity</Eyebrow><span className="num text-[12.5px] text-ink-2">{personal.intensity}%</span></span>
-            <input
-              type="range" min={10} max={100} step={5} value={personal.intensity} aria-label="Aura intensity"
-              onChange={(e) => { setStyle({ intensity: Number(e.target.value) }); setPreview('aura') }}
-              className="h-1.5 w-full cursor-pointer" style={{ accentColor: shown.form.colour }}
-            />
-          </label>
-          <p className="mt-2 text-[12px] leading-relaxed text-ink-3">How strongly it glows. Activate lets it all out.</p>
         </section>
 
         <section>

@@ -49,6 +49,8 @@ A demonstration never contains a picture or a video of the animation. It is a sm
 - The four fingers bend together.
 - The files are not compressed. Mesh compression (meshopt) would bring each to roughly a quarter of its size.
 
+**The female shoulder** (2026-11-19, owner's request: less bulky, fitted). In `anatomy.ts` the female yoke is 0.9 of the male's and her deltoid 0.8, set 0.01 lower. Shapes only: the skeleton is the same.
+
 **How the skin follows the bones** (`src/visual/body/skinning.ts`, 2026-11-18). The usual way averages the places each bone would carry a point to; where two bones are turned far apart that average lies inside the limb, which is what made the shoulder cap vanish with the arms overhead and a forearm thin to a ribbon with the palm turned up. The bones' movements themselves are now blended into one rigid movement per point (dual quaternions), so a point turns part of the way with each bone and keeps its distance from the joint. It is shader text, with no change to the character files or the skeleton, and it is used by everything that draws the body so that they agree: the body's materials, its drawn outline, its shadow and the Aura's shells. Any new shader that draws the body with skinning must include it (`SKIN_DECL`, `SKIN_BLEND`).
 
 **Replacing a character.** A character artist can supply a different mesh. The app needs: the same bone names and rest pose, materials named `skin`, `cloth`, `hair`, and the `_MUSCLE` attribute (slot numbers in the order of `CHANNELS` in `muscles.ts`). Movements, muscles and Aura then work unchanged.
@@ -132,7 +134,7 @@ Together these are every exercise of the first-day assessment (all 67 of its gui
 | Primal | **Pillar**, as an eruption: wide, rough fire from the floor | streams, sparks, ground rings |
 | Signature | **Wheel**: the six discipline colours light round a ring, each with its beam | particles, ground rings |
 | Lunar | **Eclipse**: a full moon, a shadow across it, a ring of white fire | particles, ground rings |
-| Saiyan (`ignition`) | **Pillar**: fire through the body, far above the head | streams, sparks, ground rings |
+| Saiyan (`ignition`) | **Blaze**: a wall of gold fire in climbing spikes, beating, with white lightning through it and two great bolts behind (made more extreme at the owner's request; first a pillar) | lightning between the limbs, streams, sparks, ground rings |
 | God (`awakened`) | **Nimbus**: rings of fine light open behind the head | streams, particles |
 | Destruction (`ascended`) | **Sphere**: a ball of force grows out of the chest, cracked with light | lightning, sparks |
 | Kaio-ken (`overdrive`) | **Pulse**: ring after ring races out, with a rush of lines | lightning, sparks, streams |
@@ -144,9 +146,11 @@ Together these are every exercise of the first-day assessment (all 67 of its gui
 | Unbroken | **Ripple**, as two hard white edges | ground rings |
 | Apex | **Pulse**, in heavy beats | streams, sparks, ground rings |
 
+**Where a burst happens by itself** (owner's request, 2026-11-19): when an exercise is completed. `useBurst` in `StageScreen.tsx` holds the screen for about two seconds, lets the character on stage go (`release`), then does what was waiting (recording the set or the result). Demonstrations still wear no Aura while they run. And on choosing the instructor.
+
 A new sign is a new branch in the sign shader and a name in `SIGNS`. Check it on the paper stage too.
 
-**Theme pictures** (`public/themes/*.jpg`, the cards in Personalize) are rendered from the live characters by `npm run posters` (`scripts/render-posters.mjs` through `scripts/stage.html`, with the dev server running): each universe's poster form in its activation. The Aura pictures show Electric under its bolts (owner's choice, 2026-11-19); the others are still the earlier renders.
+**Theme pictures** (`public/themes/*.jpg`, the cards in Personalize) are rendered from the live characters by `npm run posters` (`scripts/render-posters.mjs` through `scripts/stage.html`, with the dev server running): each universe's poster form, at rest or in its activation. The Aura pictures show Electric at rest, as it is worn (owner's choice, 2026-11-19); the others are still the earlier renders.
 
 **Adding a theme**: one entry in `THEMES`. A new kind of effect is a new component in `field.ts` plus its entry in every theme.
 

@@ -161,7 +161,9 @@ export function anatomyOf(id: CharacterId, build: BuildId = 'aura'): Anatomy {
   const dl = tu('delt') / tu('arm'), fa = tu('forearm') / tu('arm')
   const A = (J.lowerArmL[0] - J.upperArmL[0]) / 0.3
   const sh = (dx: number, dy: number, dz: number): V3 => [J.upperArmL[0] + dx * A, J.upperArmL[1] + dy * S, J.upperArmL[2] + dz * S]
-  C(t(0.04, 1.452, -0.02), sh(-0.012, -0.002, -0.002), 0.058 * aS, 0.047 * aS, { k: 0.04, bones: { upperChest: 1, shoulderL: 1 } })
+  // The female shoulder is fitted, not capped: a slimmer yoke, and a smaller deltoid that sits a little lower so the line from neck to arm slopes.
+  const yoke = pick(1, 0.9), cap = pick(1, 0.8)
+  C(t(0.04, 1.452, -0.02), sh(-0.012, -0.002, -0.002), 0.058 * aS * yoke, 0.047 * aS * yoke, { k: 0.04, bones: { upperChest: 1, shoulderL: 1 } })
   const nk = S * pick(1, 0.86) * tu('neck')
   C(t(0, 1.45, -0.022), t(0, 1.6, -0.004), 0.058 * nk, 0.052 * nk, { k: 0.035, bones: { neck: 1, upperChest: 0.8, head: 0.8 } })
   E(t(0, 1.693, 0.012), R(0.079, 0.108, 0.095), { k: 0.03, bones: { head: 1 } })
@@ -204,14 +206,14 @@ export function anatomyOf(id: CharacterId, build: BuildId = 'aura'): Anatomy {
   C(sh(0, 0, 0), sh(0.3, 0, 0), 0.043 * aS, 0.035 * aS, { k: 0.03, bones: { shoulderL: 0.5, upperArmL: 1, lowerArmL: 1 } })
   C(sh(0.3, 0, 0), sh(0.564, 0, 0), 0.036 * aS, 0.0245 * aS, { k: 0.02, bones: { upperArmL: 1, lowerArmL: 1, handL: 1 } })
   E(sh(0.3, 0, -0.03), mul([0.022, 0.02, 0.018], aS), { k: 0.014, bones: { upperArmL: 1, lowerArmL: 1 } })
-  E(sh(0.046, 0.024, -0.002), [0.098 * A, 0.056 * aS * dl, 0.062 * aS * dl], { k: 0.03, bones: { shoulderL: 0.6, upperArmL: 1, upperChest: 0.2 } })
+  E(sh(0.046, pick(0.024, 0.014), -0.002), [0.098 * A, 0.056 * aS * dl * cap, 0.062 * aS * dl * cap], { k: 0.03, bones: { shoulderL: 0.6, upperArmL: 1, upperChest: 0.2 } })
   E(sh(0.157, -0.004, 0.028), [0.1 * A, 0.036 * aS, 0.034 * aS * m], { k: 0.026, bones: { upperArmL: 1, lowerArmL: 0.5 } })
   E(sh(0.142, 0, -0.032), [0.11 * A, 0.038 * aS, 0.034 * aS * m], { k: 0.026, bones: { upperArmL: 1, shoulderL: 0.3 } })
   E(sh(0.397, -0.014, 0.008), [0.095 * A, 0.027 * aS * fa, 0.036 * aS * fa], { k: 0.022, bones: { lowerArmL: 1, upperArmL: 0.5 } })
   E(sh(0.382, 0.015, -0.002), [0.092 * A, 0.024 * aS * fa, 0.036 * aS * fa], { k: 0.022, bones: { lowerArmL: 1, upperArmL: 0.5 } })
   E(sh(0.332, 0.006, 0.028), [0.06 * A, 0.022 * aS, 0.02 * aS], { k: 0.022, bones: { upperArmL: 1, lowerArmL: 1 } })
   const arm = (dx: number, dy: number, dz: number, len: number, up: number, across: number): [V3, V3] => [sh(dx, dy, dz), [len * A, up * aS, across * aS]]
-  M('delt_lat', ...arm(0.058, 0.052, -0.002, 0.096, 0.056, 0.036), 0.005)
+  M('delt_lat', ...arm(0.058, pick(0.052, 0.04), -0.002, 0.096, 0.056, 0.036), 0.005)
   M('delt_ant', ...arm(0.044, 0.008, 0.054, 0.088, 0.046, 0.045), 0.005)
   M('delt_post', ...arm(0.044, 0.008, -0.058, 0.088, 0.046, 0.045), 0.005)
   M('biceps', ...arm(0.162, -0.006, 0.045, 0.1, 0.042, 0.045), 0.005)

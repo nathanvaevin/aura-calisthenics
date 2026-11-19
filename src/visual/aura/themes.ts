@@ -20,7 +20,7 @@ export const COMPONENT_LABEL: Record<ComponentId, string> = {
  * go, one for each Aura, after its name. At rest an Aura is a glow; this is
  * the moment it shows what it is.
  */
-export const SIGNS = ['none', 'galaxy', 'bolt', 'sun', 'aurora', 'pillar', 'wheel', 'eclipse', 'nimbus', 'sphere', 'pulse', 'ripple', 'steam', 'strike'] as const
+export const SIGNS = ['none', 'galaxy', 'bolt', 'sun', 'aurora', 'pillar', 'wheel', 'eclipse', 'nimbus', 'sphere', 'pulse', 'ripple', 'steam', 'strike', 'blaze'] as const
 export type SignId = (typeof SIGNS)[number]
 
 export interface Activation {
@@ -160,7 +160,7 @@ export const THEMES: AuraTheme[] = [
 
   // ── Goku: flame-like, tall, loud. One per form. ───────────────────
   { ...theme('ignition', 'Ignition', 'Gold fire, close to the body.', ['#ffd23a', '#ff9a1f', '#fff0a8', '#ff5a1f'], {
-    act: { sign: 'pillar', manner: 0, with: ['streams', 'sparks', 'rings'] },
+    act: { sign: 'blaze', manner: 0, with: ['arcs', 'streams', 'sparks', 'rings'] },
     breath: 0.4, flow: 1.6, body: 0.7,
     shell: { level: 1.2, reach: 1.1, flame: 1 },
     halo: { level: 0.7, size: 0.9 },
@@ -169,7 +169,8 @@ export const THEMES: AuraTheme[] = [
     motes: { level: 0.8, count: 120, rise: 0.8, size: 0.7, swirl: 0.3, twinkle: 1 },
     streams: { level: 1, from: 0.15, count: 18, height: 1.1 },
     rings: { level: 0.8, dashes: 0, spin: 0.2 },
-    sparks: { count: 100, speed: 1.3 },
+    sparks: { count: 130, speed: 1.6, crackle: 0.6 },
+    arcs: { level: 1, from: 0.1, count: 9 },
   }), universe: 'power' },
   { ...theme('awakened', 'Awakened', 'Jade fire that climbs well above the head.', ['#7dffcf', '#1fe0a0', '#eafff6', '#16b3d6'], {
     act: { sign: 'nimbus', manner: 0, with: ['streams', 'motes'] },

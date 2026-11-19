@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, useState, type ReactNode, useEffect } from 'react'
 import { Maximize2, Minimize2 } from 'lucide-react'
 import { stageTheme } from '@/theme/cast'
 import { THEMES } from '@/theme/themes'
@@ -22,7 +22,39 @@ import { DemoStage } from './DemoSlot'
  *
  * Use it only where `useHasDemo` says there is an approved demonstration.
  */
-export function StageScreen({ exerciseId, official, focus, onFocus, top, bottom, miniTop, miniBottom }: {
+/** How long the screen stays on an exercise just completed, for its character's activation. */
+const BURST_MS = 2100
+
+/**
+ * An exercise completed: its character activates, the controls stand back for
+ * it, and only then does the screen move on. `burst(then)` plays it and calls
+ * `then` afterwards (straight away where motion is not wanted); what was
+ * waiting is never lost if the screen is left in between.
+ */
+export function useBurst(onFocus: (on: boolean) => void) {
+  const [count, setCount] = useState(0)
+  const [bursting, setBursting] = useState(false)
+  const pending = useRef<(() => void) | null>(null)
+  const timer = useRef(0)
+  // Leaving the screen, or the page itself going away, in the middle of it: what was waiting is done there and then.
+  useEffect(() => {
+    const flush = () => { window.clearTimeout(timer.current); const then = pending.current; pending.current = null; then?.() }
+    window.addEventListener('pagehide', flush)
+    return () => { window.removeEventListener('pagehide', flush); flush() }
+  }, [])
+  const burst = (then: () => void) => {
+    if (pending.current) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return then()
+    pending.current = then
+    setBursting(true)
+    setCount((n) => n + 1)
+    onFocus(true)
+    timer.current = window.setTimeout(() => { const f = pending.current; pending.current = null; setBursting(false); onFocus(false); f?.() }, BURST_MS)
+  }
+  return { count, bursting, burst }
+}
+
+export function StageScreen({ exerciseId, official, focus, onFocus, top, bottom, miniTop, miniBottom, burst }: {
   exerciseId: string
   official?: boolean
   /** Watching: only the essential layer is shown. */
@@ -32,6 +64,8 @@ export function StageScreen({ exerciseId, official, focus, onFocus, top, bottom,
   bottom: ReactNode
   miniTop: ReactNode
   miniBottom: ReactNode
+  /** Each time this number rises, the character on stage activates (`useBurst().count`). */
+  burst?: number
 }) {
   const theme = stageTheme(useThemeId())
   const refs = { top: useRef<HTMLDivElement>(null), bottom: useRef<HTMLDivElement>(null), miniTop: useRef<HTMLDivElement>(null), miniBottom: useRef<HTMLDivElement>(null) }
@@ -51,6 +85,13 @@ export function StageScreen({ exerciseId, official, focus, onFocus, top, bottom,
   // A finger drawn across the stage turns the character; a touch that does not move switches the layers.
   const stage = useRef<DemoHandle>(null)
   const drag = useRef({ x: 0, moved: 0, down: false })
+
+  const bursts = useRef(burst ?? 0)
+  useEffect(() => {
+    if (burst === undefined || burst === bursts.current) return
+    bursts.current = burst
+    stage.current?.release()
+  }, [burst])
 
   const cover = focus ? { top: sizes.miniTop, bottom: sizes.miniBottom } : { top: sizes.top, bottom: sizes.bottom }
   const layer = 'transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none'

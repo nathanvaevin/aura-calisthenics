@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useVoice } from '@/theme/useTheme'
 import { DemoSlot, useHasDemo } from '@/features/library/DemoSlot'
-import { StageScreen } from '@/features/library/StageScreen'
+import { StageScreen, useBurst } from '@/features/library/StageScreen'
 import { Navigate, useNavigate } from 'react-router'
 import { AnimatePresence, motion } from 'motion/react'
 import { AlertTriangle, ArrowRight, Check, ChevronDown, ChevronLeft, ChevronRight, List, Minus, Pause, Play, Plus, RotateCcw, SkipForward } from 'lucide-react'
@@ -129,6 +129,9 @@ function Live({ a }: { a: ActiveWorkout }) {
   // Where the exercise has an approved demonstration, it is the screen: the session is written over it.
   const staged = useHasDemo(ex.id)
   const [watching, setWatching] = useState(false)
+  // The last set of an exercise: its character activates before the session moves on.
+  const { count: bursts, bursting, burst } = useBurst(setWatching)
+  const finishSet = () => (staged && entry.sets.filter((s) => !s.done).length === 1 ? burst(() => completeSet(value)) : completeSet(value))
   const startTimer = () => { setTimerStart(Date.now()); setWatching(true) }
   const stopTimer = () => { setValue(Math.max(1, elapsed)); setTimerStart(null); setWatching(false) }
 
@@ -143,7 +146,7 @@ function Live({ a }: { a: ActiveWorkout }) {
       {hold && (
         <button className="btn btn-outline btn-lg flex-1" onClick={startTimer}><Play size={15} fill="currentColor" /> Start timer</button>
       )}
-      <button className="btn btn-primary btn-lg flex-[1.4]" onClick={() => completeSet(value)}><Check size={17} strokeWidth={2.6} /> Complete set</button>
+      <button className="btn btn-primary btn-lg flex-[1.4]" disabled={bursting} onClick={finishSet}><Check size={17} strokeWidth={2.6} /> Complete set</button>
     </div>
   )
   const tertiary = (
@@ -222,7 +225,7 @@ function Live({ a }: { a: ActiveWorkout }) {
     return (
       <>
         <StageScreen
-          exerciseId={ex.id} focus={watching} onFocus={setWatching}
+          exerciseId={ex.id} focus={watching} onFocus={setWatching} burst={bursts}
           top={
             <>
               <header className="safe-top px-4">
