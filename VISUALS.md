@@ -121,7 +121,32 @@ Together these are every exercise of the first-day assessment (all 67 of its gui
 - **Behaviour** (`director.ts`): repetitions climb a little each rep and swell in the hard part; holds build steadily with a growing tremor; balance follows the small corrections; mobility breathes. A completed repetition sends a wave across the floor; the end of a set settles and starts again. **It no longer bursts by itself** (2026-11-19): bursting is the athlete's, with Activate.
 - The field measures the body every frame, so it wraps a standing athlete, a plank and someone hanging alike.
 
-**Theme pictures** (`public/themes/*.jpg`, the cards in Personalize) are rendered from the live characters by `npm run posters` (`scripts/render-posters.mjs` through `scripts/stage.html`, with the dev server running): each universe's poster form, three-quarter view, just after an Activate burst. The Aura pictures show Electric (owner's choice, 2026-11-19); the others are still the earlier renders.
+**Activations** (2026-11-19, owner's request: one for each Aura, after its name; no swirling lines). Each theme carries `act`: a **sign**, a `manner` of it, and which loose components join its burst (`with`). The sign is one more sheet behind the body (`field.ts`, drawn only for `SIGN_SECONDS` after a burst), one pattern per kind. Ribbons join no burst any more. In a burst the outline stays about as wide as at rest and gets brighter instead.
+
+| Aura | Sign | With |
+|---|---|---|
+| Cosmic | **Galaxy**: a spiral disc opens behind the body, its stars come out | particles |
+| Electric | **Bolt**: lightning comes down and meets at the head, with a flash | lightning between the limbs, sparks, ground rings |
+| Solar | **Sun**: rises behind the shoulders, disc and turning corona | rays, particles |
+| Ethereal | **Aurora**: curtains of light in an arch, like wings | particles |
+| Primal | **Pillar**, as an eruption: wide, rough fire from the floor | streams, sparks, ground rings |
+| Signature | **Wheel**: the six discipline colours light round a ring, each with its beam | particles, ground rings |
+| Lunar | **Eclipse**: a full moon, a shadow across it, a ring of white fire | particles, ground rings |
+| Saiyan (`ignition`) | **Pillar**: fire through the body, far above the head | streams, sparks, ground rings |
+| God (`awakened`) | **Nimbus**: rings of fine light open behind the head | streams, particles |
+| Destruction (`ascended`) | **Sphere**: a ball of force grows out of the chest, cracked with light | lightning, sparks |
+| Kaio-ken (`overdrive`) | **Pulse**: ring after ring races out, with a rush of lines | lightning, sparks, streams |
+| Ultra Instinct (`transcendent`) | **Ripple**: one quiet ring and a silver veil | particles |
+| Zeno | **Galaxy**, wider, with more stars | particles |
+| Pressure | **Steam**: comes off the body and climbs | streams |
+| Tempered | **Steam**, lit red from below, as at a quench | ground rings, sparks |
+| Forged | **Strike**: one blow at the floor, sparks along their lines | sparks, ground rings |
+| Unbroken | **Ripple**, as two hard white edges | ground rings |
+| Apex | **Pulse**, in heavy beats | streams, sparks, ground rings |
+
+A new sign is a new branch in the sign shader and a name in `SIGNS`. Check it on the paper stage too.
+
+**Theme pictures** (`public/themes/*.jpg`, the cards in Personalize) are rendered from the live characters by `npm run posters` (`scripts/render-posters.mjs` through `scripts/stage.html`, with the dev server running): each universe's poster form in its activation. The Aura pictures show Electric under its bolts (owner's choice, 2026-11-19); the others are still the earlier renders.
 
 **Adding a theme**: one entry in `THEMES`. A new kind of effect is a new component in `field.ts` plus its entry in every theme.
 

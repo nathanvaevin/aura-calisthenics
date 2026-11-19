@@ -32,6 +32,7 @@ Never present simulated or sample behaviour as real. If something cannot work wi
 - Nothing visual reaches athletes without the owner's approval. A generated animation is created `pending`; only an admin publishes. Do not seed, pre-approve or auto-publish.
 - Change a movement → raise its `revision` and keep the earlier one in `motions/index.ts` until the new one is approved. A published animation of an older revision is withheld automatically; say so.
 - A movement is held to its `standard`: add or update its checks in `motions.test.ts`. An animation that looks good and shows wrong technique is a failure.
+- At rest an Aura is its outline and its field. What shows in a burst is data on the theme (`act` in `aura/themes.ts`: a sign after the Aura's name, and which components join); ribbons join none. A burst happens on Activate (and where the owner asked for one: choosing the instructor), never by itself.
 - Which muscles work comes from the exercise library. Do not invent activation per animation; a movement may only refine it (`detail`, `shift`).
 - Characters, movements, muscles, Aura and video stay separate. A theme is data in `aura/themes.ts`; intensity is never part of a theme.
 - After changing `scripts/character/` or `src/visual/body/`, run `npm run character:build` and commit the `.glb` files. `npm test` fails while they differ from the code.

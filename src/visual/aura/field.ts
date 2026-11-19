@@ -16,7 +16,7 @@ import {
 } from 'three'
 import type { Actor } from '../character'
 import { SKIN_BLEND, SKIN_DECL } from '../body/skinning'
-import type { AuraTheme, ComponentId, ThemeTuning } from './themes'
+import { SIGNS, type AuraTheme, type ComponentId, type ThemeTuning } from './themes'
 
 const GLSL = /* glsl */ `
 uniform vec3 uPal[6];
@@ -66,7 +66,9 @@ const smooth = (a: number, b: number, x: number) => { const u = Math.min(1, Math
 /** How long a charge gathers before it bursts, in seconds. */
 export const CHARGE_SECONDS = 1.2
 /** At rest an Aura is a glow round the body; nothing below shows until it is let go. */
-const LOOSE: ComponentId[] = ['rays', 'ribbons', 'motes', 'streams', 'rings', 'arcs']
+const LOOSE: ComponentId[] = ['rays', 'ribbons', 'motes', 'streams', 'rings', 'arcs', 'sparks']
+/** How long an activation's sign stands behind the body, in seconds. */
+const SIGN_SECONDS = 2.8
 /** Every Aura burns at rest at least this much: a working body's heat, not a still light. */
 const FLAME_FLOOR = 0.75
 
@@ -97,6 +99,8 @@ export class AuraField {
   private base = 0
   private measured = false
   private readonly shells: SkinnedMesh[] = []
+  /** The sign of this Aura's activation: one sheet behind the body, drawn only in a burst. */
+  private readonly sign: Mesh
   private readonly arcs: { geometry: BufferGeometry; position: Float32Array; side: Float32Array }
 
   constructor(actor: Actor) {
@@ -183,6 +187,181 @@ export class AuraField {
     part('halo', halo)
     part('rays', rays)
     this.world.add(halo, rays)
+
+    // ── The sign of the activation: what this Aura is, shown behind the body for the length of a burst ──
+    // One sheet, one pattern per Aura (themes.ts `act.sign`). `q` is in body heights: feet at -0.5, the top of the head at +0.5.
+    const sign = sheet(/* glsl */ `
+      uniform float uGain, uKind, uManner; varying vec2 vP;
+      float band(float r, float R, float w) { float d = (r - R) / w; return exp(-d * d); }
+      void main() {
+        if (uKind < 0.5) discard;
+        vec2 q = vP * 1.6;
+        float b = uBurst;
+        float inn = smoothstep(0.0, 0.12, b);
+        float fade = 1.0 - smoothstep(1.5, 2.7, b);
+        float grow = 1.0 - exp(-b * 2.4);
+        float r = length(q), ang = atan(q.y, q.x);
+        vec3 col = vec3(1.0); float a = 0.0;
+
+        if (uKind < 1.5) {
+          // Galaxy: a spiral disc seen at a slant opens behind the body, and its stars come out. (Manner 1: wider, slower, more stars.)
+          vec2 g = vec2(q.x, (q.y - 0.05) * mix(2.1, 1.7, uManner));
+          float gr = length(g) / ((0.4 + 0.8 * grow) * mix(1.0, 1.3, uManner)), ga = atan(g.y, g.x);
+          float arms = pow(0.5 + 0.5 * cos(2.0 * (ga + log(gr + 0.06) * 2.6) - uTime * 0.9 - b * 2.0), 2.5);
+          float dust = 0.55 + 0.45 * noise(vec3(g * 6.0, uTime * 0.2));
+          float disc = exp(-gr * gr * 2.6) * arms * dust;
+          float core = exp(-gr * gr * 26.0);
+          float cells = mix(40.0, 54.0, uManner);
+          float h = hash(vec3(floor(q * cells), 7.0));
+          float star = step(mix(0.975, 0.955, uManner), h) * (0.5 + 0.5 * sin(uTime * (2.0 + 6.0 * h) + h * 90.0)) * smoothstep(0.4, 0.0, length(fract(q * cells) - 0.5)) * exp(-gr * 0.8);
+          col = mix(pal(gr * 0.5 + ga * 0.159), vec3(1.0), min(1.0, core * 0.8 + star));
+          a = (disc * 1.5 + core * 0.9 + star) * inn * fade;
+        } else if (uKind < 2.5) {
+          // Bolt: lightning comes down out of the dark and meets at the head, again and again, with a flash.
+          float flick = floor(b * 11.0);
+          float sum = 0.0;
+          for (int i = 0; i < 3; i++) {
+            float fi = float(i);
+            float seed = fi * 7.31 + flick * 1.7;
+            float on = step(0.12, hash(vec3(seed, 1.0, 2.0)));
+            float top = smoothstep(0.44, 1.5, q.y);
+            float px = ((fi - 1.0) * 0.6 + (noise(vec3(q.y * 3.2, seed, 0.0)) - 0.5) * 0.8 + (noise(vec3(q.y * 11.0, seed, 3.0)) - 0.5) * 0.18) * top;
+            float d = abs(q.x - px);
+            sum += on * (0.006 / (d + 0.005)) * exp(-d * 5.0) * step(0.44, q.y);
+          }
+          float flash = exp(-b * 8.0) * exp(-r * 1.3);
+          col = mix(uPal[1], vec3(1.0), 0.78);
+          a = (min(sum, 2.5) * 0.7 * (1.0 - smoothstep(1.0, 1.6, b)) + flash) * inn;
+        } else if (uKind < 3.5) {
+          // Sun: it rises behind the shoulders, a bright disc with a turning corona, and the body stands against it.
+          vec2 d2 = q - vec2(0.0, mix(-0.3, 0.2, grow));
+          float R = 0.46, sr = length(d2), sa = atan(d2.y, d2.x);
+          float disc = smoothstep(R + 0.012, R - 0.012, sr);
+          float limb = 0.5 + 0.5 * sqrt(max(0.0, 1.0 - (sr / R) * (sr / R)));
+          float boil = 0.8 + 0.2 * noise(vec3(d2 * 9.0, uTime * 0.6));
+          float beams = pow(0.5 + 0.5 * sin(sa * 12.0 + uTime * 0.35) * sin(sa * 7.0 - uTime * 0.22 + 1.0), 2.0);
+          float corona = step(R, sr) * exp(-(sr - R) * (5.5 - 3.0 * beams)) * (0.4 + 0.6 * beams);
+          col = mix(uPal[1], uPal[2], disc * limb);
+          a = (disc * limb * boil * 0.8 + corona * 0.85) * inn * fade;
+        } else if (uKind < 4.5) {
+          // Aurora: curtains of light hang in an arch behind the shoulders, like wings, and sway.
+          float arch = q.y + 0.22 * q.x * q.x;
+          float sway = q.x * 2.2 + 0.35 * sin(q.y * 2.4 + uTime * 0.7) + uTime * 0.12;
+          float fold = noise(vec3(sway * 1.3, uTime * 0.18, 0.0));
+          float streak = 0.5 + 0.5 * noise(vec3(sway * 9.0, q.y * 0.6, uTime * 0.3));
+          float top = 0.5 + 0.9 * fold * grow;
+          float curtain = smoothstep(-0.3, 0.35, arch) * smoothstep(top, top - 0.8, arch) * pow(fold, 1.3) * streak;
+          col = pal(fold * 0.9 + q.x * 0.15 + 0.1);
+          a = curtain * (0.3 + 0.7 * smoothstep(0.08, 0.3, abs(q.x))) * 1.7 * smoothstep(1.6, 1.1, abs(q.x)) * inn * fade;
+        } else if (uKind < 5.5) {
+          // Pillar: fire goes up from the floor through the body, far above the head. (Manner 1: an eruption, wider and rougher.)
+          float y0 = q.y + 0.5;
+          float H = (0.8 + 1.3 * grow) * (1.0 - 0.6 * smoothstep(1.3, 2.6, b));
+          float n = noise(vec3(q.x * 5.0, q.y * 2.6 - uTime * 3.4, uTime * 0.5));
+          float n2 = noise(vec3(q.x * 14.0, q.y * 6.0 - uTime * 6.5, 2.0));
+          float w = mix(0.3, 0.52, uManner) * (1.0 - 0.6 * smoothstep(0.0, H + 0.5, y0));
+          float edge = abs(q.x) + (n - 0.5) * mix(0.2, 0.5, uManner) + (n2 - 0.5) * 0.08;
+          float column = smoothstep(w, w * 0.2, edge) * (1.0 - smoothstep(H * 0.5, H + 0.45, y0 + (n - 0.5) * 0.7));
+          col = mix(pal(0.08 + y0 * 0.3), vec3(1.0), pow(column, 3.0) * 0.6);
+          a = min(1.0, column * 1.25) * inn * fade;
+        } else if (uKind < 6.5) {
+          // Wheel: the six discipline colours light one after another round a ring, each with its beam.
+          vec2 d2 = q - vec2(0.0, 0.22);
+          float wr = length(d2);
+          float t = fract(0.25 - atan(d2.y, d2.x) / 6.2832);
+          float seg = floor(t * 6.0), sc = fract(t * 6.0) - 0.5;
+          float lit = smoothstep(seg / 6.0, seg / 6.0 + 0.1, b * 1.9);
+          float R = 0.44 + 0.2 * grow;
+          float rim = (band(wr, R, 0.013) + 0.35 * band(wr, R, 0.05)) * smoothstep(0.5, 0.44, abs(sc));
+          float beam = exp(-sc * sc * 70.0) * smoothstep(R, R + 0.04, wr) * exp(-(wr - R) * 2.4);
+          float wedge = step(wr, R) * exp(-(R - wr) * 5.0) * 0.16;
+          col = mix(uPal[int(seg)], vec3(1.0), 0.25 * rim);
+          a = lit * (rim + beam * 0.85 + wedge) * inn * fade;
+        } else if (uKind < 7.5) {
+          // Eclipse: a full moon rises, a shadow crosses it, and what is left is a ring of white fire.
+          vec2 d2 = q - vec2(0.0, mix(-0.05, 0.3, grow));
+          float R = 0.44, mr = length(d2);
+          float slide = mix(0.8, 0.0, smoothstep(0.15, 1.15, b));
+          float moon = smoothstep(R + 0.01, R - 0.01, mr);
+          float shadow = smoothstep(R * 0.97 + 0.01, R * 0.97 - 0.01, length(d2 - vec2(slide, slide * 0.25)));
+          float face = moon * (1.0 - shadow) * (0.7 + 0.3 * noise(vec3(d2 * 7.0, 3.0)));
+          float total = smoothstep(0.9, 1.2, b);
+          float rim = band(mr, R, 0.012) * (0.6 + 2.2 * total);
+          float glow = step(R, mr) * exp(-(mr - R) * 5.0) * 0.4 * total;
+          col = mix(uPal[1], vec3(1.0), 0.65);
+          a = (face * 0.7 + rim * 0.8 + glow) * inn * fade;
+        } else if (uKind < 8.5) {
+          // Nimbus: a ring of fine light opens behind the head, ring within ring, turning slowly.
+          vec2 d2 = q - vec2(0.0, 0.3);
+          float nr = length(d2) / (0.3 + 0.7 * grow), na = atan(d2.y, d2.x) + uTime * 0.12;
+          float circles = band(nr, 0.42, 0.012) + band(nr, 0.6, 0.008) + 0.7 * band(nr, 0.86, 0.006);
+          float fine = pow(abs(cos(na * 12.0)), 40.0) * smoothstep(0.42, 0.46, nr) * smoothstep(0.86, 0.8, nr);
+          float points = pow(abs(cos(na * 6.0 + 0.26)), 14.0) * smoothstep(0.86, 0.9, nr) * exp(-(nr - 0.86) * 4.0);
+          col = mix(uPal[0], vec3(1.0), 0.45);
+          a = (circles + fine * 0.8 + points * 0.6 + exp(-nr * nr * 5.0) * 0.3) * inn * fade;
+        } else if (uKind < 9.5) {
+          // Sphere: a ball of force grows out of the chest until it is past the edge of sight, cracked through with light.
+          vec2 d2 = q - vec2(0.0, 0.08);
+          float sr = length(d2), R = 0.12 + 1.05 * (1.0 - exp(-b * 1.7));
+          float rim = band(sr, R, 0.016 + 0.02 * R);
+          float cracks = pow(1.0 - abs(noise(vec3(d2 * 4.0, uTime * 0.8)) * 2.0 - 1.0), 14.0);
+          float inside = smoothstep(R, R - 0.05, sr) * (0.08 + 0.55 * cracks) * (0.35 + 0.65 * sr / R);
+          col = mix(uPal[1], uPal[3], rim);
+          a = (rim * 1.1 + inside) * inn * (1.0 - smoothstep(1.3, 2.4, b));
+        } else if (uKind < 10.5) {
+          // Pulse: ring after ring races out of the body, faster than they can be counted. (Manner 1: three heavy beats.)
+          float pr = length(q * vec2(1.0, 0.85));
+          float freq = mix(22.0, 8.0, uManner), speed = mix(2.6, 1.25, uManner);
+          float waves = pow(0.5 + 0.5 * cos((pr - b * speed) * freq), mix(7.0, 3.5, uManner));
+          float front = smoothstep(b * speed + 0.05, b * speed - 0.1, pr);
+          float rush = pow(noise(vec3(q.x * 26.0, q.y * 1.5 - uTime * 7.0, 1.0)), 5.0) * exp(-abs(q.x) * 2.4) * (1.0 - uManner);
+          col = mix(uPal[0], vec3(1.0), 0.2 + 0.5 * waves * uManner);
+          a = (waves * front * exp(-pr * mix(1.5, 1.0, uManner)) * mix(0.9, 1.5, uManner) + rush * 1.2) * inn * fade;
+        } else if (uKind < 11.5) {
+          // Ripple: one ring leaves the body, quietly, and a veil of silver shimmers where it stood. (Manner 1: a hard white edge and nothing else.)
+          float R = 0.2 + 1.2 * (1.0 - exp(-b * 1.5));
+          float line = mix(band(r, R, 0.03), smoothstep(R - 0.04, R - 0.034, r) * smoothstep(R + 0.006, R, r) + 0.7 * smoothstep(R * 0.72 - 0.014, R * 0.72 - 0.01, r) * smoothstep(R * 0.72 + 0.004, R * 0.72, r), uManner);
+          float haze = noise(vec3(q.x * 5.0, q.y * 2.0 - uTime * 1.1, uTime * 0.25));
+          float veil = exp(-q.x * q.x * 9.0) * smoothstep(-0.5, 0.0, q.y) * smoothstep(1.5, 0.4, q.y) * haze * 0.5 * (1.0 - uManner);
+          float glint = step(0.975, hash(vec3(floor(q * 30.0), floor(uTime * 4.0)))) * pow(max(0.0, 1.0 - 2.4 * length(fract(q * 30.0) - 0.5)), 2.0) * exp(-r * 1.2) * (1.0 - uManner);
+          col = mix(uPal[0], vec3(1.0), 0.5);
+          a = (line * (1.0 - smoothstep(0.9, 1.4, R)) + veil + glint * 0.8) * inn * fade;
+        } else if (uKind < 12.5) {
+          // Steam: it comes off the body in a rush and climbs, widening, the way it does off hot iron. (Manner 1: lit red from below, as at a quench.)
+          float y0 = q.y + 0.5;
+          float rise = uTime * 1.5 + b * 0.8;
+          float n1 = noise(vec3(q.x * 3.4, q.y * 1.1 - rise, uTime * 0.3));
+          float n2 = noise(vec3(q.x * 6.5 + n1 * 1.5, q.y * 2.2 - rise * 1.8, 4.0));
+          float n3 = noise(vec3(q.x * 5.5 - n1, q.y * 1.6 - rise * 1.3, 9.0));
+          float billow = smoothstep(0.2, 0.62, n1 * 0.5 + n2 * 0.2 + n3 * 0.4);
+          float spread = 0.28 + 0.5 * smoothstep(0.0, 1.6, y0);
+          float mask = smoothstep(spread, spread * 0.3, abs(q.x)) * smoothstep(0.0, 0.25, y0) * (1.0 - smoothstep(0.5 + 1.3 * grow, 0.9 + 1.4 * grow, y0));
+          col = mix(mix(uPal[0], uPal[1], n2), mix(uPal[0], vec3(1.0), 0.7), uManner * smoothstep(0.2, 1.2, y0));
+          a = billow * mask * 0.85 * inn * fade;
+        } else {
+          // Strike: one blow at the floor, as a hammer on an anvil: a white line, spikes of light, and the red of struck metal left behind.
+          vec2 d2 = q - vec2(0.0, -0.46);
+          float life = exp(-b * 1.9);
+          float sa = atan(d2.y, d2.x), sl = length(d2);
+          float streak = exp(-abs(d2.y) * 40.0) * exp(-abs(d2.x) * 1.0);
+          float up = exp(-abs(d2.x) * 26.0) * exp(-max(0.0, d2.y) * 1.6) * step(0.0, d2.y);
+          float spikes = pow(0.5 + 0.5 * cos(sa * 9.0), 30.0) * exp(-sl * 2.4) * step(0.0, d2.y);
+          // Sparks leave along their own lines and fall short one after another.
+          float lane = floor(sa * 14.0), far = 0.5 + 1.1 * hash(vec3(lane, 3.0, 1.0));
+          spikes += pow(0.5 + 0.5 * cos(sa * 14.0 * 6.2832), 8.0) * band(sl, far * (1.0 - exp(-b * 2.6)), 0.05) * step(0.02, d2.y) * 1.6;
+          float heat = exp(-length(d2 * vec2(0.6, 2.2)) * 2.6) * 0.5 * (1.0 - smoothstep(1.0, 2.4, b));
+          col = mix(uPal[0], uPal[2], life);
+          a = ((streak + up * 0.8 + spikes) * life * 2.0 + heat) * inn;
+        }
+        // Nothing of it shows below the floor the body stands on.
+        a *= smoothstep(-0.6, -0.5, q.y);
+        gl_FragColor = vec4(col, a * uGain);
+      }`, { uKind: 0, uManner: 0, uGain: 0 })
+    sign.renderOrder = -4
+    sign.frustumCulled = false
+    sign.visible = false
+    this.sign = sign
+    this.world.add(sign)
 
     // ── Ribbons: strips of light whose path is computed per vertex ──
     {
@@ -420,6 +599,7 @@ export class AuraField {
   setPaint(on: boolean) {
     this.shared.uPaint.value = on ? 1 : 0
     for (const part of Object.values(this.parts)) for (const o of part.objects) (o.material as ShaderMaterial).blending = on ? NormalBlending : AdditiveBlending
+    ;(this.sign.material as ShaderMaterial).blending = on ? NormalBlending : AdditiveBlending
     // Paint would coat the body where light only brightened it: keep the outline to what stands outside the figure.
     for (const s of this.shells) { const m = s.material as ShaderMaterial; m.side = on ? BackSide : DoubleSide; m.needsUpdate = true }
   }
@@ -440,6 +620,9 @@ export class AuraField {
     set('sparks', { uSpeed: theme.sparks.speed, uCrackle: theme.sparks.crackle })
     set('streams', { uHeight: theme.streams.height })
     set('rings', { uDashes: theme.rings.dashes, uSpin: theme.rings.spin })
+    const sign = (this.sign.material as ShaderMaterial).uniforms
+    sign.uKind.value = SIGNS.indexOf(theme.act.sign)
+    sign.uManner.value = theme.act.manner
     this.actor.look.chargeColor.value.set(theme.palette[0])
   }
 
@@ -516,6 +699,8 @@ export class AuraField {
     const loose = surge
     /** While it gathers, only what rises from the floor shows: the power coming up, not yet let go. */
     const rising = Math.max(surge, 0.8 * gather)
+    /** Only what this Aura's activation names joins its burst. */
+    const joins = (id: ComponentId) => t.act.with.includes(id)
     const want = Math.min(1, Math.max(intensity * (tune.intensity ?? 1), surge, this.chargeAge >= 0 ? 0.55 + 0.45 * gather : 0))
     this.level += (want - this.level) * (1 - Math.exp(-dt * (want > this.level ? 9 : 2.2)))
     const breath = 0.5 + 0.5 * Math.sin(this.clock * Math.PI * 2 * t.breath * (tune.pulse ?? 1))
@@ -536,14 +721,14 @@ export class AuraField {
     const density = tune.density ?? 1
 
     const gain = (id: ComponentId, level: number, from: number, span = 0.3) => {
-      const g = off.includes(id) ? 0 : level * smooth(from, Math.min(1, from + span), I) * (id === 'streams' || id === 'motes' ? rising : LOOSE.includes(id) ? loose : 1)
+      const g = off.includes(id) ? 0 : level * smooth(from, Math.min(1, from + span), I) * (!LOOSE.includes(id) ? 1 : !joins(id) ? 0 : id === 'streams' || id === 'motes' ? rising : loose)
       const part = this.parts[id]
       part.gain.value = g
       for (const o of part.objects) o.visible = g > 0.002
       return g
     }
     // The glow is held close while it gathers, and thrown wide by the burst.
-    const reach = this.actor.rig.body.scale * 0.006 * Math.min(1.35, Math.max(t.shell.reach, 0.8)) * (0.6 + 0.8 * I + 0.5 * this.pulse) * (1.9 - 0.7 * gather + 0.5 * surge)
+    const reach = this.actor.rig.body.scale * 0.006 * Math.min(1.35, Math.max(t.shell.reach, 0.8)) * (0.6 + 0.8 * I + 0.2 * this.pulse) * (1.45 - 0.55 * gather - 0.3 * surge)
     gain('shell', Math.max(t.shell.level, 0.9) * (0.7 + 0.8 * I) * (0.85 + 0.15 * breath), t.shell.from, 0.2)
     for (const m of this.shells) (m.material as ShaderMaterial).uniforms.uReach.value = reach
     gain('halo', t.halo.level * (0.25 + 0.75 * I), t.halo.from, 0.35)
@@ -561,7 +746,7 @@ export class AuraField {
     ;(rings.material as ShaderMaterial).uniforms.uClock.value = this.clock
     rings.scale.set(this.size.x * 4.6, this.size.z * 4.6, 1)
     // Sparks show on a release whatever the level, and crackle in themes that ask for it.
-    const sparkGain = off.includes('sparks') ? 0 : t.sparks.level * Math.max(this.burstAge < 2 ? 1 : 0, t.sparks.crackle * loose * smooth(t.sparks.from - 0.5, t.sparks.from, I))
+    const sparkGain = off.includes('sparks') || !joins('sparks') ? 0 : t.sparks.level * Math.max(this.burstAge < 2 ? 1 : 0, t.sparks.crackle * loose * smooth(t.sparks.from - 0.5, t.sparks.from, I))
     this.parts.sparks.gain.value = sparkGain
     this.parts.sparks.objects[0].visible = sparkGain > 0.002
     ;(this.parts.sparks.objects[0].material as ShaderMaterial).uniforms.uPx.value = px
@@ -575,6 +760,17 @@ export class AuraField {
       sheet.position.copy(middle).addScaledVector(away, 0.5)
       sheet.quaternion.copy(camera.quaternion)
       sheet.scale.set(span * k, span * k, 1)
+    }
+
+    // The sign stands behind the body for as long as a burst lasts.
+    const signing = this.burstAge < SIGN_SECONDS && t.act.sign !== 'none'
+    this.sign.visible = signing
+    if (signing) {
+      ;(this.sign.material as ShaderMaterial).uniforms.uGain.value = Math.min(1, 0.55 + 0.6 * (tune.intensity ?? 1) * Math.max(intensity, 0.5))
+      const side = Math.max(this.size.y, this.actor.rig.body.scale * 1.2) * 3.2
+      this.sign.position.copy(middle).addScaledVector(away, 0.6)
+      this.sign.quaternion.copy(camera.quaternion)
+      this.sign.scale.set(side, side, 1)
     }
 
     if (arcGain > 0.002) {

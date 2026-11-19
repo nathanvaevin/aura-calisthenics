@@ -127,7 +127,10 @@ export function AuraField({ mix, aura, size = 320, progress, rings = true, ignit
 
 /** A small, still aura used behind avatars and list rows. */
 export function AuraDot({ mix, size = 44, children }: { mix: Record<DisciplineId, number>; size?: number; children?: ReactNode }) {
-  const stops = WHEEL.map((d, i) => `color-mix(in oklab, ${dvar(d)} ${Math.round(35 + (mix[d] ?? 0) * 260)}%, var(--surface-3)) ${i * 60}deg`)
+  // Someone with nothing rated yet wears all six colours evenly. A share is never allowed past 100%: a browser throws the whole ring away for that
+  // (it did, for anyone with most of their rating in one or two areas).
+  const none = WHEEL.every((d) => !(mix[d] > 0))
+  const stops = WHEEL.map((d, i) => `color-mix(in oklab, ${dvar(d)} ${Math.min(100, Math.round(35 + (none ? 1 / 6 : mix[d] ?? 0) * 260))}%, var(--surface-3)) ${i * 60}deg`)
   return (
     <span
       className="relative inline-flex shrink-0 items-center justify-center rounded-full"

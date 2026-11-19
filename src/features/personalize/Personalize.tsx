@@ -135,15 +135,19 @@ function ThemeStep({ value, onChange, released, admin, character }: { value: The
         return (
           <button
             key={id} data-theme={id} data-scheme={t.scheme} aria-pressed={on} disabled={!open} onClick={() => onChange(id)}
-            title={`${t.name}: ${t.blurb} ${u.list.length} ${u.forms === 'Aura' ? 'Auras' : `${u.forms.toLowerCase()}s`}.`}
             className={cx('rise group relative isolate flex min-h-[200px] overflow-hidden rounded-card border bg-bg text-left text-ink transition-[box-shadow,transform] duration-300', on ? 'border-transparent shadow-[0_0_0_2px_var(--accent),0_24px_60px_-28px_var(--accent)]' : 'border-line-strong', !open && 'opacity-60')}
             style={{ animationDelay: `${i * 0.06}s` }}
           >
             <span className="page-glow !absolute" />
-            {/* A name, one line, a picture. What else a theme is, the athlete sees by trying it. */}
+            {/* A name, one line, its colours, a picture. What else a theme is, the athlete sees by trying it. */}
             <span className="relative z-10 flex min-w-0 flex-1 flex-col justify-end p-4 pr-2 sm:p-5">
               <span className="display block text-[34px] leading-[0.98] sm:text-[38px]">{t.name}</span>
               <span className="display mt-2.5 block text-[17px] leading-[1.12] text-ink-2">{t.line}</span>
+              {/* Its Auras (or forms, or states), each in its own colour, and how many there are. */}
+              <span className="mt-4 flex items-center gap-2.5" data-forms>
+                <span className="flex gap-1.5">{u.list.map((f) => <span key={f.id} title={f.name} className="h-3 w-3 rounded-full" style={{ background: f.colour, boxShadow: `0 0 8px ${f.colour}` }} />)}</span>
+                <span className="text-[12.5px] text-ink-2">{u.list.length} {u.forms === 'Aura' ? 'Auras' : `${u.forms.toLowerCase()}s`}</span>
+              </span>
             </span>
             {/* The character of this universe, in its own light. */}
             <span className="relative z-10 m-2.5 ml-0 w-[38%] shrink-0 overflow-hidden rounded-[calc(var(--r-card)*0.7)] bg-(--stage)">
