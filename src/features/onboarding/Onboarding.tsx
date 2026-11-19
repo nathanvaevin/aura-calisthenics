@@ -1,30 +1,30 @@
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router'
 import { AnimatePresence, motion } from 'motion/react'
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react'
 import type { DisciplineId, EquipmentId, Evidence } from '@/domain/types'
-import { DISCIPLINE_IDS, EQUIPMENT, SKILLS, disciplineById, skillById } from '@/domain/catalog'
+import { DISCIPLINE_IDS, EQUIPMENT, disciplineById, skillById } from '@/domain/catalog'
 import { computeAura } from '@/domain/scoring/aura'
 import { allRatings } from '@/domain/scoring/mastery'
-import { pathTo, skillStatuses } from '@/domain/scoring/skills'
-import { buildWorkout, templateById } from '@/domain/training'
+import { skillStatuses } from '@/domain/scoring/skills'
 import { useStore } from '@/data/store'
 import { handleFree, signInWithGoogle, signOut, useCloud } from '@/data/cloud'
 import { GoogleButton, Notice } from '@/features/account/Account'
-import { CoachContact, requestCoach } from '@/features/account/CoachAccess'
+import { requestCoach } from '@/features/account/CoachAccess'
 import { AuraField } from '@/ui/AuraField'
 import { CountUp } from '@/ui/CountUp'
 import { DisciplineDot, Eyebrow, StatusTag, Stepper, Toggle } from '@/ui/primitives'
 import { Wordmark } from '@/app/Shell'
 import { landing } from '@/app/landing'
 import { cx, dvar } from '@/lib/format'
+import { ScoreDeck } from './ScoreDeck'
 
 type Level = 0 | 1 | 2
 
-const EXPERIENCE: { level: Level; title: string; body: string }[] = [
-  { level: 0, title: 'New to this', body: 'Little or no bodyweight training so far.' },
-  { level: 1, title: 'Training for a while', body: 'Comfortable with push-ups and some time on a bar.' },
-  { level: 2, title: 'Years in', body: 'Consistent training and a few advanced skills.' },
+const EXPERIENCE: { level: Level; title: string }[] = [
+  { level: 0, title: 'New to this' },
+  { level: 1, title: 'Training for a while' },
+  { level: 2, title: 'Years in' },
 ]
 
 const GOALS = [
@@ -132,8 +132,15 @@ export function Onboarding() {
   const navigate = useNavigate()
   const startDemo = useStore((s) => s.startDemo)
   const complete = useStore((s) => s.completeOnboarding)
-  const startWorkout = useStore((s) => s.startWorkout)
-  const startSolo = useStore((s) => s.startSoloAssessment)
+
+  // The sample world is no longer offered on the welcome screen. It is still there for testing, by address only: …/welcome?demo
+  const [params] = useSearchParams()
+  const wantsDemo = params.has('demo')
+  useEffect(() => {
+    if (wantsDemo) startDemo()
+  }, [wantsDemo, startDemo])
+  // The first screen is fitted to the height it has, so that nothing on it needs scrolling.
+  const tall = useHeight()
 
   // With accounts, the questions come after signing in: the profile already exists and has a name.
   const configured = useCloud((s) => s.configured)
@@ -172,17 +179,7 @@ export function Onboarding() {
     }))
     const ratings = allRatings(evidence)
     const statuses = skillStatuses(evidence)
-    const open = goals.filter((g) => statuses[g]?.state !== 'mastered')
-    const first = open.map((g) => pathTo(g, statuses).find((s) => statuses[s.id].state === 'available')).find(Boolean)
-    return {
-      evidence,
-      ratings,
-      aura: computeAura(ratings),
-      mastered: SKILLS.filter((s) => statuses[s.id].state === 'mastered').length,
-      available: SKILLS.filter((s) => statuses[s.id].state === 'available').length,
-      first,
-      already: goals.filter((g) => statuses[g]?.state === 'mastered'),
-    }
+    return { ratings, aura: computeAura(ratings), already: goals.filter((g) => statuses[g]?.state === 'mastered') }
   }, [estimates, goals])
 
   const result = () => ({ name, handle: chosen, coach, weeklyTarget: weekly, equipment, goals: goals.filter((g) => !preview.already.includes(g)), estimates })
@@ -191,13 +188,11 @@ export function Onboarding() {
     // With an account, coaching is asked for, not switched on. The answer shows in Profile.
     if (account && coach && !account.guest) void requestCoach('Asked during sign-up').catch(() => undefined)
   }
-  const finish = (train: boolean) => {
+  // The questions end on the athlete's own profile, where the introduction is waiting.
+  const finish = () => {
+    landing.to = '/profile'
     submit()
-    if (train) {
-      const t = templateById['full-body']
-      startWorkout({ type: 'library', workoutId: t.id }, t.title, buildWorkout(t, preview.evidence).blocks)
-    }
-    navigate(train ? '/workout' : '/', { replace: true })
+    navigate('/profile', { replace: true })
   }
 
   const chosen = handle ?? slug(name)
@@ -217,8 +212,11 @@ export function Onboarding() {
     setStep(step + 1)
   }
 
+  const welcome = step === 0 && !accountStep
+  const firstName = name.trim().split(' ')[0] || 'Athlete'
+
   return (
-    <div className="relative mx-auto flex min-h-dvh w-full max-w-[520px] flex-col px-6">
+    <div className={cx('relative mx-auto flex w-full max-w-[520px] flex-col px-6', welcome ? 'h-dvh touch-none overflow-hidden' : 'min-h-dvh')} data-welcome={welcome || undefined}>
       <div className="page-glow" />
 
       {step > 0 && (
@@ -263,33 +261,31 @@ export function Onboarding() {
             </div>
           )}
 
-          {/* 0 · Welcome */}
-          {step === 0 && !accountStep && (
-            <div className="flex flex-1 flex-col items-center justify-center pt-8 pb-6 text-center">
-              <AuraField mix={EVEN} aura={7200} size={300}>
-                <Wordmark size={54} />
-              </AuraField>
-              <h1 className="display mt-6 text-[44px] leading-[1.02] sm:text-[52px]">Discover the limitless potential <span className="italic">of your body.</span></h1>
-              <p className="mt-5 max-w-sm text-[15.5px] leading-relaxed text-ink-2">
-                Aura shows you exactly where you are today, and every step to where you’ve always dreamed of going.
-              </p>
-              <div className="mt-9 flex w-full max-w-sm flex-col gap-2.5">
+          {/* 0 · Welcome: one still screen */}
+          {welcome && (
+            <div className="safe-top safe-bottom flex min-h-0 flex-1 flex-col items-center text-center">
+              <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
+                <AuraField mix={EVEN} aura={7200} size={Math.round(Math.min(300, Math.max(132, tall * 0.33)))}>
+                  <Wordmark size={tall < 620 ? 40 : 54} />
+                </AuraField>
+                <h1 className="display mt-[2.5dvh] text-[clamp(31px,5.6dvh,52px)] leading-[1.02]">Discover the limitless potential <span className="italic">of your body.</span></h1>
+                <p className="mt-[2dvh] max-w-sm text-[15.5px] leading-relaxed text-ink-2">
+                  Aura shows you exactly where you are today, and every step to where you’ve always dreamed of going.
+                </p>
+              </div>
+              <div className="flex w-full max-w-sm shrink-0 flex-col gap-2.5 pt-[2.5dvh]">
                 {configured
                   ? <button className="btn btn-primary btn-lg" onClick={() => setAccountStep(true)}>Get started <ArrowRight size={17} /></button>
                   : <button className="btn btn-primary btn-lg" onClick={() => setStep(1)}>Begin <ArrowRight size={17} /></button>}
-                <button className="btn btn-outline" onClick={startDemo}>Explore the demo</button>
                 {configured && (
-                  <p className="mt-1.5 text-[13.5px] text-ink-2">
+                  <p className="mt-1 text-[13.5px] text-ink-2">
                     Already have an account?{' '}
                     <button className="font-medium text-ink underline decoration-line-strong underline-offset-4" onClick={() => void signInWithGoogle()}>Sign in</button>
                   </p>
                 )}
                 <Notice />
               </div>
-              <p className="mt-4 max-w-xs text-[12px] text-ink-3">
-                The demo opens a sample athlete with history, two courses and Coach Studio, so you can see everything working{configured && '; nothing in it is saved'}.
-              </p>
-              <p className="mt-3 text-[12px] text-ink-3">
+              <p className="shrink-0 pt-[2dvh] pb-4 text-[12px] text-ink-3">
                 <a className="underline decoration-line-strong underline-offset-4 hover:text-ink" href={`${import.meta.env.BASE_URL}privacy.html`}>Privacy</a>
                 {' · '}
                 <a className="underline decoration-line-strong underline-offset-4 hover:text-ink" href={`${import.meta.env.BASE_URL}terms.html`}>Terms</a>
@@ -321,20 +317,20 @@ export function Onboarding() {
             <Step eyebrow="Experience" title="Where are you starting from?">
               <div className="space-y-2.5">
                 {EXPERIENCE.map((e) => (
-                  <button key={e.level} onClick={() => setLevel(e.level)} className={cx('pressable flex w-full items-center gap-4 rounded-card border p-4 text-left', level === e.level ? 'border-ink bg-surface' : 'border-line')}>
+                  <button key={e.level} data-level={e.level} aria-pressed={level === e.level} onClick={() => setLevel(e.level)} className={cx('pressable flex h-[60px] w-full items-center gap-4 rounded-card border px-4 text-left', level === e.level ? 'border-ink bg-surface' : 'border-line')}>
                     <span className={cx('flex h-6 w-6 shrink-0 items-center justify-center rounded-full border', level === e.level ? 'border-ink bg-ink text-bg' : 'border-line-strong')}>{level === e.level && <Check size={13} strokeWidth={3} />}</span>
-                    <span><span className="block text-[15.5px] font-medium">{e.title}</span><span className="block text-[13px] text-ink-2">{e.body}</span></span>
+                    <span className="text-[17.5px] font-medium">{e.title}</span>
                   </button>
                 ))}
               </div>
               <div className="mt-6 flex items-center justify-between">
-                <span><Eyebrow>Sessions per week</Eyebrow><span className="mt-1 block text-[12.5px] text-ink-3">What you realistically intend to do.</span></span>
+                <Eyebrow>Sessions per week</Eyebrow>
                 <Stepper value={weekly} onChange={setWeekly} min={1} max={7} />
               </div>
-              <Eyebrow className="mt-6 mb-2.5">Equipment you can use</Eyebrow>
-              <div className="flex flex-wrap gap-2">
+              <Eyebrow className="mt-6 mb-3">Equipment you can use</Eyebrow>
+              <div className="flex flex-wrap gap-2.5">
                 {(Object.keys(EQUIPMENT) as EquipmentId[]).map((id) => (
-                  <button key={id} className="chip" data-on={equipment.includes(id)} onClick={() => setEquipment(equipment.includes(id) ? equipment.filter((x) => x !== id) : [...equipment, id])}>{EQUIPMENT[id]}</button>
+                  <button key={id} className="chip chip-lg" data-on={equipment.includes(id)} onClick={() => setEquipment(equipment.includes(id) ? equipment.filter((x) => x !== id) : [...equipment, id])}>{EQUIPMENT[id]}</button>
                 ))}
               </div>
             </Step>
@@ -342,8 +338,8 @@ export function Onboarding() {
 
           {/* 3 · Goals */}
           {step === 3 && (
-            <Step eyebrow="Goals" title="What do you want to be able to do?" sub="Pick up to three. Any skill in the tree can become a goal later.">
-              <div className="grid grid-cols-2 gap-2.5">
+            <Step eyebrow="Goals" title="What do you want to be able to do?" sub="Pick up to three.">
+              <div className="grid grid-cols-2 gap-3">
                 {GOALS.map((g) => {
                   const s = skillById[g]
                   const on = goals.includes(g)
@@ -352,14 +348,15 @@ export function Onboarding() {
                       key={g}
                       disabled={!on && goals.length >= 3}
                       onClick={() => setGoals(on ? goals.filter((x) => x !== g) : [...goals, g])}
-                      className={cx('pressable flex min-h-[84px] flex-col justify-between rounded-[20px] border p-3.5 text-left disabled:opacity-40', on ? 'border-transparent' : 'border-line')}
+                      data-goal={g} aria-pressed={on}
+                      className={cx('pressable flex min-h-[128px] flex-col justify-between rounded-[22px] border p-4 text-left disabled:opacity-40', on ? 'border-transparent' : 'border-line-strong bg-surface')}
                       style={on ? { background: `color-mix(in oklab, ${dvar(s.discipline)} 18%, var(--surface))`, boxShadow: `inset 0 0 0 1.5px ${dvar(s.discipline)}` } : undefined}
                     >
-                      <span className="flex items-center justify-between text-[11px] text-ink-3">
-                        <span className="flex items-center gap-1.5"><DisciplineDot id={s.discipline} size={6} />{disciplineById[s.discipline].short}</span>
-                        {on && <Check size={14} strokeWidth={2.6} style={{ color: dvar(s.discipline) }} />}
+                      <span className="flex items-center justify-between text-[13px] text-ink-2">
+                        <span className="flex items-center gap-2"><DisciplineDot id={s.discipline} size={8} />{disciplineById[s.discipline].short}</span>
+                        {on && <Check size={18} strokeWidth={2.6} style={{ color: dvar(s.discipline) }} />}
                       </span>
-                      <span className="mt-2 text-[14.5px] leading-snug font-medium">{s.name}</span>
+                      <span className="display mt-3 text-[25px] leading-[1.04]">{s.name}</span>
                     </button>
                   )
                 })}
@@ -369,7 +366,7 @@ export function Onboarding() {
 
           {/* 4 · Assessment */}
           {step === 4 && (
-            <Step eyebrow="Starting point" title="What can you do today?" sub="A quick estimate to get you started. Answer honestly and skip anything you have not tried. The physical assessment afterwards replaces these with real results.">
+            <Step eyebrow="Starting point" title="What can you do today?" sub="A quick estimate. Skip anything you have not tried.">
               <div className="space-y-6">
                 {questions.map((q) => (
                   <div key={q.id}>
@@ -388,58 +385,24 @@ export function Onboarding() {
             </Step>
           )}
 
-          {/* 5 · Profile */}
+          {/* 5 · The starting line: the Aura, the six scores one at a time, and on to the profile */}
           {step === 5 && (
-            <div className="flex flex-1 flex-col items-center pb-6 text-center">
-              <AuraField mix={preview.aura.aura ? preview.aura.mix : EVEN} aura={preview.aura.aura} size={280} progress={preview.aura.cls.progress}>
+            <div className="flex flex-1 flex-col items-center pb-6 text-center" data-starting-line>
+              <AuraField mix={preview.aura.aura ? preview.aura.mix : EVEN} aura={preview.aura.aura} size={Math.round(Math.min(236, Math.max(150, tall * 0.26)))} progress={preview.aura.cls.progress} className="-mt-3">
                 <Eyebrow>Starting Aura</Eyebrow>
-                <div className="display mt-1 text-[72px] leading-none">{preview.aura.aura ? <CountUp value={preview.aura.aura} duration={1800} /> : '—'}</div>
-                <div className="mt-2 text-[13.5px] text-ink-2">{preview.aura.title}</div>
+                <div className={cx('display mt-1 leading-none', tall < 700 ? 'text-[46px]' : 'text-[60px]')}>{preview.aura.aura ? <CountUp value={preview.aura.aura} duration={1800} /> : '—'}</div>
+                <div className="mt-1.5"><StatusTag status={preview.aura.aura ? 'estimated' : 'unrated'} /></div>
               </AuraField>
-              <div className="-mt-1"><StatusTag status={preview.aura.aura ? 'estimated' : 'unrated'} /></div>
-              <h1 className="display mt-5 text-[34px]">{name.trim().split(' ')[0] || 'Athlete'}, this is your starting line.</h1>
-              <p className="mt-3 max-w-sm text-[14px] leading-relaxed text-ink-2">
-                {preview.aura.aura
-                  ? 'Everything here is an estimate from your answers and is labelled that way. Each real set you put on record replaces an estimate.'
-                  : 'No estimates yet, which is a perfectly good place to begin. Your first logged sets will light this up.'}
+              <h1 className="display -mt-1 text-[32px] leading-[1.05]">{firstName}, this is your starting line.</h1>
+              <p className="mt-2.5 max-w-sm text-[15px] leading-snug text-ink-2">
+                {preview.aura.aura ? 'Here is your estimate. Every real set you record replaces it.' : 'Nothing to estimate yet. Your first recorded set starts it.'}
               </p>
 
-              <div className="mt-6 grid w-full grid-cols-3 gap-2">
-                {DISCIPLINE_IDS.map((d) => (
-                  <div key={d} className="rounded-[18px] border border-dashed border-line-strong px-3 py-2.5 text-left">
-                    <span className="flex items-center gap-1.5 text-[11px] text-ink-2"><DisciplineDot id={d} size={6} />{disciplineById[d].short}</span>
-                    <span className="display num mt-0.5 block text-[24px]">{preview.ratings[d].rating || '—'}</span>
-                  </div>
-                ))}
-              </div>
+              <ScoreDeck ratings={preview.ratings} roomy={tall >= 780} className={tall < 700 ? 'mt-4' : 'mt-6'} />
 
-              <div className="card mt-3 w-full divide-y divide-line text-left">
-                <div className="flex items-center justify-between px-4 py-3 text-[14px]"><span>Skills already within your ability</span><span className="num font-medium">{preview.mastered}</span></div>
-                <div className="flex items-center justify-between px-4 py-3 text-[14px]"><span>Skills open to work on now</span><span className="num font-medium">{preview.available}</span></div>
-                {preview.first && (
-                  <div className="px-4 py-3">
-                    <Eyebrow>Recommended first step</Eyebrow>
-                    <div className="mt-1 flex items-center gap-2 text-[14.5px] font-medium"><DisciplineDot id={preview.first.discipline} />{preview.first.name}</div>
-                  </div>
-                )}
-                {preview.already.length > 0 && (
-                  <div className="px-4 py-3 text-[13px] text-ink-2">Already within reach of your answers: {preview.already.map((g) => skillById[g].name).join(', ')}. Pick a bigger goal from the tree.</div>
-                )}
-              </div>
-
-              {account && !account.guest && coach && (
-                <div className="card mt-3 w-full p-4 text-left">
-                  <Eyebrow>Coach access</Eyebrow>
-                  <div className="mt-1.5 text-[15px] font-medium">Your request has been sent.</div>
-                  <p className="mt-1 text-[13px] leading-relaxed text-ink-2">Coach Studio opens in your app as soon as it is approved. Until then you can train, test and explore as an athlete. You will find the request under Profile → Settings.</p>
-                  <CoachContact className="mt-2" />
-                </div>
-              )}
-
-              <div className="mt-6 flex w-full flex-col gap-2.5">
-                <button className="btn btn-primary btn-lg" onClick={() => finish(true)}>Start my first session</button>
-                <button className="btn btn-outline" onClick={() => { submit(); landing.to = `/assess/${startSolo()}` }}>Test it properly: take the physical assessment</button>
-                <button className="btn btn-quiet" onClick={() => finish(false)}>Go to my profile</button>
+              <div className="mt-auto w-full pt-6">
+                <button className="btn btn-primary btn-lg w-full" onClick={finish}>Go to profile <ArrowRight size={17} /></button>
+                {account && !account.guest && coach && <p className="mt-3 text-[12.5px] text-ink-3">Coach access is requested. Follow it under Profile → Settings.</p>}
               </div>
             </div>
           )}
@@ -449,7 +412,7 @@ export function Onboarding() {
       {step > 0 && step < last && (
         <footer className="safe-bottom sticky bottom-0 z-10 shrink-0 bg-gradient-to-t from-bg via-bg to-transparent pt-6 pb-5">
           <button className="btn btn-primary btn-lg w-full" disabled={!canContinue} onClick={() => void next()}>
-            {step === 4 ? 'See my profile' : 'Continue'} <ArrowRight size={17} />
+            {step === 4 ? 'See my starting line' : 'Continue'} <ArrowRight size={17} />
           </button>
           {step === 3 && goals.length === 0 && <p className="mt-2 text-center text-[12px] text-ink-3">You can skip this and choose goals later.</p>}
         </footer>
@@ -460,11 +423,22 @@ export function Onboarding() {
 
 function Step({ eyebrow, title, sub, children }: { eyebrow: string; title: string; sub?: string; children: React.ReactNode }) {
   return (
-    <div className="flex-1 pt-2 pb-4">
+    <div className="flex-1 pt-2 pb-2">
       <Eyebrow>{eyebrow}</Eyebrow>
       <h1 className="display mt-2 text-[36px] leading-[1.04]">{title}</h1>
       {sub && <p className="mt-2.5 text-[14px] leading-relaxed text-ink-2">{sub}</p>}
       <div className="mt-6">{children}</div>
     </div>
   )
+}
+
+/** The height there is to work with, kept up to date as a phone's toolbars come and go. */
+function useHeight() {
+  const [h, setH] = useState(() => window.innerHeight)
+  useEffect(() => {
+    const on = () => setH(window.innerHeight)
+    window.addEventListener('resize', on)
+    return () => window.removeEventListener('resize', on)
+  }, [])
+  return h
 }

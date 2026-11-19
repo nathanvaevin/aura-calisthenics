@@ -338,6 +338,10 @@
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
   }
+  /* Larger text: every size in the app is shipped in rem (vite.config.ts), so this one number carries text, buttons and spacing with it. */
+  html[data-size='large'] {
+    font-size: 112.5%;
+  }
 
   body {
     margin: 0;
@@ -525,6 +529,12 @@
     color: var(--text-2);
     white-space: nowrap;
     transition: all 0.18s ease;
+  }
+  /* Where a chip is the main thing to press on a phone. */
+  .chip-lg {
+    height: 44px;
+    padding: 0 19px;
+    font-size: 15.5px;
   }
   .chip[data-on='true'] {
     background: var(--text);

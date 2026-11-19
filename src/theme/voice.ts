@@ -74,7 +74,7 @@ const COPY = {
   'tour.personalize': { aura: 'Make Aura yours here: your theme and your character.', power: 'Your look and your form are set here.', iron: 'Your theme and your character. Set them here.' },
   'tour.aura': { aura: 'Your Aura: everything you can do, as one number.', power: 'Your power, as one number. It rises with every result.', iron: 'Your Aura. One number. Earned.' },
   'tour.ratings': { aura: 'Your level in each of the six areas. Tap one to see why.', power: 'Six areas, six levels to raise. Tap one to see why.', iron: 'Where you stand in each of the six areas. Tap one to see why.' },
-  'tour.skills': { aura: 'Every skill, and the next step toward it.', power: 'Every skill you can unlock, and what unlocks it.', iron: 'Every skill, and what it takes.' },
+  'tour.skills': { aura: 'Every skill, from the first at the bottom to the hardest at the top.', power: 'Every skill you can unlock. Start at the bottom, climb to the top.', iron: 'Every skill. Bottom to top. Each one earned.' },
   'tour.train': { aura: 'Your courses and sessions are here.', power: 'Your sessions. This is where you level up.', iron: 'Your sessions. The work is here.' },
   'tour.library': { aura: 'Every exercise, shown and explained.', power: 'Every move, shown in motion.', iron: 'Every exercise, shown properly.' },
   'tour.end.title': { aura: 'That is all you need.', power: 'You are set.', iron: 'That is it.' },

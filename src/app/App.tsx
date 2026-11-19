@@ -69,7 +69,9 @@ function useNeedsProfile() {
 function RequireAthlete() {
   const meId = useStore((s) => s.meId)
   const needsProfile = useNeedsProfile()
-  return meId && !needsProfile ? <Outlet /> : <Navigate to="/welcome" replace />
+  // What came after the "?" goes along: it is how the sample world is asked for (…?demo).
+  const { search } = useLocation()
+  return meId && !needsProfile ? <Outlet /> : <Navigate to={{ pathname: '/welcome', search }} replace />
 }
 
 export function App() {
@@ -86,6 +88,13 @@ export function App() {
     document.documentElement.dataset.scheme = THEMES[theme].scheme
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEMES[theme].chrome)
   }, [theme])
+
+  // Text size is the device's own, whatever the theme and also in an assessment.
+  const size = useStore((s) => s.settings.size)
+  useEffect(() => {
+    if (size) document.documentElement.dataset.size = size
+    else delete document.documentElement.dataset.size
+  }, [size])
 
   // The device remembers the athlete's theme so the next visit is painted in it from the first frame.
   useEffect(() => {

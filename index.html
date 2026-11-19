@@ -15,6 +15,7 @@
           document.documentElement.dataset.theme = t;
           document.documentElement.dataset.scheme = t === 'light' || t === 'power-light' ? 'light' : 'dark';
         }
+        if (s && s.state && s.state.settings && s.state.settings.size === 'large') document.documentElement.dataset.size = 'large';
       } catch (e) {}
     </script>
   </head>

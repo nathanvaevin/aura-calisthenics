@@ -17,6 +17,7 @@ import { DisciplineDot, Eyebrow } from '@/ui/primitives'
 import { Stage3D } from '@/ui/Stage3D'
 import { cx } from '@/lib/format'
 import { CharacterStudio } from './CharacterStudio'
+import { TextSize } from './TextSize'
 
 const TITLES: Record<Step, { title: string; sub: string }> = {
   theme: { title: 'Choose your theme', sub: 'Five ways to experience Aura. Your training, ratings and progress are the same in all of them, and you can change at any time.' },
@@ -90,7 +91,15 @@ export default function Personalize() {
           )}
 
           <main className="flex-1 pb-32">
-            {step === 'theme' && <ThemeStep value={trying} onChange={setTrying} released={released} admin={admin} character={personalOf(me.athlete).character ?? 'male'} />}
+            {step === 'theme' && (
+              <>
+                <ThemeStep value={trying} onChange={setTrying} released={released} admin={admin} character={personalOf(me.athlete).character ?? 'male'} />
+                <section className="mt-8 max-w-md" data-text-size>
+                  <Eyebrow className="mb-2.5">Text size</Eyebrow>
+                  <TextSize />
+                </section>
+              </>
+            )}
             {step === 'character' && <CharacterStudio />}
             {step === 'about' && <AboutStep />}
             {step === 'sharing' && <SharingStep />}

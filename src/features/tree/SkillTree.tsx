@@ -127,7 +127,7 @@ function Constellation({
   const horizonY = yOf(Math.min(rating, maxRating + 30) * SCALE)
 
   return (
-    <div ref={wrap} className="relative">
+    <div ref={wrap} className="relative" data-tour="tree">
     {plan && !still && (
       <AscentLayer
         key={plan.skillId}

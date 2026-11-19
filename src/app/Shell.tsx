@@ -6,6 +6,7 @@ import { useClock, useIsAdmin, useIsCoach, useMe } from '@/data/hooks'
 import { liveVisit } from '@/domain/places'
 import { exerciseById } from '@/domain/catalog'
 import { useVoice } from '@/theme/useTheme'
+import { Tour } from '@/features/journey/Tour'
 import { AuraDot } from '@/ui/AuraField'
 import { Sheet } from '@/ui/primitives'
 import { cx, initials, num } from '@/lib/format'
@@ -214,6 +215,8 @@ export function Shell() {
           </div>
         </nav>
       </div>
+
+      <Tour />
     </div>
   )
 }

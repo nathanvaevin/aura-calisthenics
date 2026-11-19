@@ -16,8 +16,8 @@ import { AuraDot, AuraField } from '@/ui/AuraField'
 import { CountUp } from '@/ui/CountUp'
 import { DnaSigil } from '@/ui/DnaSigil'
 import { DisciplineDot, Eyebrow, Fold, SectionTitle, Sheet, StatusTag, Stepper, TextLink, TierTag, Toggle, useWide } from '@/ui/primitives'
-import { StartHere, Tour } from '@/features/journey/Tour'
-import { completion } from '@/theme/personal'
+import { StartHere, useTour } from '@/features/journey/Tour'
+import { TextSize } from '@/features/personalize/TextSize'
 import { AuraSheet, LogEvidenceSheet, RatingList, RatingSheet } from '@/features/shared/Explainers'
 import { LogRow, LogSheet } from '@/features/shared/LogView'
 import { SkillSheet } from '@/features/tree/SkillSheet'
@@ -54,12 +54,12 @@ export function Profile() {
   const [recordsOpen, setRecordsOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [touring, setTouring] = useState(false)
+  const touring = useTour((s) => s.open)
+  const startTour = useTour((s) => s.start)
   // On a phone the profile is the essentials, and the rest one tap away. With room for two columns, it lies open.
   const wide = useWide()
-  const personal = completion(me.athlete)
-  /** The introduction is offered once per device, after the athlete has made Aura theirs: personalizing comes first. */
-  const offerTour = !settings.tour && personal.core && !touring
+  /** The introduction is offered once per device, from the first visit on; its first stop is making Aura yours. */
+  const offerTour = !settings.tour && !touring
 
   const a = me.aura
   const ratingValues = Object.fromEntries(DISCIPLINE_IDS.map((d) => [d, me.ratings[d].rating])) as Record<DisciplineId, number>
@@ -102,7 +102,7 @@ export function Profile() {
 
       <div className="mt-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-12">
         <div className="space-y-8">
-          {offerTour && <StartHere onStart={() => setTouring(true)} onSkip={() => setSettings({ tour: 'skipped' })} />}
+          {offerTour && <StartHere onStart={startTour} onSkip={() => setSettings({ tour: 'skipped' })} />}
           <IdentityCard athlete={me.athlete} />
 
           {/* Aura identity */}
@@ -279,7 +279,6 @@ export function Profile() {
         </div>
       </div>
 
-      <Tour open={touring} onClose={(finished) => { setTouring(false); setSettings({ tour: finished ? 'done' : 'skipped' }) }} />
       <AuraSheet aura={a} dedication={me.dedication.score} open={auraOpen} onClose={() => setAuraOpen(false)} />
       <RatingSheet rating={ratingOpen ? me.ratings[ratingOpen] : null} open={!!ratingOpen} onClose={() => setRatingOpen(null)} onLog={(id) => { setRatingOpen(null); setBenchOpen(id) }} />
       <SkillSheet skillId={skillOpen} onClose={() => setSkillOpen(null)} onOpenSkill={setSkillOpen} />
@@ -320,10 +319,14 @@ export function Profile() {
                 <span className="text-[14px]">Theme<span className="block text-[12px] text-ink-3">{THEMES[theme].name} · {THEMES[theme].tone.toLowerCase()}</span></span>
                 <span className="text-[12.5px] text-ink-3">Change</span>
               </button>
-              <button className="flex w-full items-center justify-between px-4 py-3.5 text-left hover:bg-surface-2" onClick={() => { setSettingsOpen(false); window.setTimeout(() => setTouring(true), 350) }}>
-                <span className="text-[14px]">Introduction<span className="block text-[12px] text-ink-3">A one-minute look round your profile</span></span>
+              <button className="flex w-full items-center justify-between px-4 py-3.5 text-left hover:bg-surface-2" onClick={() => { setSettingsOpen(false); window.setTimeout(startTour, 350) }}>
+                <span className="text-[14px]">Introduction<span className="block text-[12px] text-ink-3">A one-minute look round Aura</span></span>
                 <span className="text-[12.5px] text-ink-3">Show me</span>
               </button>
+              <div className="px-4 py-3.5">
+                <span className="text-[14px]">Text size</span>
+                <TextSize className="mt-2.5" />
+              </div>
               <div className="flex items-center justify-between px-4 py-3.5">
                 <span className="text-[14px]">Sounds<span className="block text-[12px] text-ink-3">Rest timer and skill unlocks</span></span>
                 <Toggle on={settings.sound} onChange={(sound) => setSettings({ sound })} label="Sounds" />
