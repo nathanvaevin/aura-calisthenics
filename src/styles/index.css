@@ -332,6 +332,13 @@
 
 /* ── Base ───────────────────────────────────────────────────────────── */
 
+/* The angle a button's Aura ring has turned to (.aura-call). Registered so that it can be animated. */
+@property --call-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
 @layer base {
   html {
     background: var(--bg);
@@ -535,32 +542,45 @@
     color: var(--accent) !important;
   }
 
-  /* A button that is the next thing to do glows like an Aura until it is pressed. */
+  /* A button that is the next thing to do wears an Aura until it is pressed: a ring of the six colours going round it, and their light behind it. */
+  /* Nothing here may make the button a layer of its own (no transform, no z-index): its light has to fall behind it, not over its face. */
   .aura-call {
     position: relative;
-    animation: aura-call 2.2s ease-in-out infinite;
   }
-  .aura-call::before {
+  .aura-call::before,
+  .aura-call::after {
     content: '';
     position: absolute;
-    inset: -12px -10px;
-    z-index: -1;
     border-radius: inherit;
-    background: radial-gradient(closest-side, color-mix(in oklab, var(--accent) 85%, transparent), transparent);
-    filter: blur(10px);
-    animation: aura-call-halo 2.2s ease-in-out infinite;
+    pointer-events: none;
+    background: conic-gradient(from var(--call-angle), var(--d-handstand), var(--d-push), var(--d-core), var(--d-legs), var(--d-mobility), var(--d-pull), var(--d-handstand));
+    animation: aura-call-turn 2.4s linear infinite;
   }
-  @keyframes aura-call {
-    0%, 100% { box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 60%, white), 0 0 22px 5px color-mix(in oklab, var(--accent) 60%, transparent); }
-    50% { box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 40%, white), 0 0 42px 14px color-mix(in oklab, var(--accent) 85%, transparent); }
+  /* The ring itself: only its edge is drawn. */
+  .aura-call::before {
+    inset: -5px;
+    padding: 3px;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
   }
-  @keyframes aura-call-halo {
-    0%, 100% { opacity: 0.7; transform: scale(1); }
-    50% { opacity: 1; transform: scale(1.1, 1.5); }
+  /* Its light, behind the button. */
+  .aura-call::after {
+    inset: -9px;
+    z-index: -1;
+    filter: blur(14px);
+    opacity: 0.85;
+    animation: aura-call-turn 2.4s linear infinite, aura-call-glow 1.8s ease-in-out infinite;
+  }
+  @keyframes aura-call-turn {
+    to { --call-angle: 360deg; }
+  }
+  @keyframes aura-call-glow {
+    0%, 100% { opacity: 0.6; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.08, 1.45); }
   }
   @media (prefers-reduced-motion: reduce) {
-    .aura-call, .aura-call::before { animation: none; }
-    .aura-call { box-shadow: 0 0 22px 4px color-mix(in oklab, var(--accent) 60%, transparent); }
+    .aura-call::before, .aura-call::after { animation: none; }
   }
 
   /* Where a chip is the main thing to press on a phone. */

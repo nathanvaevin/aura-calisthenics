@@ -25,8 +25,11 @@ export function IdentityCard({ athlete }: { athlete: Athlete }) {
   const upcoming = nextForm(look.universe, standing)
   // Once the introduction is over, making Aura yours is the next thing to do, and the button says so.
   const toured = useStore((s) => !!s.settings.tour)
+  const opened = useStore((s) => !!s.settings.personalizeOpened)
+  const setSettings = useStore((s) => s.setSettings)
   const touring = useTour((s) => s.open)
-  const calling = toured && !touring && !done.core
+  // It calls until it has been pressed once, or until there is nothing left to do behind it.
+  const calling = toured && !touring && !opened && !done.all
 
   return (
     <section className="rise rise-1 card relative isolate overflow-hidden" data-tour="personalize">
@@ -53,7 +56,7 @@ export function IdentityCard({ athlete }: { athlete: Athlete }) {
               {([done.theme, done.character, done.about, done.sharing] as const).map((ok, i) => <span key={i} className={cx('h-1 flex-1 rounded-full', ok ? 'bg-accent' : 'bg-surface-3')} />)}
             </div>
             <div className="flex flex-wrap gap-2">
-              <button className={cx('btn btn-accent btn-sm flex-1', calling && 'aura-call')} data-calling={calling || undefined} onClick={() => navigate(done.core ? (!done.about ? '/personalize?step=about' : !done.sharing ? '/personalize?step=sharing' : '/personalize') : '/personalize')}>
+              <button className={cx('btn btn-accent btn-sm flex-1', calling && 'aura-call')} data-calling={calling || undefined} onClick={() => { if (toured && !opened) setSettings({ personalizeOpened: true }); navigate(done.core ? (!done.about ? '/personalize?step=about' : !done.sharing ? '/personalize?step=sharing' : '/personalize') : '/personalize') }}>
                 {done.all ? <Check size={14} strokeWidth={2.6} /> : <Sparkles size={14} />} Personalize
               </button>
               {done.core && <button className="btn btn-quiet btn-sm" onClick={() => navigate('/character')}>Studio</button>}

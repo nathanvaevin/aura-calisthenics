@@ -47,6 +47,8 @@ export interface Settings {
   instructor?: { character: 'male' | 'female'; sessionId: string }
   /** The introduction on the profile: seen to the end, or waved away. Unset: not offered yet on this device. */
   tour?: 'done' | 'skipped'
+  /** Personalize was opened after the introduction: its button stops calling for attention. */
+  personalizeOpened?: boolean
   /** Larger text and controls on this device. Unset: the standard size. It is about the screen and the eyes in front of it, so it is not part of a theme and does not follow the account. */
   size?: 'large'
 }
