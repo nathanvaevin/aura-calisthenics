@@ -3,7 +3,7 @@
 The single source of truth for what works, what only looks finished, and what still has to be connected.
 Update it in the same change as any feature, integration or dependency (rule in `CLAUDE.md`).
 
-Last updated: 2026-11-19 · after "A coach sees their students" (not published)
+Last updated: 2026-11-19 · after publishing "Simpler to enter" and "A coach sees their students"
 
 ## Read this first
 
@@ -407,6 +407,12 @@ Reference: [VISUALS.md](VISUALS.md) §11 to §13. Theme data: `src/theme/`. "Pro
 | Data protection | Any real athletes | Privacy notice, deletion and export, consent for under-18s in classes |
 
 ## F · Change log
+
+**2026-11-19 · Published: simpler to enter, and a coach sees their students**
+
+- On the owner's word, `npm run deploy`. The public site serves the new assessment flow and completion screen, the first week's starter sessions, the introduction, the shorter Profile, Home and Train, and the coach's students list and student sheet.
+- Checked on the public site, signed out, phone size: the 7 standing checks pass; the account screen, the profile's folded sections, the coach's students list and a student's sheet (growth since the start) show in the sample world. No page errors.
+- **Database step 0014 (action 3n) was not confirmed** before publishing. Until it runs, coaches on the live site see only their course's sessions; nothing breaks.
 
 **2026-11-19 · A coach sees their students: results, training and growth**
 
