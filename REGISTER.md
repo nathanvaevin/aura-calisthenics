@@ -427,6 +427,12 @@ Reference: [VISUALS.md](VISUALS.md) §11 to §13. Theme data: `src/theme/`. "Pro
 
 ## F · Change log
 
+**2026-11-19 · Published: the assessment's areas and the 48 movements (pending)**
+
+- On the public address at the owner's word (build `index-BruhZzeO.js`). Checked there through the real screens, 8 checks (`scripts/_live.mjs`): it is the public site (the local test hook is absent); 68 exercises published and no more; a new exercise (front lever) shows athletes no animation; an approved one still shows its own; a new assessment started from Train opens an area with the movement full screen; three exercises tapped in a row leave the list where it is; a tap on the character lowers it.
+- **Correction:** two earlier checks of the assessment's area that I reported as run "on the live site" had run against the developer's machine: the script's address had not been swapped. The code was the same as what was published, and it is now checked on the public site itself.
+- **Yours:** approve the 48 in the Studio (signed in as admin: Studio → Exercises → Waiting for you). Still open: database step 0014 (3n), releasing the three universes (3k).
+
 **2026-11-19 · Movements for the remaining 48 exercises**
 
 - At the owner's request ("make all the remaining exercises for me to check and approve"). Six new family files, rings and a band as equipment, 413 checks (F-165, T-21). All 48 arrive as *pending* when opened in the Studio; none is seeded, approved or shown to athletes.
