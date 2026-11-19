@@ -126,7 +126,7 @@ Together these are every exercise of the first-day assessment (all 67 of its gui
 | Aura | Sign | With |
 |---|---|---|
 | Cosmic | **Galaxy**: a spiral disc opens behind the body, its stars come out | particles |
-| Electric | **Bolt**: lightning comes down and meets at the head, with a flash | lightning between the limbs, sparks, ground rings |
+| Electric | **Bolt**: forked lightning leaps out of the chest in every direction, never the same twice, with a flash (first drawn coming down onto the head; changed at the owner's request) | lightning between the limbs, sparks, ground rings |
 | Solar | **Sun**: rises behind the shoulders, disc and turning corona | rays, particles |
 | Ethereal | **Aurora**: curtains of light in an arch, like wings | particles |
 | Primal | **Pillar**, as an eruption: wide, rough fire from the floor | streams, sparks, ground rings |

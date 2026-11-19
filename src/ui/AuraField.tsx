@@ -5,6 +5,11 @@ import { dvar } from '@/lib/format'
 /** Clockwise from the top. Shared by the Aura field and the DNA sigil. */
 export const WHEEL: DisciplineId[] = ['handstand', 'push', 'core', 'legs', 'mobility', 'pull']
 
+/** Ignite: how long the ring takes to fill (seconds), how strongly it accelerates, and how long the whole thing lasts until the next screen. */
+const IGNITE_FILL = 1.7
+const IGNITE_EASE = 2.6
+export const IGNITE_SECONDS = 2.75
+
 interface Props {
   /** Each discipline's share of the athlete's total rating. */
   mix: Record<DisciplineId, number>
@@ -112,7 +117,8 @@ export function AuraField({ mix, aura, size = 320, progress, rings = true, ignit
               <path
                 key={d} d={`M ${at(i * 60)} A ${r} ${r} 0 0 1 ${at(i * 60 + 60.5)}`} pathLength={1}
                 className="aura-ignite-arc" fill="none" stroke={dvar(d)} strokeWidth="1.3" strokeLinecap="round"
-                style={{ animationDelay: `${i * 0.12}s` }}
+                // It starts slowly and gathers speed: each sixth of the ring takes less time than the one before.
+                style={{ animationDelay: `${IGNITE_FILL * Math.pow(i / 6, 1 / IGNITE_EASE)}s`, animationDuration: `${IGNITE_FILL * (Math.pow((i + 1) / 6, 1 / IGNITE_EASE) - Math.pow(i / 6, 1 / IGNITE_EASE))}s` }}
               />
             )
           })}

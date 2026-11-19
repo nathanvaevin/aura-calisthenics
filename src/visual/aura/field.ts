@@ -217,21 +217,32 @@ export class AuraField {
           col = mix(pal(gr * 0.5 + ga * 0.159), vec3(1.0), min(1.0, core * 0.8 + star));
           a = (disc * 1.5 + core * 0.9 + star) * inn * fade;
         } else if (uKind < 2.5) {
-          // Bolt: lightning comes down out of the dark and meets at the head, again and again, with a flash.
-          float flick = floor(b * 11.0);
+          // Bolt: the body is where the lightning comes from. Forked arcs leap out of the chest in every direction, never the same twice, with a flash.
+          vec2 d2 = q - vec2(0.0, 0.1);
+          float er = length(d2), eth = atan(d2.y, d2.x);
+          float flick = floor(b * 13.0);
           float sum = 0.0;
-          for (int i = 0; i < 3; i++) {
+          for (int i = 0; i < 8; i++) {
             float fi = float(i);
-            float seed = fi * 7.31 + flick * 1.7;
-            float on = step(0.12, hash(vec3(seed, 1.0, 2.0)));
-            float top = smoothstep(0.44, 1.5, q.y);
-            float px = ((fi - 1.0) * 0.6 + (noise(vec3(q.y * 3.2, seed, 0.0)) - 0.5) * 0.8 + (noise(vec3(q.y * 11.0, seed, 3.0)) - 0.5) * 0.18) * top;
-            float d = abs(q.x - px);
-            sum += on * (0.006 / (d + 0.005)) * exp(-d * 5.0) * step(0.44, q.y);
+            float seed = fi * 5.17 + flick * 2.3;
+            float h1 = hash(vec3(seed, 1.0, 2.0)), h2 = hash(vec3(seed, 4.0, 9.0));
+            float reach = (0.5 + 0.85 * h2) * (0.55 + 0.45 * grow);
+            // Each arc wanders off its line more the further out it gets, in large kinks and small ones.
+            float wander = ((noise(vec3(er * 4.5, seed, 0.0)) - 0.5) * 1.1 + (noise(vec3(er * 15.0, seed, 3.0)) - 0.5) * 0.3) * smoothstep(0.0, 0.35, er);
+            float at = (fi + h1) / 8.0 * 6.2832 + wander;
+            float da = abs(mod(eth - at + 3.1416, 6.2832) - 3.1416);
+            float d = da * er;
+            float taper = smoothstep(reach, reach * 0.55, er) * smoothstep(0.03, 0.12, er);
+            sum += step(0.22, h1) * (0.0075 / (d + 0.005)) * exp(-d * 6.0) * taper;
+            // A fork leaves it part of the way out.
+            float fat = at + (h2 - 0.5) * 1.3 * smoothstep(reach * 0.4, reach, er);
+            float fd = abs(mod(eth - fat + 3.1416, 6.2832) - 3.1416) * er;
+            sum += step(0.5, h2) * (0.0035 / (fd + 0.004)) * exp(-fd * 9.0) * taper * smoothstep(reach * 0.4, reach * 0.5, er);
           }
-          float flash = exp(-b * 8.0) * exp(-r * 1.3);
-          col = mix(uPal[1], vec3(1.0), 0.78);
-          a = (min(sum, 2.5) * 0.7 * (1.0 - smoothstep(1.0, 1.6, b)) + flash) * inn;
+          float flash = exp(-b * 7.0) * exp(-er * er * 2.4);
+          float charge = exp(-er * er * 9.0) * 0.25 * (0.6 + 0.4 * sin(uTime * 40.0));
+          col = mix(uPal[1], vec3(1.0), 0.72);
+          a = (min(sum, 2.5) * 0.9 * (1.0 - smoothstep(1.2, 1.9, b)) + flash + charge * fade) * inn;
         } else if (uKind < 3.5) {
           // Sun: it rises behind the shoulders, a bright disc with a turning corona, and the body stands against it.
           vec2 d2 = q - vec2(0.0, mix(-0.3, 0.2, grow));

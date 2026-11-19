@@ -11,7 +11,7 @@ import { useStore } from '@/data/store'
 import { handleFree, signInWithGoogle, signOut, useCloud } from '@/data/cloud'
 import { GoogleButton, Notice } from '@/features/account/Account'
 import { requestCoach } from '@/features/account/CoachAccess'
-import { AuraField } from '@/ui/AuraField'
+import { AuraField, IGNITE_SECONDS } from '@/ui/AuraField'
 import { CountUp } from '@/ui/CountUp'
 import { DisciplineDot, Eyebrow, StatusTag, Stepper, Toggle } from '@/ui/primitives'
 import { Wordmark } from '@/app/Shell'
@@ -219,7 +219,7 @@ export function Onboarding() {
     if (igniting) return
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return then()
     setIgniting(true)
-    window.setTimeout(() => { then(); setIgniting(false) }, 1450)
+    window.setTimeout(() => { then(); setIgniting(false) }, IGNITE_SECONDS * 1000 - 80)
   }
   const firstName = name.trim().split(' ')[0] || 'Athlete'
 
@@ -253,7 +253,7 @@ export function Onboarding() {
                 <button onClick={() => setAccountStep(false)} aria-label="Back" className="pressable -ml-2 flex h-10 w-10 items-center justify-center rounded-full text-ink-2 hover:text-ink"><ArrowLeft size={19} /></button>
               </header>
               <div className="flex flex-1 flex-col justify-center">
-                <h1 className="display text-[42px] leading-[1.04]">Sign in to start.</h1>
+                <h1 className="display rush self-start text-[42px] leading-[1.04]">Sign in to start.</h1>
                 <p className="mt-4 text-[16px] leading-relaxed text-ink-2">So your results are saved, and still here the next time you open Aura.</p>
                 <p className="mt-4 text-[16px] leading-relaxed text-ink-2">Next come a few questions about what you can do today. It takes two minutes, and you get your first Aura score.</p>
               </div>
@@ -277,15 +277,15 @@ export function Onboarding() {
                 <AuraField mix={EVEN} aura={7200} size={Math.round(Math.min(300, Math.max(132, tall * 0.33)))} ignite={igniting}>
                   <Wordmark size={tall < 620 ? 40 : 54} />
                 </AuraField>
-                <h1 className={cx('display mt-[2.5dvh] text-[clamp(31px,5.6dvh,52px)] leading-[1.02] transition-opacity delay-700 duration-500', igniting && 'opacity-0')}>Discover the limitless potential <span className="italic">of your body.</span></h1>
-                <p className={cx('mt-[2dvh] max-w-sm text-[15.5px] leading-relaxed text-ink-2 transition-opacity delay-700 duration-500', igniting && 'opacity-0')}>
+                <h1 className={cx('display mt-[2.5dvh] text-[clamp(31px,5.6dvh,52px)] leading-[1.02] transition-opacity delay-[1700ms] duration-500', igniting && 'opacity-0')}>Discover the limitless potential <span className="italic">of your body.</span></h1>
+                <p className={cx('mt-[2dvh] max-w-sm text-[15.5px] leading-relaxed text-ink-2 transition-opacity delay-[1700ms] duration-500', igniting && 'opacity-0')}>
                   Aura shows you exactly where you are today, and every step to where you’ve always dreamed of going.
                 </p>
               </div>
               <div className={cx('flex w-full max-w-sm shrink-0 flex-col gap-2.5 pt-[2.5dvh] transition-opacity duration-500', igniting && 'pointer-events-none opacity-0')}>
                 {configured
-                  ? <button className="btn btn-primary btn-lg" data-get-started onClick={() => ignite(() => setAccountStep(true))}>Get started <ArrowRight size={17} /></button>
-                  : <button className="btn btn-primary btn-lg" data-get-started onClick={() => ignite(() => setStep(1))}>Begin <ArrowRight size={17} /></button>}
+                  ? <button className="btn btn-primary btn-lg w-3/4 self-center" data-get-started onClick={() => ignite(() => setAccountStep(true))}>Get started <ArrowRight size={17} /></button>
+                  : <button className="btn btn-primary btn-lg w-3/4 self-center" data-get-started onClick={() => ignite(() => setStep(1))}>Begin <ArrowRight size={17} /></button>}
                 {/* Only on a developer's machine (npm run dev): a public build never has this. */}
                 {configured && import.meta.env.DEV && (
                   <button className="btn btn-quiet btn-sm self-center" data-local-start onClick={() => ignite(() => setStep(1))}>Without signing in · this computer only</button>

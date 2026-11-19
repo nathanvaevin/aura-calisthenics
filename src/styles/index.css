@@ -696,9 +696,13 @@
   mix-blend-mode: soft-light;
 }
 
-/* Ignite (the welcome's "Get started"): the border round the clock fills in the six colours, the field gathers, bursts, and is gone. */
+/* Ignite (the welcome's "Get started"): the border round the clock fills in the six colours, slowly at first and then faster,
+   while the field turns faster with it; then it gathers, bursts, and is gone. Timings go with IGNITE_* in AuraField.tsx. */
 .aura-ignite {
-  animation: aura-ignite 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: aura-ignite 2.75s linear forwards;
+}
+.aura-ignite .aura-orbit {
+  animation: aura-ignite-spin 1.95s cubic-bezier(0.75, 0, 1, 0.6) forwards;
 }
 .aura-ignite-arc {
   stroke-dasharray: 1;
@@ -714,7 +718,7 @@
   box-shadow: 0 0 40px 10px color-mix(in oklab, var(--accent) 70%, transparent), inset 0 0 40px 6px color-mix(in oklab, var(--accent) 45%, transparent);
   opacity: 0;
   pointer-events: none;
-  animation: aura-ignite-wave 0.75s 0.82s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+  animation: aura-ignite-wave 0.8s 2s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
 }
 .aura-ignite-flash {
   position: fixed;
@@ -722,16 +726,19 @@
   pointer-events: none;
   background: radial-gradient(circle at 50% 32%, rgba(255, 255, 255, 0.55), color-mix(in oklab, var(--accent) 30%, transparent) 35%, transparent 70%);
   opacity: 0;
-  animation: aura-ignite-flash 0.7s 0.85s ease-out forwards;
+  animation: aura-ignite-flash 0.75s 2.02s ease-out forwards;
 }
 @keyframes aura-ignite-arc {
   to { stroke-dashoffset: 0; }
 }
+@keyframes aura-ignite-spin {
+  to { transform: rotate(600deg); }
+}
 @keyframes aura-ignite {
-  0% { transform: scale(1); filter: brightness(1); }
-  45% { transform: scale(1.03); filter: brightness(1.25); }
-  56% { transform: scale(0.95); filter: brightness(1.45); }
-  68% { transform: scale(1.18); filter: brightness(2.1) saturate(1.3); opacity: 1; }
+  0% { transform: scale(1); filter: brightness(1); animation-timing-function: ease-in; }
+  62% { transform: scale(1.04); filter: brightness(1.35); animation-timing-function: ease-in-out; }
+  71% { transform: scale(0.94); filter: brightness(1.55); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
+  79% { transform: scale(1.18); filter: brightness(2.1) saturate(1.3); opacity: 1; }
   100% { transform: scale(1.9); filter: brightness(2.6) saturate(1.2); opacity: 0; }
 }
 @keyframes aura-ignite-wave {
@@ -744,7 +751,30 @@
   100% { opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .aura-ignite, .aura-ignite-arc, .aura-ignite-wave, .aura-ignite-flash { animation-duration: 0.01s; animation-delay: 0s; }
+  .aura-ignite, .aura-ignite .aura-orbit, .aura-ignite-arc, .aura-ignite-wave, .aura-ignite-flash { animation-duration: 0.01s !important; animation-delay: 0s !important; }
+}
+
+/* A heading that takes one rush of electric yellow, left to right, and is itself again (the account step). */
+.rush {
+  background: linear-gradient(100deg, var(--text) 0%, var(--text) 38%, #ffd400 45%, #fff8b8 50%, #ffe600 55%, var(--text) 62%, var(--text) 100%);
+  background-size: 320% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: rush 1.15s 0.45s cubic-bezier(0.5, 0, 0.3, 1) both, rush-glow 1.15s 0.45s ease-in-out both;
+}
+@keyframes rush {
+  from { background-position: 100% 0; }
+  to { background-position: 0 0; }
+}
+@keyframes rush-glow {
+  0%, 100% { filter: none; }
+  45% { filter: drop-shadow(0 0 14px rgba(255, 224, 0, 0.75)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rush { animation: none; background-position: 0 0; }
 }
 
 @keyframes aura-orbit {

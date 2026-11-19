@@ -135,27 +135,26 @@ function ThemeStep({ value, onChange, released, admin, character }: { value: The
         return (
           <button
             key={id} data-theme={id} data-scheme={t.scheme} aria-pressed={on} disabled={!open} onClick={() => onChange(id)}
-            className={cx('rise group relative isolate flex min-h-[200px] overflow-hidden rounded-card border bg-bg text-left text-ink transition-[box-shadow,transform] duration-300', on ? 'border-transparent shadow-[0_0_0_2px_var(--accent),0_24px_60px_-28px_var(--accent)]' : 'border-line-strong', !open && 'opacity-60')}
+            className={cx('rise group relative isolate flex items-center gap-4 overflow-hidden rounded-card border bg-bg p-3 pr-4 text-left text-ink transition-[box-shadow,transform] duration-300', on ? 'border-transparent shadow-[0_0_0_2px_var(--accent),0_24px_60px_-28px_var(--accent)]' : 'border-line-strong', !open && 'opacity-60')}
             style={{ animationDelay: `${i * 0.06}s` }}
           >
             <span className="page-glow !absolute" />
-            {/* A name, one line, its colours, a picture. What else a theme is, the athlete sees by trying it. */}
-            <span className="relative z-10 flex min-w-0 flex-1 flex-col justify-end p-4 pr-2 sm:p-5">
-              <span className="display block text-[34px] leading-[0.98] sm:text-[38px]">{t.name}</span>
-              <span className="display mt-2.5 block text-[17px] leading-[1.12] text-ink-2">{t.line}</span>
+            {/* One row, read left to right: the character in this theme's light, then its name, its line and its Auras, then whether it is the one chosen. */}
+            <span className="relative z-10 h-[116px] w-[92px] shrink-0 overflow-hidden rounded-[calc(var(--r-card)*0.6)] bg-(--stage) sm:w-[104px]">
+              {open
+                ? <img src={`${import.meta.env.BASE_URL}${posterOf(id, character)}`} alt="" loading="lazy" className="h-full w-full scale-[1.4] object-cover object-[50%_45%]" onError={(e) => { e.currentTarget.style.visibility = 'hidden' }} />
+                : <span className="flex h-full flex-col items-center justify-center gap-1.5 px-2 text-center text-[10.5px] leading-tight text-ink-3"><Lock size={14} />In preparation</span>}
+            </span>
+            <span className="relative z-10 min-w-0 flex-1">
+              <span className="display block text-[28px] leading-none sm:text-[30px]">{t.name}</span>
+              <span className="mt-2 block text-[13.5px] leading-snug text-ink-2">{t.line}</span>
               {/* Its Auras (or forms, or states), each in its own colour, and how many there are. */}
-              <span className="mt-4 flex items-center gap-2.5" data-forms>
-                <span className="flex gap-1.5">{u.list.map((f) => <span key={f.id} title={f.name} className="h-3 w-3 rounded-full" style={{ background: f.colour, boxShadow: `0 0 8px ${f.colour}` }} />)}</span>
-                <span className="text-[12.5px] text-ink-2">{u.list.length} {u.forms === 'Aura' ? 'Auras' : `${u.forms.toLowerCase()}s`}</span>
+              <span className="mt-3 flex items-center gap-2.5" data-forms>
+                <span className="flex gap-1.5">{u.list.map((f) => <span key={f.id} title={f.name} className="h-2.5 w-2.5 rounded-full" style={{ background: f.colour, boxShadow: `0 0 7px ${f.colour}` }} />)}</span>
+                <span className="text-[12px] text-ink-3">{u.list.length} {u.forms === 'Aura' ? 'Auras' : `${u.forms.toLowerCase()}s`}</span>
               </span>
             </span>
-            {/* The character of this universe, in its own light. */}
-            <span className="relative z-10 m-2.5 ml-0 w-[38%] shrink-0 overflow-hidden rounded-[calc(var(--r-card)*0.7)] bg-(--stage)">
-              {open
-                ? <img src={`${import.meta.env.BASE_URL}${posterOf(id, character)}`} alt="" loading="lazy" className="h-full w-full object-cover object-top" onError={(e) => { e.currentTarget.style.visibility = 'hidden' }} />
-                : <span className="flex h-full flex-col items-center justify-center gap-2 px-3 text-center text-[11.5px] text-ink-3"><Lock size={15} />In preparation</span>}
-            </span>
-            {on && <span className="absolute top-3 right-3 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-accent text-accent-ink"><Check size={14} strokeWidth={3} /></span>}
+            <span className={cx('relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full', on ? 'bg-accent text-accent-ink' : 'border border-line-strong')}>{on && <Check size={14} strokeWidth={3} />}</span>
           </button>
         )
       })}

@@ -10,7 +10,7 @@ const OUT = process.env.OUT || 'public/themes'
 const ONLY = process.argv.slice(2)
 /** Which form each picture shows, and when in the burst it is taken (seconds after Activate). */
 const POSTERS = [
-  { file: 'aura', uni: 'aura', form: 'electric', at: 0.62, level: 0.6, margin: 1.22, zoom: 1 },
+  { file: 'aura', uni: 'aura', form: 'electric', at: 0.95, level: 0.6, margin: 1.12, zoom: 1 },
   { file: 'power', uni: 'power', form: 'ignition', at: 1.3 },
   { file: 'power-light', uni: 'power', variant: 'light', form: 'ignition', at: 1.3 },
   { file: 'iron', uni: 'iron', form: 'pressure', at: 1.3 },
