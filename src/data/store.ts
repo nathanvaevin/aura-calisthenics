@@ -43,6 +43,8 @@ export interface Settings {
   /** Audience chosen at the last check-in, offered again next time. */
   audience?: Audience
   stayMinutes?: number
+  /** The introduction on the profile: seen to the end, or waved away. Unset: not offered yet on this device. */
+  tour?: 'done' | 'skipped'
 }
 
 export interface NewPlace {

@@ -1,7 +1,7 @@
-import { useEffect, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import { BadgeCheck, CircleDashed, Eye, Minus, Plus, User, Video, X } from 'lucide-react'
+import { BadgeCheck, ChevronDown, CircleDashed, Eye, Minus, Plus, User, Video, X } from 'lucide-react'
 import type { DisciplineId, EvidenceTier } from '@/domain/types'
 import { TIER_LABEL } from '@/domain/scoring/config'
 import type { RatingStatus } from '@/domain/scoring/mastery'
@@ -35,6 +35,39 @@ export function SectionTitle({ children, action, className }: { children: ReactN
       {action}
     </div>
   )
+}
+
+/**
+ * A part of a page that is one line until it is wanted: its name, the one
+ * thing worth knowing about it, and the rest behind a tap. What is not needed
+ * at a glance goes in one of these rather than on the page.
+ */
+export function Fold({ title, summary, children, open: initial = false, id }: { title: ReactNode; summary?: ReactNode; children: ReactNode; open?: boolean; id?: string }) {
+  const [open, setOpen] = useState(initial)
+  return (
+    <section data-fold={id} data-open={open}>
+      <button onClick={() => setOpen(!open)} aria-expanded={open} className={cx('card pressable flex w-full items-center gap-3 px-4 py-3.5 text-left', open && 'border-line-strong')}>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-medium">{title}</span>
+          {summary && <span className="mt-0.5 block truncate text-[12.5px] text-ink-3">{summary}</span>}
+        </span>
+        <ChevronDown size={17} className={cx('shrink-0 text-ink-3 transition-transform duration-200', open && 'rotate-180')} />
+      </button>
+      {open && <div className="rise mt-2.5">{children}</div>}
+    </section>
+  )
+}
+
+/** Whether there is room for two columns: what a page may lay open rather than fold away. */
+export function useWide() {
+  const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches)
+  useEffect(() => {
+    const q = window.matchMedia('(min-width: 1024px)')
+    const on = () => setWide(q.matches)
+    q.addEventListener('change', on)
+    return () => q.removeEventListener('change', on)
+  }, [])
+  return wide
 }
 
 export function TextLink({ children, onClick }: { children: ReactNode; onClick?: () => void }) {

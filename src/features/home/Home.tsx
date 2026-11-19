@@ -1,16 +1,16 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { ArrowRight, ArrowUpRight, ClipboardCheck, Play, Plus, ScanLine, Sparkles, Target } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, ClipboardCheck, Play, Plus, ScanLine, Sparkles } from 'lucide-react'
 import type { DisciplineId } from '@/domain/types'
 import { DISCIPLINE_IDS, disciplineById, exerciseById, formatValue } from '@/domain/catalog'
 import { auraTimeline } from '@/domain/scoring/aura'
 import { goalView, nextSteps, recentUnlocks } from '@/domain/insights'
-import { WORKOUT_TEMPLATES, buildGoalWorkout, buildWorkout } from '@/domain/training'
+import { courseFor, WORKOUT_TEMPLATES, buildGoalWorkout, buildWorkout } from '@/domain/training'
 import { nextSession, useIsCoach, useMe } from '@/data/hooks'
 import { useStore } from '@/data/store'
 import { AuraDot, AuraField } from '@/ui/AuraField'
 import { CountUp } from '@/ui/CountUp'
-import { Bar, DisciplineDot, Eyebrow, Ring, SectionTitle, Sparkline, StatusTag, TextLink, TierTag } from '@/ui/primitives'
+import { useWide, DisciplineDot, Eyebrow, Ring, SectionTitle, Sparkline, StatusTag, TextLink, TierTag } from '@/ui/primitives'
 import { AuraSheet, LogEvidenceSheet, RatingSheet } from '@/features/shared/Explainers'
 import { SkillSheet } from '@/features/tree/SkillSheet'
 import { useStartWorkout } from '@/features/workout/useStart'
@@ -52,14 +52,43 @@ export function Home() {
         .filter((e) => e.athleteId === me.athlete.id)
         .map((e) => courses.find((c) => c.id === e.courseId))
         .filter((c) => c !== undefined)
-        .map((c) => nextSession(c, me.logs, me.athlete.id))
+        .map((c) => nextSession(courseFor(c, me.evidence), me.logs, me.athlete.id))
         .filter((s) => s !== null)
         .sort((a, b) => a.date.getTime() - b.date.getTime()),
-    [enrollments, courses, me.logs, me.athlete.id],
+    [enrollments, courses, me.logs, me.athlete.id, me.evidence],
   )
   const next = upcoming[0]
   const fallback = WORKOUT_TEMPLATES.find((t) => t.focus === (me.aura.peak?.discipline ?? 'full')) ?? WORKOUT_TEMPLATES[6]
   const cls = me.aura.cls
+  const wide = useWide()
+
+  // The numbers behind the Aura. Beside it where there is room; on a phone, after what there is to do.
+  const numbers = (
+    <>
+      <div className="rise rise-3 card mt-6 flex items-center justify-between gap-4 p-4">
+        <div>
+          <Eyebrow>Last 12 weeks</Eyebrow>
+          <div className="mt-1.5 flex items-baseline gap-2">
+            <span className="display num text-[30px]">{delta >= 0 ? '+' : ''}{num(delta)}</span>
+            <span className="text-[12.5px] text-ink-3">{delta > 0 ? 'new evidence' : 'no new evidence'}</span>
+          </div>
+        </div>
+        <Sparkline points={timeline.map((t) => t.aura)} width={132} height={44} />
+      </div>
+
+      <div className="rise rise-4 mt-3 grid grid-cols-3 gap-2">
+        {DISCIPLINE_IDS.map((d) => {
+          const r = me.ratings[d]
+          return (
+            <button key={d} onClick={() => setRatingOpen(d)} className="pressable card px-3 py-3 text-left hover:bg-surface-2">
+              <span className="flex items-center gap-1.5 text-[11.5px] text-ink-2"><DisciplineDot id={d} size={6} />{disciplineById[d].short}</span>
+              <span className="display num mt-1 block text-[26px]">{r.rating || '—'}</span>
+            </button>
+          )
+        })}
+      </div>
+    </>
+  )
 
   return (
     <div>
@@ -87,7 +116,7 @@ export function Home() {
         {/* ── Aura ── */}
         <section className="lg:sticky lg:top-8">
           <button onClick={() => setAuraOpen(true)} className="rise rise-1 mx-auto -mt-1 flex w-full flex-col items-center" aria-label="How Aura is computed">
-            <AuraField mix={me.aura.mix} aura={me.aura.aura} size={330} progress={cls.progress}>
+            <AuraField mix={me.aura.mix} aura={me.aura.aura} size={wide ? 330 : 280} progress={cls.progress}>
               <Eyebrow>Aura</Eyebrow>
               <div className="display mt-1 text-[84px] leading-none">{me.aura.aura ? <CountUp value={me.aura.aura} /> : '—'}</div>
               <div className="mt-2 text-[14px] text-ink-2">{me.aura.title}</div>
@@ -100,28 +129,7 @@ export function Home() {
           </div>
           <p className="rise rise-2 display mx-auto mt-4 max-w-[330px] text-center text-[19px] leading-snug text-ink-2">{v('home.line')}</p>
 
-          <div className="rise rise-3 card mt-6 flex items-center justify-between gap-4 p-4">
-            <div>
-              <Eyebrow>Last 12 weeks</Eyebrow>
-              <div className="mt-1.5 flex items-baseline gap-2">
-                <span className="display num text-[30px]">{delta >= 0 ? '+' : ''}{num(delta)}</span>
-                <span className="text-[12.5px] text-ink-3">{delta > 0 ? 'new evidence' : 'no new evidence'}</span>
-              </div>
-            </div>
-            <Sparkline points={timeline.map((t) => t.aura)} width={132} height={44} />
-          </div>
-
-          <div className="rise rise-4 mt-3 grid grid-cols-3 gap-2">
-            {DISCIPLINE_IDS.map((d) => {
-              const r = me.ratings[d]
-              return (
-                <button key={d} onClick={() => setRatingOpen(d)} className="pressable card px-3 py-3 text-left hover:bg-surface-2">
-                  <span className="flex items-center gap-1.5 text-[11.5px] text-ink-2"><DisciplineDot id={d} size={6} />{disciplineById[d].short}</span>
-                  <span className="display num mt-1 block text-[26px]">{r.rating || '—'}</span>
-                </button>
-              )
-            })}
-          </div>
+          <div className="hidden lg:block">{numbers}</div>
         </section>
 
         <div className="mt-8 space-y-8 lg:mt-4">
@@ -133,7 +141,6 @@ export function Home() {
             </button>
           )}
           <div className="rise rise-3 empty:hidden"><AssessPrompt /></div>
-          <div className="rise rise-3 empty:hidden"><TrainingNow /></div>
 
           {/* ── Next session ── */}
           <section className="rise rise-3">
@@ -188,49 +195,34 @@ export function Home() {
                 </span>
               </button>
             ) : (
-              <div className="space-y-2.5">
+              <div className="card divide-y divide-line">
                 {goals.map((g) => {
                   const step = g.frontier[0] ?? g.missing[0]
                   const stepEx = step ? exerciseById[step.exerciseId] : null
                   const st = step ? me.statuses[step.id] : null
                   return (
-                    <div key={g.skill.id} className="card p-4">
-                      <div className="flex items-center gap-4">
-                        <button onClick={() => setSkillOpen(g.skill.id)}>
-                          <Ring value={g.progress} size={58} stroke={3} color={dvar(g.skill.discipline)}>
-                            <span className="num text-[13px] font-semibold">{Math.round(g.progress * 100)}</span>
-                          </Ring>
-                        </button>
-                        <button className="min-w-0 flex-1 text-left" onClick={() => setSkillOpen(g.skill.id)}>
-                          <div className="flex items-center gap-1.5 text-[11.5px] text-ink-3"><Target size={11} />{disciplineById[g.skill.discipline].short}</div>
-                          <div className="mt-0.5 line-clamp-2 text-[15.5px] leading-snug font-medium">{g.skill.name}</div>
-                          <div className="mt-0.5 truncate text-[12.5px] text-ink-2">
-                            {g.done ? 'Achieved' : `${g.missing.length} ${g.missing.length === 1 ? 'step' : 'steps'} to go`}
-                          </div>
-                        </button>
-                        {!g.done && (
-                          <button
-                            aria-label={`Train toward ${g.skill.name}`}
-                            className="pressable flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-ink text-bg"
-                            onClick={() => {
-                              const w = buildGoalWorkout(g.skill.id, me.evidence, me.statuses)
-                              if (w) start({ type: 'goal', skillId: g.skill.id }, w.title, w.blocks)
-                            }}
-                          >
-                            <Play size={15} fill="currentColor" />
-                          </button>
-                        )}
-                      </div>
-                      {step && stepEx && st && !g.done && (
-                        <button onClick={() => setSkillOpen(step.id)} className="mt-3.5 flex w-full items-center gap-3 rounded-2xl bg-surface-2 px-3.5 py-3 text-left">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-2 text-[12.5px]">
-                              <span className="truncate"><span className="text-ink-3">Next · </span>{step.name}</span>
-                              <span className="num shrink-0 text-ink-2">{st.best ? formatValue(stepEx, st.best) : '0'} / {formatValue(stepEx, step.threshold)}</span>
-                            </div>
-                            <Bar value={st.progress} color={dvar(step.discipline)} className="mt-2" />
-                          </div>
-                          <ArrowRight size={14} className="shrink-0 text-ink-3" />
+                    <div key={g.skill.id} className="flex items-center gap-3.5 px-4 py-3.5" data-goal={g.skill.id}>
+                      <button className="flex min-w-0 flex-1 items-center gap-3.5 text-left" onClick={() => setSkillOpen(g.skill.id)}>
+                        <Ring value={g.progress} size={46} stroke={3} color={dvar(g.skill.discipline)}>
+                          <span className="num text-[12px] font-semibold">{Math.round(g.progress * 100)}</span>
+                        </Ring>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[15px] font-medium">{g.skill.name}</span>
+                          <span className="block truncate text-[12.5px] text-ink-3">
+                            {g.done ? 'Achieved' : step && stepEx && st ? <>Next: {step.name} · <span className="num text-ink-2">{st.best ? formatValue(stepEx, st.best) : '0'} / {formatValue(stepEx, step.threshold)}</span></> : `${g.missing.length} ${g.missing.length === 1 ? 'step' : 'steps'} to go`}
+                          </span>
+                        </span>
+                      </button>
+                      {!g.done && (
+                        <button
+                          aria-label={`Train toward ${g.skill.name}`}
+                          className="pressable flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ink text-bg"
+                          onClick={() => {
+                            const w = buildGoalWorkout(g.skill.id, me.evidence, me.statuses)
+                            if (w) start({ type: 'goal', skillId: g.skill.id }, w.title, w.blocks)
+                          }}
+                        >
+                          <Play size={14} fill="currentColor" />
                         </button>
                       )}
                     </div>
@@ -240,8 +232,13 @@ export function Home() {
             )}
           </section>
 
-          {/* ── Next steps ── */}
-          {steps.length > 0 && (
+          {/* Who else is out training: good to know, after what there is to do. */}
+          <div className="rise rise-4 empty:hidden"><TrainingNow /></div>
+
+          <div className="lg:hidden">{numbers}</div>
+
+          {/* ── Next steps: for someone with no goal yet. With goals, each goal already names its next step. ── */}
+          {steps.length > 0 && goals.length === 0 && (
             <section className="rise rise-5">
               <SectionTitle>Recommended next steps</SectionTitle>
               <div className="card divide-y divide-line">
@@ -269,7 +266,7 @@ export function Home() {
             <section className="rise rise-6">
               <SectionTitle action={<TextLink onClick={() => navigate('/profile')}>All achievements</TextLink>}>Recently unlocked</SectionTitle>
               <div className="grid grid-cols-2 gap-2.5">
-                {unlocks.map((s) => (
+                {unlocks.slice(0, wide ? 4 : 2).map((s) => (
                   <button key={s.id} onClick={() => setSkillOpen(s.id)} className="pressable card p-4 text-left hover:bg-surface-2">
                     <div className="flex items-center justify-between">
                       <span className="h-2.5 w-2.5 rounded-full" style={{ background: dvar(s.discipline), boxShadow: `0 0 14px ${dvar(s.discipline)}` }} />

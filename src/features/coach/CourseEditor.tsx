@@ -462,6 +462,7 @@ function AssessmentWeek({ course, kind }: { course: Course; kind: 'baseline' | '
                 : 'No initial assessment for this course yet. A re-test can still be run, but there will be nothing to compare it with.'}
         </span>
         <button className="btn btn-primary btn-sm mt-3" onClick={open}>{existing ? 'Open the session' : kind === 'baseline' ? 'Create the initial assessment' : 'Create the re-test'} <ArrowRight size={14} /></button>
+        {kind === 'baseline' && <p className="mt-3 text-[12px] leading-relaxed text-ink-3">While this week has no sessions of its own, each athlete sees two short starter sessions at the level their results put them on. Add a session here and yours are shown instead.</p>}
       </span>
     </div>
   )

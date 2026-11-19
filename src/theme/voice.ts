@@ -64,6 +64,22 @@ const COPY = {
   'workout.quit.stay': { aura: 'Keep going', power: 'Power back up', iron: 'Back to work' },
   'workout.quit.leave': { aura: 'End workout', power: 'End it here', iron: 'I quit' },
 
+  // The end of an assessment. One line of celebration; what to do next is said plainly, the same in every voice.
+  'assess.done.title': { aura: 'Congratulations!', power: 'Assessment cleared!', iron: 'Done.' },
+  'assess.done.line': { aura: 'Your assessment is complete.', power: 'Your starting power is on record.', iron: 'Now you know where you stand.' },
+
+  // The introduction on the profile: one sentence for each thing it lights up.
+  'tour.start.title': { aura: 'Start here', power: 'Start here', iron: 'Start here' },
+  'tour.start.line': { aura: 'Discover what you can do with Aura.', power: 'See what you can do here.', iron: 'One minute to see how this works.' },
+  'tour.personalize': { aura: 'Make Aura yours here: your theme and your character.', power: 'Your look and your form are set here.', iron: 'Your theme and your character. Set them here.' },
+  'tour.aura': { aura: 'Your Aura: everything you can do, as one number.', power: 'Your power, as one number. It rises with every result.', iron: 'Your Aura. One number. Earned.' },
+  'tour.ratings': { aura: 'Your level in each of the six areas. Tap one to see why.', power: 'Six areas, six levels to raise. Tap one to see why.', iron: 'Where you stand in each of the six areas. Tap one to see why.' },
+  'tour.skills': { aura: 'Every skill, and the next step toward it.', power: 'Every skill you can unlock, and what unlocks it.', iron: 'Every skill, and what it takes.' },
+  'tour.train': { aura: 'Your courses and sessions are here.', power: 'Your sessions. This is where you level up.', iron: 'Your sessions. The work is here.' },
+  'tour.library': { aura: 'Every exercise, shown and explained.', power: 'Every move, shown in motion.', iron: 'Every exercise, shown properly.' },
+  'tour.end.title': { aura: 'That is all you need.', power: 'You are set.', iron: 'That is it.' },
+  'tour.end.go': { aura: 'Start training', power: 'Start training', iron: 'Get to work' },
+
   // Empty pages
   'empty.logs.title': { aura: 'Nothing logged yet', power: 'No sessions cleared yet', iron: 'Nothing on record' },
   'empty.course.title': { aura: 'No course yet', power: 'No course yet', iron: 'No course yet' },

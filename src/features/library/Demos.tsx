@@ -20,12 +20,14 @@ import { STAGE_RATIO } from '@/visual/motions/types'
  * A published version is shown only while the movement is the one that was
  * approved. If the movement has been changed since, it waits for review again.
  */
-export default function ExerciseDemos({ animations, official, stage, handle }: {
+export default function ExerciseDemos({ animations, official, stage, handle, preview }: {
   animations: Partial<Record<CharacterId, DemoAsset>>
   official?: boolean
   /** Fill the screen behind its controls, which cover this much of it from the top and the bottom. No controls of its own. */
   stage?: { top: number; bottom: number }
   handle?: Ref<DemoHandle>
+  /** Fill the box it is put in and show nothing but the movement and the 360° button: for looking through several exercises quickly. */
+  preview?: boolean
 }) {
   const worn = useWearing()
   const prefersMuscles = useStore((s) => personalOf(s.meId ? s.athletes[s.meId] : null).muscles)
@@ -45,6 +47,16 @@ export default function ExerciseDemos({ animations, official, stage, handle }: {
     return (
       <Demo
         fill safe={stage} controls="none" margin={1.08} handle={handle}
+        cast={[performerOf(look, { motion: recipe.motion, revision: recipe.revision, muscles: muscles ? 'exercise' : null, aura: 'off' })]}
+        angle={recipe.camera !== motion.camera ? recipe.camera : undefined} label={`${official ? 'Official demonstration' : 'Demonstration'} of the movement`}
+      />
+    )
+  }
+
+  if (preview) {
+    return (
+      <Demo
+        fill controls="spin" margin={1.12}
         cast={[performerOf(look, { motion: recipe.motion, revision: recipe.revision, muscles: muscles ? 'exercise' : null, aura: 'off' })]}
         angle={recipe.camera !== motion.camera ? recipe.camera : undefined} label={`${official ? 'Official demonstration' : 'Demonstration'} of the movement`}
       />

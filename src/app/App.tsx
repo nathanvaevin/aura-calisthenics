@@ -17,6 +17,7 @@ import { CourseEditor } from '@/features/coach/CourseEditor'
 import { Onboarding } from '@/features/onboarding/Onboarding'
 import { AssessHub, StationRunner } from '@/features/assess/Assess'
 import { Reveal } from '@/features/assess/Reveal'
+import AssessmentDone from '@/features/journey/AssessmentDone'
 import { GroupPage } from '@/features/assess/Group'
 import { CloudJoin, HandInImport, JoinInvite } from '@/features/assess/Join'
 import { Splash } from '@/features/account/Account'
@@ -76,7 +77,8 @@ export function App() {
   const own = usePersonalTheme()
   const location = useLocation()
   // An official assessment looks and reads the same for everyone: the original Aura, whatever the athlete chose.
-  const official = location.pathname.startsWith('/assess/') || !!readLink(location.hash)
+  // Its last screen is the athlete's own again: the assessment is over, and it hands them back.
+  const official = (location.pathname.startsWith('/assess/') && !location.pathname.endsWith('/done')) || !!readLink(location.hash)
   const theme = official ? STANDARD_THEME : own
 
   useEffect(() => {
@@ -134,6 +136,7 @@ export function App() {
           <Route path="/assess/:sessionId" element={<AssessHub />} />
           <Route path="/assess/:sessionId/station/:station" element={<StationRunner />} />
           <Route path="/assess/:sessionId/reveal" element={<Reveal />} />
+          <Route path="/assess/:sessionId/done" element={<AssessmentDone />} />
           <Route path="/assess/:sessionId/group" element={<GroupPage />} />
           <Route element={<Shell />}>
             <Route index element={<Home />} />

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { ArrowRight } from 'lucide-react'
-import type { DisciplineId, Evidence } from '@/domain/types'
+import type { EvidenceTier, DisciplineId, Evidence } from '@/domain/types'
 import { DISCIPLINE_IDS, disciplineById, exerciseById, formatValue, skillById } from '@/domain/catalog'
 import { BANDS, SCORING, bandOf } from '@/domain/scoring/config'
 import { computeAura, type AuraResult } from '@/domain/scoring/aura'
@@ -233,10 +233,38 @@ export function LogEvidenceSheet({ exerciseId, open, onClose }: { exerciseId: st
   )
 }
 
-/** The six ratings as a compact, tappable list. */
-export function RatingList({ ratings, onSelect }: { ratings: Record<DisciplineId, DisciplineRating>; onSelect?: (d: DisciplineId) => void }) {
+const STATUS_TIER: Record<string, EvidenceTier | null> = { verified: 'coach', observed: 'observed', self: 'self', estimated: 'estimated' }
+
+/**
+ * The six ratings as a tappable list. `compact` is one line each: the area,
+ * how far along, the number, and how it is known. Everything else about a
+ * rating is behind the tap.
+ */
+export function RatingList({ ratings, onSelect, compact }: { ratings: Record<DisciplineId, DisciplineRating>; onSelect?: (d: DisciplineId) => void; compact?: boolean }) {
   const top = Math.max(600, ...DISCIPLINE_IDS.map((d) => ratings[d].rating))
   const scale = Math.ceil(top / 200) * 200
+  if (compact) {
+    return (
+      <div className="card divide-y divide-line">
+        {DISCIPLINE_IDS.map((d) => {
+          const r = ratings[d]
+          const tier = STATUS_TIER[r.status] ?? null
+          return (
+            <button key={d} onClick={() => onSelect?.(d)} data-rating={d} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-2 first:rounded-t-card last:rounded-b-card">
+              <DisciplineDot id={d} />
+              <span className="w-[84px] shrink-0 truncate text-[14px] font-medium">{disciplineById[d].short}</span>
+              <span className="relative min-w-0 flex-1">
+                <Bar value={r.rating / scale} color={dvar(d)} />
+                {r.verified > 0 && r.verified < r.rating && <span className="absolute top-[-2px] h-[7px] w-px bg-ink" style={{ left: `${(r.verified / scale) * 100}%` }} title={`Verified: ${r.verified}`} />}
+              </span>
+              {tier && r.rating > 0 ? <TierTag tier={tier} compact /> : <span className="w-5" />}
+              <span className="display num w-[44px] shrink-0 text-right text-[22px] leading-none">{r.rating || '—'}</span>
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
   return (
     <div className="card divide-y divide-line">
       {DISCIPLINE_IDS.map((d) => {

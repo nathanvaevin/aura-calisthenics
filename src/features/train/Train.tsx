@@ -4,10 +4,10 @@ import { useNavigate } from 'react-router'
 import { ArrowRight, Play, Target } from 'lucide-react'
 import type { Course, WorkoutBlock, WorkoutSource } from '@/domain/types'
 import { disciplineById, skillById } from '@/domain/catalog'
-import { WORKOUT_TEMPLATES, buildGoalWorkout, buildWorkout, estimateMinutes } from '@/domain/training'
+import { courseFor, WORKOUT_TEMPLATES, buildGoalWorkout, buildWorkout, estimateMinutes } from '@/domain/training'
 import { courseClock, courseProgress, nextSession, useMe } from '@/data/hooks'
 import { useStore } from '@/data/store'
-import { Bar, DisciplineDot, Empty, Eyebrow, PageHeader, SectionTitle, Sheet } from '@/ui/primitives'
+import { Fold, useWide, Bar, DisciplineDot, Empty, Eyebrow, PageHeader, SectionTitle, Sheet } from '@/ui/primitives'
 import { BlockList, LogRow, LogSheet } from '@/features/shared/LogView'
 import { useStartWorkout } from '@/features/workout/useStart'
 import { AssessHistory, AssessPrompt, useMyAssessments } from '@/features/assess/AssessCards'
@@ -35,12 +35,13 @@ export function Train() {
   const [preview, setPreview] = useState<Preview | null>(null)
   const [logOpen, setLogOpen] = useState<string | null>(null)
   const [historyAll, setHistoryAll] = useState(false)
+  const wide = useWide()
 
   const mine = useMemo(
-    () => enrollments.filter((e) => e.athleteId === me.athlete.id).map((e) => courses.find((c) => c.id === e.courseId)).filter((c) => c !== undefined),
-    [enrollments, courses, me.athlete.id],
+    () => enrollments.filter((e) => e.athleteId === me.athlete.id).map((e) => courses.find((c) => c.id === e.courseId)).filter((c) => c !== undefined).map((c) => courseFor(c, me.evidence)),
+    [enrollments, courses, me.athlete.id, me.evidence],
   )
-  const discover = courses.filter((c) => c.status === 'active' && !mine.includes(c) && c.coachId !== me.athlete.id)
+  const discover = courses.filter((c) => c.status === 'active' && !mine.some((m) => m.id === c.id) && c.coachId !== me.athlete.id)
   const goalSessions = me.athlete.goals
     .map((g) => ({ goal: skillById[g], workout: buildGoalWorkout(g, me.evidence, me.statuses) }))
     .filter((x) => x.goal && x.workout)
@@ -133,9 +134,7 @@ export function Train() {
           )}
 
           {/* Quick sessions */}
-          <section className="rise rise-3">
-            <SectionTitle>Quick sessions</SectionTitle>
-            <p className="-mt-1 mb-3 text-[13px] text-ink-2">Each one opens at your own working level on every ladder.</p>
+          <Fold id="quick" title="Quick sessions" open={wide} summary={`${WORKOUT_TEMPLATES.length} ready-made sessions, each at your own level`}>
             <div className="grid grid-cols-2 gap-2.5">
               {WORKOUT_TEMPLATES.map((t) => {
                 const color = focusColor(t.focus)
@@ -155,7 +154,7 @@ export function Train() {
                 )
               })}
             </div>
-          </section>
+          </Fold>
         </div>
 
         <div className="mt-8 space-y-8 lg:mt-0">
@@ -181,26 +180,25 @@ export function Train() {
             </section>
           )}
 
-          {assessed && (
-            <section className="rise rise-4">
-              <SectionTitle>Assessments</SectionTitle>
-              <AssessHistory />
-            </section>
-          )}
-
-          {/* History */}
-          <section className="rise rise-4">
-            <SectionTitle action={history.length > 6 ? <button className="text-[12.5px] font-medium text-ink-2 underline decoration-line-strong underline-offset-4" onClick={() => setHistoryAll(!historyAll)}>{historyAll ? 'Show fewer' : `All ${history.length}`}</button> : undefined}>
-              Training history
-            </SectionTitle>
-            {history.length === 0 ? (
-              <Empty title={v('empty.logs.title')}>Your completed sessions appear here, with what you were assigned and what you actually did.</Empty>
-            ) : (
-              <div className="card divide-y divide-line">
-                {(historyAll ? history : history.slice(0, 6)).map((l) => <LogRow key={l.id} log={l} onClick={() => setLogOpen(l.id)} />)}
-              </div>
+          <div className="space-y-2.5">
+            {assessed && (
+              <Fold id="assessments" title="Assessments" open={wide} summary="Your results, and a re-test whenever you want one">
+                <AssessHistory />
+              </Fold>
             )}
-          </section>
+            <Fold id="history" title="Training history" open={wide} summary={history.length ? `${history.length} ${history.length === 1 ? 'session' : 'sessions'} · last: ${history[0].title}` : v('empty.logs.title')}>
+              {history.length === 0 ? (
+                <Empty title={v('empty.logs.title')}>Your completed sessions appear here, with what you were assigned and what you actually did.</Empty>
+              ) : (
+                <>
+                  <div className="card divide-y divide-line">
+                    {(historyAll ? history : history.slice(0, 6)).map((l) => <LogRow key={l.id} log={l} onClick={() => setLogOpen(l.id)} />)}
+                  </div>
+                  {history.length > 6 && <div className="mt-2.5 text-right"><button className="text-[12.5px] font-medium text-ink-2 underline decoration-line-strong underline-offset-4" onClick={() => setHistoryAll(!historyAll)}>{historyAll ? 'Show fewer' : `All ${history.length}`}</button></div>}
+                </>
+              )}
+            </Fold>
+          </div>
         </div>
       </div>
 

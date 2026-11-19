@@ -2,10 +2,10 @@ import { useState } from 'react'
 import { DemoSlot, useHasDemo } from '@/features/library/DemoSlot'
 import { StageScreen } from '@/features/library/StageScreen'
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router'
-import { ArrowLeft, ArrowRight, Check, Hand, Minus, Pause, Play, Plus, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Hand, Minus, Pause, Play, Plus } from 'lucide-react'
 import type { DisciplineId } from '@/domain/types'
 import {
-  beyondTarget, demonstrated, estimateMinutes, groupCount, harderThan, nextTest, overallProgress, rotationOf, startingStation, stationById, stationOfTest, stationProgress,
+  beyondTarget, demonstrated, groupCount, harderThan, nextTest, overallProgress, rotationOf, startingStation, stationById, stationOfTest, stationProgress,
   testById, visibleTests, type AssessmentMode, type AssessmentTest,
 } from '@/domain/assessment'
 import { disciplineById, exerciseById } from '@/domain/catalog'
@@ -31,7 +31,8 @@ export function useAssessment(sessionId: string | undefined, participantId?: str
   const coaching = !!session && session.origin === 'local' && session.coachId === meId
   // A coach's session that has been finalised: a participant can read their results, not change them.
   const closed = !!session && session.origin === 'invite' && session.status === 'finalised'
-  const mode: AssessmentMode = !session || session.origin === 'solo' ? 'guided' : (session.mode ?? 'guided')
+  // On their own, an athlete chooses what to attempt (and can still ask to be guided). A coach's session is run the way the coach set it.
+  const mode: AssessmentMode = !session ? 'guided' : session.origin === 'solo' ? 'stations' : (session.mode ?? 'guided')
   return { session, participants, mine, target, coaching, closed, meId, mode }
 }
 
@@ -55,7 +56,6 @@ export function resultReading(t: AssessmentTest, value: number, skipped?: boolea
   return { points, band: bandOf(points).label }
 }
 
-const STATE_COPY = { todo: 'To do', active: 'In progress', done: 'Done', skipped: 'Skipped' } as const
 
 // ── Overview ─────────────────────────────────────────────────────────────
 
@@ -83,32 +83,34 @@ export function AssessHub() {
   const open = order.filter((s) => ['todo', 'active'].includes(stationProgress(stationById[s], mine.results, mine.skipped, mode).state))
   const suggested = start && open.includes(start) ? start : open[0]
 
+  const firstName = session.coachName.split(' ')[0]
+  const finish = () => {
+    if (!closed || !mine.submittedAt) submit(mine.id)
+    navigate(`/assess/${session.id}/done`)
+  }
+
   return (
-    <div className="relative mx-auto min-h-dvh w-full max-w-[560px] px-5 pb-40">
+    <div className="relative mx-auto min-h-dvh w-full max-w-[560px] px-5 pb-44" data-assess-hub>
       <div className="page-glow" />
       <div className="relative z-10">
         <div className="safe-top pt-5">
           <button onClick={() => navigate('/train')} className="pressable -ml-1 flex h-10 items-center gap-1.5 rounded-full pr-3 pl-1 text-[13.5px] text-ink-2 hover:text-ink">
-            <ArrowLeft size={17} /> Save and leave
+            <ArrowLeft size={17} /> Leave
           </button>
         </div>
 
-        <header className="rise flex items-end justify-between gap-4 pt-3 pb-5">
+        <header className="rise flex items-end justify-between gap-4 pt-3 pb-3">
           <div className="min-w-0">
-            <Eyebrow className="mb-2">{session.title} · {solo ? 'On your own' : `with ${session.coachName}`}</Eyebrow>
-            <h1 className="display text-[38px] leading-[1.02]">{solo ? 'Find your baseline' : session.groupName}</h1>
+            {!solo && <Eyebrow className="mb-2">{session.title} · with {session.coachName}</Eyebrow>}
+            <h1 className="display text-[38px] leading-[1.02]">{solo ? 'Your assessment' : session.groupName}</h1>
           </div>
-          <Ring value={progress.total ? (progress.done + progress.skipped) / progress.total : 0} size={62} stroke={3.5}>
-            <span className="num text-[13px] font-semibold">{progress.done}/{progress.total}</span>
+          <Ring value={progress.total ? (progress.done + progress.skipped) / progress.total : 0} size={56} stroke={3.5}>
+            <span className="num text-[12.5px] font-semibold">{progress.done}/{progress.total}</span>
           </Ring>
         </header>
 
-        <p className="rise rise-1 text-[14px] leading-relaxed text-ink-2">
-          {progress.started
-            ? `${recorded} ${recorded === 1 ? 'benchmark' : 'benchmarks'} recorded. Pick up wherever there is space.`
-            : mode === 'stations'
-              ? `${session.stations.length} stations, about ${estimateMinutes(session.stations)} minutes. At each one you choose the variations that match your level.`
-              : `${session.stations.length} stations, about ${estimateMinutes(session.stations)} minutes. Take them in any order; each one adapts to your last result.`}
+        <p className="rise rise-1 text-[14.5px] leading-relaxed text-ink-2">
+          {progress.started ? 'Pick another area, or finish whenever you like.' : `${session.stations.length === 6 ? 'Six' : session.stations.length} areas. Start with any one, and do as many as you can today.`}
         </p>
         {group !== null && (
           <p className="rise rise-1 mt-3 rounded-[18px] border border-line-strong bg-surface px-4 py-3 text-[13.5px] leading-relaxed">
@@ -116,76 +118,75 @@ export function AssessHub() {
             <span className="text-ink-2">Start at {disciplineById[order[0]].short}, then {order.slice(1).map((d) => disciplineById[d].short).join(', ')}.</span>
           </p>
         )}
-
         {closed && (
           <p className="rise rise-1 mt-4 rounded-[20px] border border-line-strong bg-surface px-4 py-3 text-[13.5px] leading-relaxed text-ink-2">
-            <span className="font-medium text-ink">{session.coachName.split(' ')[0]} has closed this assessment.</span> Your results are final and on your profile.
+            <span className="font-medium text-ink">{firstName} has closed this assessment.</span> Your results are final and on your profile.
           </p>
         )}
 
+        {/* The areas: one tile each, in the order to take them. */}
+        <div className="rise rise-2 mt-5 grid grid-cols-2 gap-2.5">
+          {order.map((id) => {
+            const station = stationById[id]
+            const p = stationProgress(station, mine.results, mine.skipped, mode)
+            const count = [...station.tests, ...station.extra].filter((t) => mine.results[t.id] && !mine.results[t.id].skipped).length
+            const here = id === suggested && p.state === 'todo'
+            return (
+              <button
+                key={id} data-area={id} data-state={p.state} disabled={closed || (p.state === 'skipped' && mode !== 'stations')}
+                onClick={() => navigate(`/assess/${session.id}/station/${id}`)}
+                className={cx('card pressable relative flex min-h-[112px] flex-col items-start justify-between p-4 text-left', here && 'border-line-strong', p.state === 'skipped' && 'opacity-60')}
+              >
+                <span className="flex w-full items-start justify-between">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full" style={{ background: p.state === 'done' ? dvar(id) : `color-mix(in oklab, ${dvar(id)} 16%, transparent)`, color: p.state === 'done' ? 'var(--bg)' : dvar(id) }}>
+                    {p.state === 'done' ? <Check size={17} strokeWidth={2.8} /> : mode === 'stations' ? <span className="h-2 w-2 rounded-full bg-current" /> : <span className="num font-mono text-[10.5px] font-medium">{p.done}/{p.total}</span>}
+                  </span>
+                  {here && <span className="rounded-full bg-ink px-2 py-0.5 font-mono text-[9px] tracking-[0.1em] text-bg uppercase">{progress.started ? 'Next' : 'Start here'}</span>}
+                </span>
+                <span>
+                  <span className={cx('block text-[17px] font-medium', p.state === 'skipped' && 'line-through')}>{disciplineById[id].short}</span>
+                  <span className="mt-0.5 block text-[12px] text-ink-3">{p.state === 'skipped' ? 'Skipped today' : count ? `${count} recorded` : p.state === 'active' ? 'In progress' : `About ${station.minutes} min`}</span>
+                </span>
+              </button>
+            )
+          })}
+        </div>
+
+        {mode !== 'stations' && !closed && (
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-ink-3">
+            {order.filter((id) => ['todo', 'skipped'].includes(stationProgress(stationById[id], mine.results, mine.skipped, mode).state)).map((id) => (
+              <button key={id} className="underline decoration-line-strong underline-offset-4 hover:text-ink" onClick={() => toggleStationSkip(mine.id, id)}>
+                {mine.skipped.includes(id) ? `Bring back ${disciplineById[id].short}` : `Skip ${disciplineById[id].short} today`}
+              </button>
+            ))}
+          </div>
+        )}
+
         {!solo && !closed && (
-          <label className="rise rise-1 mt-4 flex items-center gap-3 rounded-[20px] border border-line px-4 py-3">
+          <label className="rise rise-2 mt-4 flex items-center gap-3 rounded-[20px] border border-line px-4 py-3">
             <span className="shrink-0 text-[13px] text-ink-2">Partner counting for you</span>
             <input className="min-w-0 flex-1 bg-transparent text-right text-[14px] outline-none placeholder:text-ink-3" placeholder="Optional" value={mine.partner ?? ''} onChange={(e) => patchParticipant(mine.id, { partner: e.target.value || undefined })} />
           </label>
         )}
 
-        <div className="rise rise-2 mt-5 space-y-2.5">
-          {order.map((id) => {
-            const station = stationById[id]
-            const p = stationProgress(station, mine.results, mine.skipped, mode)
-            const done = [...station.tests, ...station.extra].filter((t) => mine.results[t.id] && (mode === 'stations' || visibleTests(station, mine.results).includes(t)))
-            const here = id === suggested
-            return (
-              <div key={id} className={cx('card overflow-hidden', here && 'border-line-strong')}>
-                <button className="flex w-full items-center gap-3.5 p-4 text-left" onClick={() => navigate(`/assess/${session.id}/station/${id}`)} disabled={p.state === 'skipped' || closed}>
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full" style={{ background: p.state === 'done' ? dvar(id) : `color-mix(in oklab, ${dvar(id)} 16%, transparent)`, color: p.state === 'done' ? 'var(--bg)' : dvar(id) }}>
-                    {p.state === 'done' ? <Check size={18} strokeWidth={2.8} /> : mode === 'stations' ? <span className="h-2 w-2 rounded-full bg-current" /> : <span className="num font-mono text-[11px] font-medium">{p.done}/{p.total}</span>}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2">
-                      <span className={cx('text-[16px] font-medium', p.state === 'skipped' && 'text-ink-3 line-through')}>{disciplineById[id].name}</span>
-                      {here && p.state === 'todo' && <span className="rounded-full bg-ink px-2 py-px font-mono text-[9px] tracking-[0.1em] text-bg uppercase">{progress.started ? 'Next' : 'Start here'}</span>}
-                    </span>
-                    <span className="mt-0.5 block text-[12.5px] leading-snug text-ink-3">
-                      {done.length ? done.map((t) => `${exerciseById[t.exerciseId].short} ${resultLabel(t, mine.results[t.id].value, mine.results[t.id].skipped)}`).join(' · ') : station.setup}
-                    </span>
-                  </span>
-                  <span className="shrink-0 text-right font-mono text-[9.5px] tracking-[0.1em] text-ink-3 uppercase">{p.state === 'todo' ? `${station.minutes} min` : STATE_COPY[p.state]}</span>
-                </button>
-                {!closed && (p.state === 'todo' || p.state === 'skipped') && (
-                  <button className="w-full border-t border-line px-4 py-2 text-left text-[12px] text-ink-3 hover:text-ink" onClick={() => toggleStationSkip(mine.id, id)}>
-                    {p.state === 'skipped' ? 'Skipped. Tap to bring it back' : 'Skip this station today (injury, no equipment)'}
-                  </button>
-                )}
-              </div>
-            )
-          })}
-        </div>
-
         <p className="mt-4 text-[12px] leading-relaxed text-ink-3">
-          What you record here is self-reported{solo ? '.' : ` until ${session.coachName.split(' ')[0]} observes or verifies it.`} {cloud ? (solo ? 'It is saved to your account as you go.' : `It is saved as you go, and ${session.coachName.split(' ')[0]} sees it on the session board.`) : 'Your progress is saved on this phone as you go.'}
+          {cloud ? 'Saved as you go.' : 'Kept on this phone as you go.'}{!solo && !closed ? ` You record your own results; ${firstName} can confirm what they watch.` : ''}
         </p>
-        {cloud && <SyncLine className="mt-2" saved="Everything so far is saved" />}
+        {cloud && <SyncLine className="mt-1.5" saved="Everything so far is saved" />}
       </div>
 
       <div className="safe-bottom glass fixed inset-x-0 bottom-0 z-20 border-t border-line">
         <div className="mx-auto max-w-[560px] px-5 pt-3 pb-4">
           {suggested && !progress.complete && !closed && (
             <button className="btn btn-primary btn-lg w-full" onClick={() => navigate(`/assess/${session.id}/station/${suggested}`)}>
-              {progress.started ? 'Continue' : 'Begin'} · {disciplineById[suggested].short} <ArrowRight size={17} />
+              {progress.started ? 'Next' : 'Start with'} {disciplineById[suggested].short} <ArrowRight size={17} />
             </button>
           )}
-          <button
-            className={cx('btn w-full', progress.complete || closed ? 'btn-primary btn-lg' : 'btn-outline mt-2.5')}
-            disabled={recorded === 0}
-            onClick={() => {
-              if (!closed || !mine.submittedAt) submit(mine.id)
-              navigate(`/assess/${session.id}/reveal`)
-            }}
-          >
-            {progress.complete ? 'See my profile' : mine.submittedAt ? 'See my profile so far' : `Finish with ${progress.done} of ${progress.total} stations`}
-          </button>
+          {(recorded > 0 || closed) && (
+            <button className={cx('btn w-full', progress.complete || closed ? 'btn-primary btn-lg' : 'btn-outline mt-2.5')} onClick={finish}>
+              {progress.complete || closed ? 'Finish' : `Finish with ${progress.done} of ${progress.total}`}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -202,6 +203,7 @@ export function StationRunner() {
   useLive('assess', 10000)
   const recordResult = useStore((s) => s.recordResult)
   const toggleFlag = useStore((s) => s.toggleFlag)
+  const toggleStationSkip = useStore((s) => s.toggleStationSkip)
   const sound = useStore((s) => s.settings.sound)
   /** A result past the top of its range, and the variation it points to. */
   const [nudge, setNudge] = useState<{ test: AssessmentTest; harder: AssessmentTest; value: number } | null>(null)
@@ -216,19 +218,28 @@ export function StationRunner() {
   const editing = params.get('t')
   const pOnly: Record<string, string> = params.get('p') ? { p: params.get('p')! } : {}
   // Station mode: the athlete's own choice of variations, in the order they will do them.
-  const queue = params.get('q')?.split(',').filter((id) => testById[id] && stationOfTest[id] === st.id) ?? null
+  const here = (v: string | null) => v?.split(',').filter((id) => testById[id] && stationOfTest[id] === st.id) ?? null
+  const queue = here(params.get('q'))
+  /** Picked in the list and not yet started. Kept in the address, so going into a test and back loses nothing. */
+  const chosen = here(params.get('c')) ?? []
   const guide = params.get('guide') === '1'
+  const picking = mode === 'stations'
+  const withChosen = (ids: string[]): Record<string, string> => ({ ...pOnly, ...(ids.length ? { c: ids.join(',') } : {}) })
 
-  if (mode === 'stations' && !queue && !editing && !guide)
+  if (picking && !queue && !editing && !guide)
     return (
       <StationMenu
         station={st.id}
         results={target.results}
+        chosen={chosen.filter((id) => !target.results[id])}
+        onChoose={(ids) => setParams(withChosen(ids), { replace: true })}
         forName={forOther ? target.name : undefined}
         onStart={(ids) => setParams({ ...pOnly, q: ids.join(',') })}
-        onEdit={(id) => setParams({ ...pOnly, t: id })}
+        onEdit={(id) => setParams({ ...withChosen(chosen), t: id })}
         onGuide={() => setParams({ ...pOnly, guide: '1' })}
         onClose={() => navigate(exit)}
+        skipped={target.skipped.includes(st.id)}
+        onSkip={forOther ? undefined : () => { toggleStationSkip(target.id, st.id); navigate(exit) }}
       />
     )
 
@@ -239,26 +250,33 @@ export function StationRunner() {
   const color = dvar(st.id)
   const keep = params.get('p') ? `?p=${params.get('p')}` : ''
   const nextStation = session.stations.find((s) => s !== st.id && ['todo', 'active'].includes(stationProgress(stationById[s], target.results, target.skipped, mode).state))
-  const backToMenu = () => setParams(pOnly, { replace: true })
+  /** Back from a test is back to where it was chosen: this area's list, with what is still to do kept. Guided by a coach, there is no list: the overview. */
+  const remaining = (queue ?? chosen).filter((id) => !target.results[id])
+  const backToMenu = () => setParams(withChosen(remaining), { replace: true })
+  const back = picking ? backToMenu : () => navigate(exit)
 
   const record = (test: AssessmentTest, value: number, skipped = false) => {
     recordResult(target.id, test.id, value, { tier: forOther ? 'observed' : 'self', skipped })
     if (sound && !skipped) tick()
-    if (editing) setParams(queue ? { ...pOnly, q: queue.join(',') } : mode === 'stations' && !guide ? pOnly : { ...pOnly, ...(guide ? { guide: '1' } : {}) }, { replace: true })
+    if (editing) setParams(queue ? { ...pOnly, q: queue.join(',') } : picking && !guide ? withChosen(chosen) : { ...pOnly, ...(guide ? { guide: '1' } : {}) }, { replace: true })
     // Past the range: suggest the next variation, once, without stopping anyone.
     const harder = !skipped && beyondTarget(test, value) ? harderThan(test) : null
     if (harder && !target.results[harder.id] && !queue?.includes(harder.id) && (queue || mode === 'stations')) setNudge({ test, harder, value })
   }
+
+  // Everything chosen has been done: straight back to the areas, where this one now shows what was recorded.
+  if (picking && queue && !current && !nudge) return <Navigate to={exit} replace />
+  const step = queued && current ? queued.findIndex((t) => t.id === current.id) : -1
 
   return (
     <div className="relative mx-auto flex h-dvh w-full max-w-[560px] flex-col bg-bg">
       <div className="page-glow" />
       <header className="safe-top relative z-10 shrink-0 px-4">
         <div className="flex h-14 items-center justify-between">
-          <button onClick={() => navigate(exit)} aria-label="Back to overview" className="pressable flex h-10 w-10 items-center justify-center rounded-full bg-surface text-ink-2"><X size={18} /></button>
+          <button onClick={back} aria-label={picking ? `Back to ${disciplineById[st.id].short}` : 'Back to the overview'} className="pressable flex h-10 w-10 items-center justify-center rounded-full bg-surface text-ink-2"><ArrowLeft size={18} /></button>
           <div className="min-w-0 px-3 text-center">
             <div className="flex items-center justify-center gap-2 truncate text-[13.5px] font-medium"><DisciplineDot id={st.id} size={7} />{disciplineById[st.id].name}</div>
-            <div className="truncate text-[11.5px] text-ink-3">{forOther ? `Recording for ${target.name} · counts as coach-observed` : session.groupName}</div>
+            <div className="truncate text-[11.5px] text-ink-3">{forOther ? `Recording for ${target.name} · counts as coach-observed` : step >= 0 && queued!.length > 1 ? `${step + 1} of ${queued!.length}` : session.groupName}</div>
           </div>
           <span className="w-10" />
         </div>

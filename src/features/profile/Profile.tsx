@@ -15,7 +15,9 @@ import { CoachAccessRow, CoachRequests } from '@/features/account/CoachAccess'
 import { AuraDot, AuraField } from '@/ui/AuraField'
 import { CountUp } from '@/ui/CountUp'
 import { DnaSigil } from '@/ui/DnaSigil'
-import { DisciplineDot, Eyebrow, SectionTitle, Sheet, StatusTag, Stepper, TextLink, TierTag, Toggle } from '@/ui/primitives'
+import { DisciplineDot, Eyebrow, Fold, SectionTitle, Sheet, StatusTag, Stepper, TextLink, TierTag, Toggle, useWide } from '@/ui/primitives'
+import { StartHere, Tour } from '@/features/journey/Tour'
+import { completion } from '@/theme/personal'
 import { AuraSheet, LogEvidenceSheet, RatingList, RatingSheet } from '@/features/shared/Explainers'
 import { LogRow, LogSheet } from '@/features/shared/LogView'
 import { SkillSheet } from '@/features/tree/SkillSheet'
@@ -52,6 +54,12 @@ export function Profile() {
   const [recordsOpen, setRecordsOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [touring, setTouring] = useState(false)
+  // On a phone the profile is the essentials, and the rest one tap away. With room for two columns, it lies open.
+  const wide = useWide()
+  const personal = completion(me.athlete)
+  /** The introduction is offered once per device, after the athlete has made Aura theirs: personalizing comes first. */
+  const offerTour = !settings.tour && personal.core && !touring
 
   const a = me.aura
   const ratingValues = Object.fromEntries(DISCIPLINE_IDS.map((d) => [d, me.ratings[d].rating])) as Record<DisciplineId, number>
@@ -94,10 +102,11 @@ export function Profile() {
 
       <div className="mt-6 lg:grid lg:grid-cols-2 lg:items-start lg:gap-12">
         <div className="space-y-8">
+          {offerTour && <StartHere onStart={() => setTouring(true)} onSkip={() => setSettings({ tour: 'skipped' })} />}
           <IdentityCard athlete={me.athlete} />
 
           {/* Aura identity */}
-          <section className="rise rise-1">
+          <section className="rise rise-1" data-tour="aura">
             <button onClick={() => setAuraOpen(true)} className="card relative flex w-full items-center gap-2 overflow-hidden p-4 text-left">
               <AuraField mix={a.mix} aura={a.aura} size={148} rings={false} className="-my-4 -ml-6 shrink-0">
                 <span className="display text-[40px] leading-none">{a.aura ? <CountUp value={a.aura} /> : '—'}</span>
@@ -109,24 +118,16 @@ export function Profile() {
                 {a.cls.next && <span className="num mt-2 block text-[12px] text-ink-3">{num(a.cls.next.min - a.aura)} to {a.cls.next.label}</span>}
               </span>
             </button>
-            <div className="mt-2.5 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {([
-                ['Mastery', a.mastery],
-                ['Peak', a.peak?.rating ?? '—'],
-                ['Versatility', a.versatility],
-                ['Dedication', me.dedication.score],
-              ] as const).map(([label, value]) => (
-                <button key={label} onClick={() => setAuraOpen(true)} className="card flex items-baseline justify-between px-3.5 py-3 text-left hover:bg-surface-2 sm:block">
-                  <span className="block font-mono text-[9.5px] tracking-[0.1em] text-ink-3 uppercase">{label}</span>
-                  <span className="display num block text-[24px] sm:mt-1">{value}</span>
-                </button>
-              ))}
-            </div>
           </section>
 
-          {/* Athlete DNA */}
-          <section className="rise rise-2">
-            <SectionTitle>Athlete DNA</SectionTitle>
+          {/* Ratings: one line each. What is behind a number is behind a tap. */}
+          <section className="rise rise-2" data-tour="ratings">
+            <SectionTitle>Mastery ratings</SectionTitle>
+            <RatingList ratings={me.ratings} onSelect={setRatingOpen} compact />
+          </section>
+
+          <div className="space-y-2.5">
+          <Fold id="dna" title="Athlete DNA" open={wide} summary={a.peak ? `Strongest in ${disciplineById[ranked[0]].short} · most room in ${disciplineById[ranked[5]].short}` : 'Your shape across the six areas'}>
             <div className="card flex flex-col items-center px-2 pt-3 pb-5">
               <DnaSigil ratings={ratingValues} size={340} onSelect={setRatingOpen} />
               {a.peak ? (
@@ -140,22 +141,32 @@ export function Profile() {
                 <p className="max-w-sm px-4 text-center text-[13.5px] text-ink-3">{v('profile.dna.empty')}</p>
               )}
             </div>
-          </section>
-
-          {/* Ratings */}
-          <section className="rise rise-3">
-            <SectionTitle>Mastery ratings</SectionTitle>
-            <RatingList ratings={me.ratings} onSelect={setRatingOpen} />
-          </section>
-
-          {/* Identity beyond ability */}
-          <MyIdentity athlete={me.athlete} onEdit={() => setEditOpen(true)} />
+          </Fold>
+          <Fold id="places" title="Where you train" open={wide} summary={[me.athlete.city, me.athlete.country].filter(Boolean).join(', ') || 'Your city, your spots, and who sees them'}>
+            <MyIdentity athlete={me.athlete} onEdit={() => setEditOpen(true)} />
+          </Fold>
+          </div>
         </div>
 
         <div className="mt-8 space-y-8 lg:mt-0">
-          {/* Records */}
-          <section className="rise rise-2">
-            <SectionTitle action={records.length > 5 ? <TextLink onClick={() => setRecordsOpen(true)}>All {records.length}</TextLink> : undefined}>Strongest abilities</SectionTitle>
+          {/* Goals */}
+          {me.athlete.goals.length > 0 && (
+            <section>
+              <SectionTitle>Working toward</SectionTitle>
+              <div className="flex flex-wrap gap-2">
+                {me.athlete.goals.filter((g) => skillById[g]).map((g) => (
+                  <span key={g} className="inline-flex h-9 items-center gap-2 rounded-full border border-line pr-1.5 pl-3 text-[13px]">
+                    <DisciplineDot id={skillById[g].discipline} size={6} />
+                    <button onClick={() => setSkillOpen(g)}>{skillById[g].name}</button>
+                    <button aria-label={`Remove goal ${skillById[g].name}`} onClick={() => toggleGoal(g)} className="flex h-6 w-6 items-center justify-center rounded-full text-ink-3 hover:bg-surface-2 hover:text-ink"><X size={12} /></button>
+                  </span>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <div className="space-y-2.5">
+          <Fold id="records" title="Strongest abilities" open={wide} summary={records[0] ? `${records[0].ex.name} · ${records[0].score}${records.length > 1 ? ` · and ${records.length - 1} more` : ''}` : 'Your best results will show here'}>
             {records.length === 0 ? (
               <p className="rounded-card border border-dashed border-line-strong p-5 text-[13.5px] text-ink-3">{v('empty.records')}</p>
             ) : (
@@ -173,11 +184,9 @@ export function Profile() {
                 ))}
               </div>
             )}
-          </section>
-
-          {/* Skills */}
-          <section className="rise rise-3">
-            <SectionTitle action={<TextLink onClick={() => navigate('/tree')}>Skill tree</TextLink>}>Skills and achievements</SectionTitle>
+            {records.length > 5 && <div className="mt-2.5 text-right"><TextLink onClick={() => setRecordsOpen(true)}>All {records.length}</TextLink></div>}
+          </Fold>
+          <Fold id="skills" title="Skills" open={wide} summary={`${mastered.length} of ${SKILLS.length} unlocked${verified ? ` · ${verified} coach-verified` : ''}`}>
             <div className="card p-4">
               <div className="flex items-end justify-between">
                 <div>
@@ -214,27 +223,9 @@ export function Profile() {
                 ))}
               </div>
             )}
-          </section>
-
-          {/* Goals */}
-          {me.athlete.goals.length > 0 && (
-            <section>
-              <SectionTitle>Working toward</SectionTitle>
-              <div className="flex flex-wrap gap-2">
-                {me.athlete.goals.filter((g) => skillById[g]).map((g) => (
-                  <span key={g} className="inline-flex h-9 items-center gap-2 rounded-full border border-line pr-1.5 pl-3 text-[13px]">
-                    <DisciplineDot id={skillById[g].discipline} size={6} />
-                    <button onClick={() => setSkillOpen(g)}>{skillById[g].name}</button>
-                    <button aria-label={`Remove goal ${skillById[g].name}`} onClick={() => toggleGoal(g)} className="flex h-6 w-6 items-center justify-center rounded-full text-ink-3 hover:bg-surface-2 hover:text-ink"><X size={12} /></button>
-                  </span>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Consistency */}
-          <section>
-            <SectionTitle>Training consistency</SectionTitle>
+            <div className="mt-2.5 text-right"><TextLink onClick={() => navigate('/tree')}>Skill tree</TextLink></div>
+          </Fold>
+          <Fold id="training" title="Training" open={wide} summary={me.dedication.total ? `${me.dedication.total} ${me.dedication.total === 1 ? 'session' : 'sessions'} · ${me.dedication.streak}-week streak` : 'Your sessions will show here'}>
             <div className="card p-4">
               <div className="flex items-end justify-between">
                 <div className="flex gap-6">
@@ -261,7 +252,8 @@ export function Profile() {
                 {history.map((l) => <LogRow key={l.id} log={l} onClick={() => setLogOpen(l.id)} />)}
               </div>
             )}
-          </section>
+          </Fold>
+          </div>
 
           <KeepProfile />
 
@@ -287,6 +279,7 @@ export function Profile() {
         </div>
       </div>
 
+      <Tour open={touring} onClose={(finished) => { setTouring(false); setSettings({ tour: finished ? 'done' : 'skipped' }) }} />
       <AuraSheet aura={a} dedication={me.dedication.score} open={auraOpen} onClose={() => setAuraOpen(false)} />
       <RatingSheet rating={ratingOpen ? me.ratings[ratingOpen] : null} open={!!ratingOpen} onClose={() => setRatingOpen(null)} onLog={(id) => { setRatingOpen(null); setBenchOpen(id) }} />
       <SkillSheet skillId={skillOpen} onClose={() => setSkillOpen(null)} onOpenSkill={setSkillOpen} />
@@ -326,6 +319,10 @@ export function Profile() {
               <button onClick={() => { setSettingsOpen(false); navigate('/personalize?step=theme') }} className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left first:rounded-t-card hover:bg-surface-2">
                 <span className="text-[14px]">Theme<span className="block text-[12px] text-ink-3">{THEMES[theme].name} · {THEMES[theme].tone.toLowerCase()}</span></span>
                 <span className="text-[12.5px] text-ink-3">Change</span>
+              </button>
+              <button className="flex w-full items-center justify-between px-4 py-3.5 text-left hover:bg-surface-2" onClick={() => { setSettingsOpen(false); window.setTimeout(() => setTouring(true), 350) }}>
+                <span className="text-[14px]">Introduction<span className="block text-[12px] text-ink-3">A one-minute look round your profile</span></span>
+                <span className="text-[12.5px] text-ink-3">Show me</span>
               </button>
               <div className="flex items-center justify-between px-4 py-3.5">
                 <span className="text-[14px]">Sounds<span className="block text-[12px] text-ink-3">Rest timer and skill unlocks</span></span>

@@ -1,4 +1,4 @@
-import type { BlockKind, DisciplineId, Evidence, Workout, WorkoutBlock } from './types'
+import type { BlockKind, Course, CourseSession, DisciplineId, Evidence, Workout, WorkoutBlock } from './types'
 import { exerciseById, skillById, stepAt } from './catalog'
 import { makeBlock, pathTo, trainingFor, workingLevel, type SkillStatuses } from './scoring/skills'
 
@@ -134,6 +134,79 @@ export function buildWorkout(template: WorkoutTemplate, evidence: Evidence[]): W
     return { ...block, id, sets: item.sets ?? block.sets, target: item.target ?? block.target }
   })
   return { id: template.id, title: template.title, focus: template.focus, summary: template.summary, minutes: template.minutes, blocks }
+}
+
+// ── The first week of a course ───────────────────────────────────────────
+//
+// A course that opens with an assessment used to give its first week nothing
+// to train. These are that week's sessions: short, the whole body, every
+// ladder at the level the athlete's own results put them on. They are worked
+// out for each athlete when the course is shown, not written into the course,
+// so they follow the assessment as soon as it is done and need nothing saved.
+// A coach who writes sessions into that week replaces them.
+
+export const STARTER_TEMPLATES: WorkoutTemplate[] = [
+  {
+    id: 'starter-a', title: 'First session', focus: 'full', minutes: 25,
+    summary: 'Push, pull, legs and trunk, each at your level.',
+    plan: [
+      fixed('warmup', 'wrist-prep', 1, 10),
+      fixed('warmup', 'cat-cow', 1, 10),
+      ladder('strength', 'pushup', 3),
+      ladder('strength', 'row', 3),
+      ladder('strength', 'single-leg-squat', 3),
+      ladder('strength', 'anti-extension', 3),
+      fixed('cooldown', 'deep-squat-hold', 2, 30),
+    ],
+  },
+  {
+    id: 'starter-b', title: 'Second session', focus: 'full', minutes: 25,
+    summary: 'Hanging, the first steps upside down, and the back of the body.',
+    plan: [
+      fixed('warmup', 'wrist-prep', 1, 10),
+      fixed('warmup', 'scap-pull', 2, 6),
+      ladder('strength', 'pullup', 3),
+      ladder('skill', 'handstand-line', 3),
+      ladder('strength', 'dip', 3),
+      fixed('strength', 'glute-bridge', 3, 12),
+      fixed('cooldown', 'overhead-wall-reach', 2, 20),
+    ],
+  },
+]
+
+/** How far either side of their own level an athlete may move in a starter session. */
+const STARTER_SPAN = 1
+const STARTER_DAYS = [2, 4]
+
+/** The id of a starter session: the week it belongs to, and which of the two it is. Stable, so a logged session finds it again. */
+export const starterId = (weekId: string, i: number) => `${weekId}~start-${'ab'[i] ?? i}`
+export const isStarter = (sessionId: string) => sessionId.includes('~start-')
+
+/** The first week's sessions for one athlete, from what they have shown so far. */
+export function starterSessions(weekId: string, evidence: Evidence[]): CourseSession[] {
+  return STARTER_TEMPLATES.map((template, i) => {
+    const built = buildWorkout(template, evidence)
+    return {
+      id: starterId(weekId, i),
+      day: STARTER_DAYS[i] ?? 2 + i * 2,
+      title: template.title,
+      blocks: built.blocks.map((b) => ({
+        ...b,
+        id: `${starterId(weekId, i)}-${b.exerciseId}`,
+        ...(b.level ? { minLevel: Math.max(1, b.level - STARTER_SPAN), maxLevel: b.level + STARTER_SPAN } : {}),
+      })),
+    }
+  })
+}
+
+/**
+ * A course as one athlete follows it: where a week is given to the first
+ * assessment and the coach wrote no sessions into it, it holds that athlete's
+ * starter sessions. Every other week is the course's own, untouched.
+ */
+export function courseFor(course: Course, evidence: Evidence[]): Course {
+  if (!course.weeks.some((w) => w.kind === 'baseline' && w.sessions.length === 0)) return course
+  return { ...course, weeks: course.weeks.map((w) => (w.kind === 'baseline' && w.sessions.length === 0 ? { ...w, sessions: starterSessions(w.id, evidence) } : w)) }
 }
 
 const WARMUP: Record<DisciplineId, string[]> = {

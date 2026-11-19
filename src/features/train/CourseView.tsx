@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router'
 import { ArrowLeft, ArrowRight, Check, ClipboardCheck, Play, RotateCcw } from 'lucide-react'
 import { disciplineById, skillById } from '@/domain/catalog'
 import { courseClock, courseProgress, sessionsOf, useMe } from '@/data/hooks'
 import { useStore } from '@/data/store'
-import { Bar, Eyebrow, SectionTitle } from '@/ui/primitives'
+import { courseFor, isStarter } from '@/domain/training'
+import { Bar, Eyebrow, Fold, useWide } from '@/ui/primitives'
 import { BlockList, LogSheet, ShiftTag } from '@/features/shared/LogView'
 import { SkillRow, SkillSheet } from '@/features/tree/SkillSheet'
 import { useStartWorkout } from '@/features/workout/useStart'
@@ -15,7 +16,9 @@ export function CourseView() {
   const navigate = useNavigate()
   const me = useMe()
   const start = useStartWorkout()
-  const course = useStore((s) => s.courses.find((c) => c.id === courseId))
+  const written = useStore((s) => s.courses.find((c) => c.id === courseId))
+  // As this athlete follows it: a first week given to the assessment holds their own starter sessions.
+  const course = useMemo(() => (written ? courseFor(written, me.evidence) : undefined), [written, me.evidence])
   const athletes = useStore((s) => s.athletes)
   const enrolled = useStore((s) => s.enrollments.some((e) => e.courseId === courseId && e.athleteId === s.meId))
   const allFeedback = useStore((s) => s.feedback)
@@ -28,6 +31,7 @@ export function CourseView() {
   const [week, setWeek] = useState(clock?.weekIndex ?? 0)
   const [logOpen, setLogOpen] = useState<string | null>(null)
   const [skillOpen, setSkillOpen] = useState<string | null>(null)
+  const wide = useWide()
 
   if (!course || !clock) return <Navigate to="/train" replace />
 
@@ -37,6 +41,8 @@ export function CourseView() {
   const current = course.weeks[Math.min(week, course.weeks.length - 1)]
   const weekSessions = sessions.filter((s) => s.weekIndex === week)
   const firstOpen = sessions.find((s) => !s.log && s.weekIndex >= clock.weekIndex)
+  /** The week of the first assessment, holding this athlete's own starter sessions. */
+  const starting = weekSessions.some((x) => isStarter(x.session.id))
   const logIds = new Set(sessions.map((s) => s.log?.id).filter(Boolean))
   const feedback = allFeedback.filter((f) => logIds.has(f.logId)).sort((a, b) => b.date.localeCompare(a.date))
   const coach = athletes[course.coachId]
@@ -104,7 +110,7 @@ export function CourseView() {
           <div className="mt-5">
             <Eyebrow>Week {week + 1}{current.focus ? ` · focus: ${current.focus === 'full' ? 'full body' : disciplineById[current.focus].name.toLowerCase()}` : current.kind && current.kind !== 'training' ? ' · assessment week' : ' objective'}</Eyebrow>
             <h2 className="display mt-1.5 text-[28px]">{current.title}</h2>
-            {current.objective && <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">{current.objective}</p>}
+            {starting ? <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">Find where you stand, then start training from there.</p> : current.objective && <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">{current.objective}</p>}
           </div>
 
           {current.kind && current.kind !== 'training' && (() => {
@@ -118,13 +124,20 @@ export function CourseView() {
                   <span className="mt-0.5 block text-[12.5px] leading-snug text-ink-2">
                     {mine
                       ? mine.submittedAt ? 'Done. Your results are on your profile.' : 'In progress. Pick up where you left off.'
-                      : `${coach?.name.split(' ')[0] ?? 'Your coach'} runs this in class: scan the code on the wall to join. ${current.kind === 'retest' ? 'You will see exactly what changed since week 1.' : 'Every station has a variation for your level.'}`}
+                      : `${coach?.name.split(' ')[0] ?? 'Your coach'} runs this in class. Scan the code on the wall to join.${current.kind === 'retest' ? ' You will see what changed since week 1.' : ''}`}
                   </span>
                   {mine && session && <button className="btn btn-outline btn-sm mt-3" onClick={() => navigate(mine.submittedAt ? `/assess/${session.id}/reveal` : `/assess/${session.id}`)}>{mine.submittedAt ? 'See my results' : 'Continue'} <ArrowRight size={14} /></button>}
                 </span>
               </div>
             )
           })()}
+
+          {starting && (
+            <div className="mt-6">
+              <Eyebrow>Start training</Eyebrow>
+              <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-2">Two short sessions at your own level. They follow your assessment as soon as it is done.</p>
+            </div>
+          )}
 
           <div className="mt-5 space-y-3">
             {weekSessions.length === 0 && !(current.kind && current.kind !== 'training') && <p className="rounded-card border border-dashed border-line-strong p-5 text-[13.5px] text-ink-3">No sessions planned for this week yet.</p>}
@@ -177,22 +190,16 @@ export function CourseView() {
         </div>
 
         <div className="mt-8 space-y-8 lg:mt-0">
+          <div className="space-y-2.5">
           {course.milestones.length > 0 && (
-            <section>
-              <SectionTitle>Milestones this course works toward</SectionTitle>
+            <Fold id="milestones" title="Milestones" open={wide} summary={`${course.milestones.filter((id) => me.statuses[id]?.state === 'mastered').length} of ${course.milestones.length} skills this course works toward`}>
               <div className="card divide-y divide-line">
                 {course.milestones.filter((id) => skillById[id]).map((id) => <SkillRow key={id} skill={skillById[id]} status={me.statuses[id]} onClick={() => setSkillOpen(id)} />)}
               </div>
-              <p className="mt-2 text-[12px] text-ink-3">Unlocking one here lights it in your skill tree and counts toward your ratings like any other evidence.</p>
-            </section>
+            </Fold>
           )}
-
-          {enrolled && (
-            <section>
-              <SectionTitle>Coach feedback</SectionTitle>
-              {feedback.length === 0 ? (
-                <p className="rounded-card border border-dashed border-line-strong p-5 text-[13.5px] text-ink-3">Feedback from {coach?.name.split(' ')[0] ?? 'your coach'} on your sessions will appear here.</p>
-              ) : (
+          {enrolled && feedback.length > 0 && (
+            <Fold id="feedback" title="Coach feedback" open summary={`${feedback.length} ${feedback.length === 1 ? 'note' : 'notes'} from ${coach?.name.split(' ')[0] ?? 'your coach'}`}>
                 <div className="space-y-2.5">
                   {feedback.map((f) => {
                     const ref = sessions.find((s) => s.log?.id === f.logId)
@@ -207,13 +214,10 @@ export function CourseView() {
                     )
                   })}
                 </div>
-              )}
-            </section>
+            </Fold>
           )}
-
           {enrolled && (
-            <section>
-              <Eyebrow className="mb-2">About</Eyebrow>
+            <Fold id="about" title="About this course" summary={`${course.weeks.length} weeks · with ${coach?.name ?? 'your coach'}`}>
               <p className="text-[13.5px] leading-relaxed text-ink-2">{course.description}</p>
               <button
                 className="mt-4 text-[12.5px] text-ink-3 underline decoration-line-strong underline-offset-4 hover:text-ink"
@@ -226,8 +230,9 @@ export function CourseView() {
               >
                 Leave this course
               </button>
-            </section>
+            </Fold>
           )}
+          </div>
         </div>
       </div>
 

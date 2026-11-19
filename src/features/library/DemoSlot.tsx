@@ -72,3 +72,20 @@ export function DemoStage({ exerciseId, official, cover, handle }: { exerciseId:
     </Suspense>
   )
 }
+
+/**
+ * The approved demonstration in a box of the caller's own size, with no
+ * controls but the 360° button: for a screen where exercises are looked
+ * through one after another. One stage stays up and the movement on it
+ * changes. Renders nothing when there is no approved animation.
+ */
+export function DemoPreview({ exerciseId, official }: { exerciseId: string; official?: boolean }) {
+  const demos = useStore((s) => s.demos)
+  const has = useHasDemo(exerciseId)
+  if (!has) return null
+  return (
+    <Suspense fallback={null}>
+      <ExerciseDemos animations={publishedFor(demos, exerciseId).animations} official={official} preview />
+    </Suspense>
+  )
+}

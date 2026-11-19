@@ -133,7 +133,7 @@ export function Shell() {
         <nav className="flex flex-col gap-1">
           {TABS.map(({ to, label, icon: Icon, end }) => (
             <NavLink
-              key={to} to={to} end={end}
+              key={to} to={to} end={end} data-tour={`nav-${to.slice(1) || 'home'}`}
               className={({ isActive }) =>
                 cx('flex h-11 items-center gap-3 rounded-xl px-3 text-[14.5px] transition-colors', isActive ? 'bg-surface-2 font-medium text-ink' : 'text-ink-2 hover:bg-surface hover:text-ink')
               }
@@ -200,7 +200,7 @@ export function Shell() {
           <div className="mx-auto flex max-w-[560px] items-stretch justify-between px-2">
             {TABS.map(({ to, label, icon: Icon, end }) => (
               <NavLink
-                key={to} to={to} end={end}
+                key={to} to={to} end={end} data-tour={`nav-${to.slice(1) || 'home'}`}
                 className={({ isActive }) => cx('group flex h-[58px] flex-1 flex-col items-center justify-center gap-1 transition-colors', isActive ? 'text-ink' : 'text-ink-3')}
               >
                 {({ isActive }) => (

@@ -23,7 +23,7 @@ export function IdentityCard({ athlete }: { athlete: Athlete }) {
   const upcoming = nextForm(look.universe, standing)
 
   return (
-    <section className="rise rise-1 card relative isolate overflow-hidden">
+    <section className="rise rise-1 card relative isolate overflow-hidden" data-tour="personalize">
       <div className="flex items-stretch">
         <div className="w-[40%] max-w-[230px] shrink-0 p-2 pr-0">
           {done.character
