@@ -5,7 +5,7 @@
 -- once. It creates the schema, the access rules and the catalog + demo data.
 -- See supabase/README.md for the full setup, including Google sign-in.
 --
--- Contents: 0001_core.sql, 0002_storage.sql, 0003_evidence_observed.sql, 0004_assessments.sql, 0005_places.sql, 0006_live.sql, 0007_coach_access.sql, 0008_course_weeks_and_station_mode.sql, 0009_visual_content.sql, 0010_start_over.sql, 0011_personal_style.sql, 0012_ratings_open.sql, 0013_more_themes.sql, then seed.sql.
+-- Contents: 0001_core.sql, 0002_storage.sql, 0003_evidence_observed.sql, 0004_assessments.sql, 0005_places.sql, 0006_live.sql, 0007_coach_access.sql, 0008_course_weeks_and_station_mode.sql, 0009_visual_content.sql, 0010_start_over.sql, 0011_personal_style.sql, 0012_ratings_open.sql, 0013_more_themes.sql, 0014_coach_sees_training.sql, then seed.sql.
 
 
 -- ════════════════════════════════════════════════════════════════════════
@@ -1814,6 +1814,58 @@ end $$;
 
 alter table public.athlete_identity drop constraint if exists athlete_identity_theme_check;
 alter table public.athlete_identity add constraint athlete_identity_theme_check check (theme ~ '^[a-z][a-z-]{1,23}$');
+
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 0014_coach_sees_training.sql
+-- ════════════════════════════════════════════════════════════════════════
+
+-- A coach sees all the training of the athletes in their courses.
+--
+-- Until now a coach could read a student's results (evidence, ratings,
+-- assessments) but only the workouts logged inside the coach's own course.
+-- Quick sessions, sessions toward a goal, and the starter sessions of a
+-- course's first week were invisible to them, so a coach could not see
+-- whether a student trains or grows.
+--
+-- From here on, while an athlete is enrolled in one of a coach's courses, the
+-- coach reads every workout they log, with what was assigned and what they
+-- actually did. This is not something the athlete can switch off: it is the
+-- point of having a coach, and it is what Aura's privacy policy already says
+-- ("your training and results while you are enrolled in one of their courses").
+-- It ends when the athlete leaves the course; logs from within the course stay
+-- readable to its coach, as before.
+--
+-- Only reading changes. Nobody but the athlete can add, change or delete a log.
+-- Safe to run twice.
+
+create or replace function public.can_read_log(l uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.workout_logs wl
+    where wl.id = l and (
+      wl.athlete_id = auth.uid()
+      or public.coaches_athlete(wl.athlete_id)
+      or (wl.course_id is not null and public.coaches_course(wl.course_id))
+    )
+  );
+$$;
+
+drop policy if exists logs_read on public.workout_logs;
+create policy logs_read on public.workout_logs for select to authenticated
+  using (athlete_id = auth.uid() or public.coaches_athlete(athlete_id) or (course_id is not null and public.coaches_course(course_id)));
+
+-- And the coach can say something about any of those sessions, not only the course's own.
+drop policy if exists feedback_insert on public.feedback;
+create policy feedback_insert on public.feedback for insert to authenticated
+  with check (
+    coach_id = auth.uid()
+    and exists (
+      select 1 from public.workout_logs wl
+      where wl.id = log_id and wl.athlete_id = feedback.athlete_id
+        and (public.coaches_athlete(wl.athlete_id) or (wl.course_id is not null and public.coaches_course(wl.course_id)))
+    )
+  );
 
 
 -- ════════════════════════════════════════════════════════════════════════

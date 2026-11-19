@@ -57,6 +57,12 @@ Never present simulated or sample behaviour as real. If something cannot work wi
 - Folding is not removing: every feature stays reachable, and a coach's tools stay a coach's.
 - The end of a flow celebrates, saves and moves on (the assessment's last screen is the model). Results and breakdowns live on the profile and are linked, not repeated.
 
+## Standing rule: a coach sees their students
+
+- While an athlete is enrolled in a coach's course, the coach sees all their results, goals and training, in the course and on their own. No athlete setting hides any of it from their coach; sharing settings are about other athletes only. Say so wherever an athlete joins a course or a coach's assessment.
+- A coach reads; only the athlete writes their own training and results (a coach's verification and feedback are the coach's own records).
+- Where someone trains stays theirs, also from their coach.
+
 ## Standing rule: location and presence
 
 - Never store or transmit an athlete's position. A visit is a place and a time window.
@@ -69,7 +75,7 @@ Never present simulated or sample behaviour as real. If something cannot work wi
 
 - `npm run dev` · `npm test` · `npm run build`
 - `npm run db:seed` regenerates `supabase/seed.sql` from `src/domain`
-- `npm run db:check` applies all thirteen migrations + seed to an in-process Postgres and checks the access rules
+- `npm run db:check` applies all fourteen migrations + seed to an in-process Postgres and checks the access rules
 - `npm run db:bundle` regenerates `supabase/apply.sql` (the one-paste setup) from the migrations and seed — run it after changing either
 - `npm run deploy` tests, builds for the public address and replaces the `gh-pages` branch. Publishing is outward-facing: run it only when the owner says so
 - `npm run character:build` regenerates the six characters in `public/characters/` (`-- power`, `-- iron male` build some of them; `-- --draft` is quick and coarse, for sculpting)

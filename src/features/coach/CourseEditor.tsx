@@ -497,7 +497,7 @@ function Students({ course }: { course: Course }) {
           {enrolled.map((e) => {
             const athlete = athletes[e.athleteId]
             if (!athlete) return null
-            const a = adherence(course, logs, athlete.id)
+            const a = adherence(course, logs, athlete.id, evidence)
             const aura = auraFor(evidence.filter((x) => x.athleteId === athlete.id))
             return (
               <div key={e.id} className="flex items-center gap-3 px-4 py-3">

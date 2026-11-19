@@ -98,7 +98,7 @@ const EARLY = '00000000-0000-0000-0000-0000000000e1'
 const CHOSE = '00000000-0000-0000-0000-0000000000e2'
 console.log('Applying schema')
 await db.exec(PRELUDE)
-for (const file of ['0001_core.sql', '0002_storage.sql', '0003_evidence_observed.sql', '0004_assessments.sql', '0005_places.sql', '0006_live.sql', '0007_coach_access.sql', '0008_course_weeks_and_station_mode.sql', '0009_visual_content.sql', '0010_start_over.sql', '0011_personal_style.sql', '0012_ratings_open.sql', '0013_more_themes.sql']) {
+for (const file of ['0001_core.sql', '0002_storage.sql', '0003_evidence_observed.sql', '0004_assessments.sql', '0005_places.sql', '0006_live.sql', '0007_coach_access.sql', '0008_course_weeks_and_station_mode.sql', '0009_visual_content.sql', '0010_start_over.sql', '0011_personal_style.sql', '0012_ratings_open.sql', '0013_more_themes.sql', '0014_coach_sees_training.sql']) {
   // Two athletes from before ratings were opened: one who never chose, one who chose to keep them.
   if (file === '0012_ratings_open.sql') await db.exec(`insert into auth.users (id) values ('${EARLY}'), ('${CHOSE}'); insert into public.athlete_identity (athlete_id) values ('${EARLY}'); insert into public.athlete_identity (athlete_id, sharing_at) values ('${CHOSE}', now());`)
   await db.exec(read(`../supabase/migrations/${file}`))
@@ -515,6 +515,34 @@ await expectOk('they hide their profile from discovery', P1, `update public.prof
 await expectCount('a hidden profile shares no results, whatever the setting', P3, `select 1 from public.evidence where athlete_id = '${P1}'`, 0)
 await expectCount('…and no look', P3, `select 1 from public.style_of('${P1}')`, 0)
 await expectDenied('someone signed out reads none of this', null, `select * from public.style_of('${P1}');`, 'anon')
+
+// ── A coach sees all their students' training (0014) ─────────────────────
+console.log('\nA coach sees all the training of their students')
+const T1 = '00000000-0000-0000-0000-0000000000b1', T2 = '00000000-0000-0000-0000-0000000000b2', TC = '00000000-0000-0000-0000-0000000000b3', TO = '00000000-0000-0000-0000-0000000000b4'
+const tcourse = '10000000-0000-0000-0000-0000000000b1', tlog = '50000000-0000-0000-0000-0000000000b1', tentry = '60000000-0000-0000-0000-0000000000b1'
+await db.exec(`insert into auth.users (id) values ('${T1}'), ('${T2}'), ('${TC}'), ('${TO}');
+  update public.profiles set roles = '{athlete,coach}' where id in ('${TC}', '${TO}');
+  insert into public.courses (id, coach_id, title, status, start_date) values ('${tcourse}', '${TC}', 'Beginners', 'active', '2026-01-05');`)
+await expectOk('a student joins the course', T1, `insert into public.course_enrollments (course_id, athlete_id) values ('${tcourse}', '${T1}');`)
+await expectOk('…and trains on their own, outside it: a quick session', T1, `
+  insert into public.workout_logs (id, athlete_id, title, source_type, source_ref, started_at, finished_at) values ('${tlog}', '${T1}', 'Push Strength', 'library', 'push-strength', now(), now());
+  insert into public.workout_log_entries (id, log_id, position, kind, block_id, progression_id, assigned_exercise_id, assigned_level, assigned_target, exercise_id, level, target) values ('${tentry}', '${tlog}', 0, 'strength', null, 'pushup', 'pushup', 5, 10, 'pushup', 5, 10);
+  insert into public.workout_log_sets (entry_id, position, exercise_id, level, value) values ('${tentry}', 0, 'pushup', 5, 11);`)
+await expectCount('their coach reads it, with what was done', TC, `select 1 from public.workout_logs l join public.workout_log_entries e on e.log_id = l.id join public.workout_log_sets s on s.entry_id = e.id where l.athlete_id = '${T1}' and s.value = 11`, 1)
+await expectCount('another coach does not', TO, `select 1 from public.workout_logs where athlete_id = '${T1}'`, 0)
+await expectCount('another athlete does not', T2, `select 1 from public.workout_logs where athlete_id = '${T1}'`, 0)
+await expectOk('the coach leaves feedback on it', TC, `insert into public.feedback (log_id, coach_id, athlete_id, body) values ('${tlog}', '${TC}', '${T1}', 'Good depth.');`)
+await expectCount('…which the student reads', T1, `select 1 from public.feedback where log_id = '${tlog}'`, 1)
+await expectDenied('another coach cannot', TO, `insert into public.feedback (log_id, coach_id, athlete_id, body) values ('${tlog}', '${TO}', '${T1}', 'Hi.');`)
+await expectOk('the student hides their profile and closes their ratings', T1, `update public.profiles set is_public = false where id = '${T1}'; insert into public.athlete_identity (athlete_id, ratings_audience) values ('${T1}', 'me') on conflict (athlete_id) do update set ratings_audience = 'me';`)
+await expectOk('…and logs a result', T1, `insert into public.evidence (athlete_id, exercise_id, value, tier, source) values ('${T1}', 'pushup', 14, 'self', 'manual');`)
+await expectCount('their coach still sees their training', TC, `select 1 from public.workout_logs where athlete_id = '${T1}'`, 1)
+await expectCount('…and their results: there is no switch that hides them from their coach', TC, `select 1 from public.evidence where athlete_id = '${T1}'`, 1)
+await expectCount('…and their profile', TC, `select 1 from public.profiles where id = '${T1}'`, 1)
+await as(TC, 'authenticated', () => db.exec(`delete from public.workout_logs where id = '${tlog}'; update public.workout_log_sets set value = 99 where entry_id = '${tentry}';`)).catch(() => undefined)
+;(await count(`select 1 from public.workout_logs l join public.workout_log_entries e on e.log_id = l.id join public.workout_log_sets s on s.entry_id = e.id where l.id = '${tlog}' and s.value = 11`)) === 1 ? ok('the coach can read the log, not delete or change it') : bad('logs', 'a coach changed a student log')
+await expectOk('the student leaves the course', T1, `delete from public.course_enrollments where course_id = '${tcourse}' and athlete_id = '${T1}';`)
+await expectCount('then the coach no longer sees their own training', TC, `select 1 from public.workout_logs where athlete_id = '${T1}'`, 0)
 
 console.log(`\n${passed} passed, ${failed} failed`)
 await db.close()

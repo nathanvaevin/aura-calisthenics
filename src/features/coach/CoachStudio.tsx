@@ -3,8 +3,10 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router'
 import { ArrowRight, BadgeCheck, Plus, QrCode as QrIcon } from 'lucide-react'
 import type { DisciplineId } from '@/domain/types'
 import { STATIONS, estimateMinutes, overallProgress } from '@/domain/assessment'
-import type { Course, WorkoutLog } from '@/domain/types'
-import { DISCIPLINE_IDS, disciplineById, exerciseById, formatValue } from '@/domain/catalog'
+import type { Course, Evidence, WorkoutLog } from '@/domain/types'
+import { courseFor } from '@/domain/training'
+import { growthOf } from '@/domain/progress'
+import { DISCIPLINE_IDS, disciplineById, exerciseById, formatValue, skillById } from '@/domain/catalog'
 import { auraFor } from '@/domain/scoring/aura'
 import { COURSE_TEMPLATES } from '@/data/courseTemplates'
 import { courseClock, sessionsOf, useAthleteModel, useIsCoach } from '@/data/hooks'
@@ -12,17 +14,18 @@ import { useStore } from '@/data/store'
 import { AuraDot } from '@/ui/AuraField'
 import { Bar, DisciplineDot, Empty, Eyebrow, PageHeader, SectionTitle, Segmented, Sheet, Stepper } from '@/ui/primitives'
 import { LogRow, LogSheet, levelShifts } from '@/features/shared/LogView'
-import { cx, dvar, initials, num, relativeDay } from '@/lib/format'
+import { cx, dvar, initials, num, relativeDay, shortDate } from '@/lib/format'
 
 type Tab = 'review' | 'courses' | 'students' | 'assess'
 
 const STATUS: Record<Course['status'], string> = { draft: 'Draft', active: 'Active', archived: 'Archived' }
 
 /** Sessions a student was due to have done by now, and how many they did. */
-export function adherence(course: Course, logs: WorkoutLog[], athleteId: string) {
+export function adherence(course: Course, logs: WorkoutLog[], athleteId: string, evidence: Evidence[] = []) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const due = sessionsOf(course, logs, athleteId).filter((s) => s.date < today || s.log)
+  // As the student follows it: a first week given to the assessment holds their own starter sessions.
+  const due = sessionsOf(courseFor(course, evidence.filter((e) => e.athleteId === athleteId)), logs, athleteId).filter((s) => s.date < today || s.log)
   return { done: due.filter((s) => s.log).length, due: due.length }
 }
 
@@ -193,7 +196,7 @@ export function CoachStudio() {
           {mine.map((c) => {
             const clock = courseClock(c)
             const students = enrollments.filter((e) => e.courseId === c.id)
-            const totals = students.reduce((acc, s) => { const a = adherence(c, logs, s.athleteId); return { done: acc.done + a.done, due: acc.due + a.due } }, { done: 0, due: 0 })
+            const totals = students.reduce((acc, s) => { const a = adherence(c, logs, s.athleteId, evidence); return { done: acc.done + a.done, due: acc.due + a.due } }, { done: 0, due: 0 })
             const color = c.focus === 'full' ? 'var(--accent)' : dvar(c.focus)
             return (
               <button key={c.id} onClick={() => navigate(`/coach/course/${c.id}`)} className="pressable card relative overflow-hidden p-5 text-left hover:bg-surface-2">
@@ -232,13 +235,17 @@ export function CoachStudio() {
               {studentIds.map((id) => {
                 const athlete = athletes[id]
                 if (!athlete) return null
-                const theirs = courseLogs.filter((l) => l.athleteId === id)
-                const totals = mine.filter((c) => enrollments.some((e) => e.courseId === c.id && e.athleteId === id)).reduce((acc, c) => { const a = adherence(c, logs, id); return { done: acc.done + a.done, due: acc.due + a.due } }, { done: 0, due: 0 })
+                const theirs = logs.filter((l) => l.athleteId === id && l.finishedAt).sort((a, b) => b.finishedAt!.localeCompare(a.finishedAt!))
+                const totals = mine.filter((c) => enrollments.some((e) => e.courseId === c.id && e.athleteId === id)).reduce((acc, c) => { const a = adherence(c, logs, id, evidence); return { done: acc.done + a.done, due: acc.due + a.due } }, { done: 0, due: 0 })
                 const shift = averageShift(theirs)
-                const aura = auraFor(evidence.filter((e) => e.athleteId === id))
+                const own = evidence.filter((e) => e.athleteId === id)
+                const aura = auraFor(own)
+                const grown = growthOf(own)
+                const gain = grown ? grown.aura.now - grown.aura.then : 0
                 const waiting = pending.filter((e) => e.athleteId === id).length
+                const month = theirs.filter((l) => Date.now() - new Date(l.finishedAt!).getTime() < 28 * 86400000).length
                 return (
-                  <button key={id} onClick={() => setStudentOpen(id)} className="flex w-full items-center gap-3.5 px-4 py-3.5 text-left first:rounded-t-card last:rounded-b-card hover:bg-surface-2">
+                  <button key={id} data-student={id} onClick={() => setStudentOpen(id)} className="flex w-full items-center gap-3.5 px-4 py-3.5 text-left first:rounded-t-card last:rounded-b-card hover:bg-surface-2">
                     <AuraDot mix={aura.mix} size={42}>{initials(athlete.name)}</AuraDot>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2 truncate text-[14.5px] font-medium">
@@ -246,27 +253,25 @@ export function CoachStudio() {
                         {waiting > 0 && <span className="rounded-full bg-accent px-1.5 py-px font-mono text-[9.5px] font-semibold text-accent-ink">{waiting}</span>}
                       </span>
                       <span className="block truncate text-[12px] text-ink-3">
-                        {totals.done}/{totals.due} sessions · {theirs[0] ? `last ${relativeDay(theirs[0].finishedAt!).toLowerCase()}` : 'not started'}
+                        {theirs[0] ? `Trained ${relativeDay(theirs[0].finishedAt!).toLowerCase()} · ${month} in 4 weeks` : 'Not trained yet'}{totals.due ? ` · course ${totals.done}/${totals.due}` : ''}
                       </span>
                     </span>
                     <span className="text-right">
-                      <span className={cx('num block text-[13.5px] font-medium', Math.abs(shift) < 0.15 ? 'text-ink-2' : shift > 0 ? 'text-good' : 'text-warn')}>
-                        {Math.abs(shift) < 0.15 ? 'On level' : `${shift > 0 ? '+' : '−'}${Math.abs(shift).toFixed(1)} lvl`}
-                      </span>
-                      <span className="num block text-[11.5px] text-ink-3">Aura {num(aura.aura)}</span>
+                      <span className="num block text-[13.5px] font-medium">Aura {num(aura.aura)}</span>
+                      <span className={cx('num block text-[11.5px]', gain > 0 ? 'text-good' : 'text-ink-3')}>{gain > 0 ? `+${num(gain)} since start` : Math.abs(shift) >= 0.15 ? `${shift > 0 ? '+' : '−'}${Math.abs(shift).toFixed(1)} lvl` : 'no change yet'}</span>
                     </span>
                   </button>
                 )
               })}
             </div>
           )}
-          <p className="mt-2 text-[12px] leading-relaxed text-ink-3">“Lvl” is how far above or below your assigned level a student trains on average. You only see athletes enrolled in your own courses.</p>
+          <p className="mt-2 text-[12px] leading-relaxed text-ink-3">You see everything your students record and every session they train, in your courses and on their own, for as long as they are enrolled in one of your courses. “Lvl” is how far above or below the assigned level they train on average.</p>
         </div>
       )}
 
       <NewAssessmentSheet open={assessOpen} onClose={() => setAssessOpen(false)} />
       <LogSheet logId={logOpen} onClose={() => setLogOpen(null)} coach />
-      <StudentSheet athleteId={studentOpen} onClose={() => setStudentOpen(null)} logs={courseLogs} onOpenLog={(id) => { setStudentOpen(null); setLogOpen(id) }} />
+      <StudentSheet athleteId={studentOpen} onClose={() => setStudentOpen(null)} courses={mine} onOpenLog={(id) => { setStudentOpen(null); setLogOpen(id) }} />
 
       <Sheet open={newOpen} onClose={() => setNewOpen(false)} eyebrow="Course builder" title="New course">
         <div className="space-y-2.5">
@@ -288,11 +293,20 @@ export function CoachStudio() {
   )
 }
 
-function StudentSheet({ athleteId, onClose, logs, onOpenLog }: { athleteId: string | null; onClose: () => void; logs: WorkoutLog[]; onOpenLog: (id: string) => void }) {
+const SOURCE_LABEL = { course: 'Course', library: 'Own session', goal: 'Toward a goal' } as const
+
+/** One student, as their coach sees them: how far they have come, how they train, and every session. */
+function StudentSheet({ athleteId, onClose, courses, onOpenLog }: { athleteId: string | null; onClose: () => void; courses: Course[]; onOpenLog: (id: string) => void }) {
   const navigate = useNavigate()
   const model = useAthleteModel(athleteId)
+  const enrollments = useStore((s) => s.enrollments)
+  const growth = useMemo(() => (model ? growthOf(model.evidence) : null), [model])
   if (!model) return <Sheet open={false} onClose={onClose}>{null}</Sheet>
-  const theirs = logs.filter((l) => l.athleteId === model.athlete.id)
+  const theirs = model.logs.filter((l) => l.finishedAt).sort((a, b) => b.finishedAt!.localeCompare(a.finishedAt!))
+  const theirCourses = courses.filter((c) => enrollments.some((e) => e.courseId === c.id && e.athleteId === model.athlete.id))
+  const weeks = model.dedication.weeks.slice(-8)
+  const peak = Math.max(model.athlete.weeklyTarget, ...weeks.map((w) => w.sessions), 1)
+  const recent = weeks.slice(-4).reduce((n, w) => n + w.sessions, 0)
 
   // Which exercises this student most often moves away from the assigned level.
   const moves = new Map<string, { up: number; down: number }>()
@@ -307,46 +321,110 @@ function StudentSheet({ athleteId, onClose, logs, onOpenLog }: { athleteId: stri
   }
   const adjusted = [...moves.entries()].sort((a, b) => b[1].up + b[1].down - (a[1].up + a[1].down)).slice(0, 4)
   const shifts = theirs.reduce((acc, l) => { const s = levelShifts(l); return { up: acc.up + s.up, down: acc.down + s.down } }, { up: 0, down: 0 })
+  const gain = growth ? growth.aura.now - growth.aura.then : 0
 
   return (
-    <Sheet open={!!athleteId} onClose={onClose} eyebrow={`Student · Aura ${num(model.aura.aura)}`} title={model.athlete.name}>
-      <div className="grid grid-cols-3 gap-2">
-        {DISCIPLINE_IDS.map((d) => (
-          <div key={d} className="card px-3 py-2.5">
-            <span className="flex items-center gap-1.5 text-[11px] text-ink-2"><DisciplineDot id={d} size={6} />{disciplineById[d].short}</span>
-            <span className="display num mt-0.5 block text-[22px]">{model.ratings[d].rating || '—'}</span>
-          </div>
-        ))}
-      </div>
+    <Sheet open={!!athleteId} onClose={onClose} eyebrow={`Student · Aura ${num(model.aura.aura)}${gain > 0 ? ` · +${num(gain)}` : ''}`} title={model.athlete.name}>
+      <div data-student-sheet>
+        {/* How far they have come */}
+        <Eyebrow className="mb-2.5">{growth ? `Since ${shortDate(growth.since)}` : 'Results'}</Eyebrow>
+        {!growth ? (
+          <p className="text-[13.5px] text-ink-2">Nothing on record yet. Their results show here from their first assessment on.</p>
+        ) : (
+          <>
+            <div className="card flex items-baseline justify-between px-4 py-3">
+              <span className="text-[13.5px] text-ink-2">Aura</span>
+              <span className="num text-[14px]"><span className="text-ink-3">{num(growth.aura.then)} → </span><span className="display text-[24px]">{num(growth.aura.now)}</span>{gain !== 0 && <span className={cx('ml-2 text-[12.5px] font-medium', gain > 0 ? 'text-good' : 'text-warn')}>{gain > 0 ? '+' : '−'}{num(Math.abs(gain))}</span>}</span>
+            </div>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {DISCIPLINE_IDS.map((d) => {
+                const r = growth.ratings[d]
+                const delta = r.now - r.then
+                return (
+                  <div key={d} className="card px-3 py-2.5">
+                    <span className="flex items-center gap-1.5 text-[11px] text-ink-2"><DisciplineDot id={d} size={6} />{disciplineById[d].short}</span>
+                    <span className="display num mt-0.5 block text-[22px] leading-tight">{r.now || '—'}</span>
+                    <span className={cx('num block text-[11px]', delta > 0 ? 'text-good' : 'text-ink-3')}>{delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : r.now ? 'no change' : 'not tested'}</span>
+                  </div>
+                )
+              })}
+            </div>
+            <p className="mt-2 text-[12px] text-ink-3">{growth.newResults ? `${growth.newResults} ${growth.newResults === 1 ? 'result' : 'results'} recorded since their starting point.` : 'No new results since their starting point yet.'}</p>
+          </>
+        )}
 
-      <Eyebrow className="mt-6 mb-2.5">How they adjust your programming</Eyebrow>
-      {adjusted.length === 0 ? (
-        <p className="text-[13.5px] text-ink-2">{theirs.length ? 'Trains at the assigned level throughout.' : 'No sessions logged yet.'}</p>
-      ) : (
-        <>
-          <p className="mb-2.5 text-[13px] text-ink-2">Across {theirs.length} sessions: {shifts.up} exercises done harder, {shifts.down} easier than assigned.</p>
-          <div className="card divide-y divide-line">
-            {adjusted.map(([id, m]) => (
-              <div key={id} className="flex items-center justify-between px-4 py-2.5 text-[13.5px]">
-                <span className="truncate">{exerciseById[id].name}</span>
-                <span className="num shrink-0 text-[12.5px]">
-                  {m.down > 0 && <span className="text-warn">{m.down}× easier</span>}{m.down > 0 && m.up > 0 && <span className="text-ink-3"> · </span>}{m.up > 0 && <span className="text-good">{m.up}× harder</span>}
-                </span>
+        {/* How they train */}
+        <Eyebrow className="mt-6 mb-2.5">Training</Eyebrow>
+        <div className="card p-4">
+          <div className="flex items-baseline justify-between gap-3">
+            <span><span className="display num text-[28px]">{recent}</span><span className="ml-1.5 text-[12.5px] text-ink-3">sessions in 4 weeks</span></span>
+            <span className="text-[12px] text-ink-3">Target {model.athlete.weeklyTarget} / week</span>
+          </div>
+          <div className="relative mt-3 flex h-[52px] items-end gap-1.5">
+            <span className="pointer-events-none absolute inset-x-0 border-t border-dashed border-line-strong" style={{ bottom: `${(model.athlete.weeklyTarget / peak) * 100}%` }} />
+            {weeks.map((w, i) => <span key={w.start} className="flex h-full flex-1 items-end"><span className="w-full rounded-[4px]" style={{ height: `${Math.max(5, (w.sessions / peak) * 100)}%`, background: w.sessions === 0 ? 'var(--surface-3)' : i === weeks.length - 1 ? 'var(--text)' : 'var(--text-3)' }} /></span>)}
+          </div>
+          <p className="mt-2.5 text-[12.5px] text-ink-2">{theirs[0] ? `Last trained ${relativeDay(theirs[0].finishedAt!).toLowerCase()}. ` : 'Has not trained yet. '}{model.dedication.streak > 1 ? `${model.dedication.streak}-week streak.` : ''}</p>
+          {theirCourses.map((c) => {
+            const a = adherence(c, model.logs, model.athlete.id, model.evidence)
+            return (
+              <div key={c.id} className="mt-3 border-t border-line pt-3">
+                <div className="flex items-center justify-between text-[13px]"><span className="truncate">{c.title}</span><span className="num shrink-0 text-ink-2">{a.done} of {a.due} due sessions done</span></div>
+                <Bar value={a.due ? a.done / a.due : 0} className="mt-2" />
               </div>
-            ))}
-          </div>
-        </>
-      )}
+            )
+          })}
+        </div>
 
-      {theirs.length > 0 && (
-        <>
-          <Eyebrow className="mt-6 mb-2.5">Recent sessions</Eyebrow>
-          <div className="card divide-y divide-line">
-            {theirs.slice(0, 5).map((l) => <LogRow key={l.id} log={l} onClick={() => onOpenLog(l.id)} />)}
-          </div>
-        </>
-      )}
-      <button className="btn btn-outline mt-5 w-full" onClick={() => navigate(`/athlete/${model.athlete.id}`)}>Open full athlete profile</button>
+        <Eyebrow className="mt-6 mb-2.5">How they adjust the levels</Eyebrow>
+        {adjusted.length === 0 ? (
+          <p className="text-[13.5px] text-ink-2">{theirs.length ? 'Trains at the assigned level throughout.' : 'No sessions logged yet.'}</p>
+        ) : (
+          <>
+            <p className="mb-2.5 text-[13px] text-ink-2">Across {theirs.length} sessions: {shifts.up} exercises done harder, {shifts.down} easier than assigned.</p>
+            <div className="card divide-y divide-line">
+              {adjusted.map(([id, m]) => (
+                <div key={id} className="flex items-center justify-between px-4 py-2.5 text-[13.5px]">
+                  <span className="truncate">{exerciseById[id].name}</span>
+                  <span className="num shrink-0 text-[12.5px]">
+                    {m.down > 0 && <span className="text-warn">{m.down}× easier</span>}{m.down > 0 && m.up > 0 && <span className="text-ink-3"> · </span>}{m.up > 0 && <span className="text-good">{m.up}× harder</span>}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {model.athlete.goals.length > 0 && (
+          <>
+            <Eyebrow className="mt-6 mb-2.5">Working toward</Eyebrow>
+            <div className="flex flex-wrap gap-1.5">
+              {model.athlete.goals.filter((g) => skillById[g]).map((g) => (
+                <span key={g} className="inline-flex h-8 items-center gap-2 rounded-full border border-line px-3 text-[12.5px]">
+                  <DisciplineDot id={skillById[g].discipline} size={6} />{skillById[g].name}
+                  {model.statuses[g]?.state === 'mastered' && <BadgeCheck size={13} className="text-good" />}
+                </span>
+              ))}
+            </div>
+          </>
+        )}
+
+        {theirs.length > 0 && (
+          <>
+            <Eyebrow className="mt-6 mb-2.5">Every session</Eyebrow>
+            <div className="card divide-y divide-line">
+              {theirs.slice(0, 12).map((l) => (
+                <div key={l.id} className="relative">
+                  <LogRow log={l} onClick={() => onOpenLog(l.id)} />
+                  <span className="pointer-events-none absolute top-3 right-10 font-mono text-[9px] tracking-[0.08em] text-ink-3 uppercase">{SOURCE_LABEL[l.source.type]}</span>
+                </div>
+              ))}
+            </div>
+            {theirs.length > 12 && <p className="mt-2 text-[12px] text-ink-3">And {theirs.length - 12} earlier.</p>}
+          </>
+        )}
+        <button className="btn btn-outline mt-5 w-full" onClick={() => navigate(`/athlete/${model.athlete.id}`)}>Open full athlete profile</button>
+      </div>
     </Sheet>
   )
 }

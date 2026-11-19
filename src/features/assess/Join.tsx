@@ -113,10 +113,11 @@ function InviteIntro({ coachName, groupName, title, kind, stations, course }: { 
 function SharingChoice({ coachName, value, onChange }: { coachName: string; value: 'coach' | 'group'; onChange: (v: 'coach' | 'group') => void }) {
   return (
     <div className="rise rise-3 mt-5">
-      <Eyebrow className="mb-2">Who sees your results</Eyebrow>
+      <Eyebrow className="mb-1.5">Who else sees your results</Eyebrow>
+      <p className="mb-2.5 text-[12.5px] leading-snug text-ink-2">{coachName.split(' ')[0]} always sees your results, and your training while you are in their course. The choice is about the rest of the group.</p>
       <div className="space-y-2">
         {([
-          ['coach', Lock, 'My coach only', `${coachName.split(' ')[0]} sees your results. The group sees anonymous totals, never your name.`],
+          ['coach', Lock, 'Nobody else', 'The group sees anonymous totals, never your name.'],
           ['group', Eye, 'My coach, and my shape to the group', 'Others in the group can also see your name beside your six-dimension shape. Never your individual numbers.'],
         ] as const).map(([option, Icon, title, body]) => (
           <button key={option} onClick={() => onChange(option)} className={cx('pressable flex w-full items-start gap-3 rounded-[20px] border p-3.5 text-left', value === option ? 'border-ink bg-surface' : 'border-line')}>

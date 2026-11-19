@@ -257,6 +257,14 @@ Paste **all of `supabase/migrations/0011_personal_style.sql`** into the SQL edit
 
 To check it took: `select theme, persona, ratings_audience from public.athlete_identity limit 1;` runs without an error.
 
+## 14 · A coach sees all their students' training
+
+Paste **all of `supabase/migrations/0014_coach_sees_training.sql`** into the SQL editor and run it once. *Success. No rows returned.* Until now a coach could read a student's results but only the workouts logged inside the coach's own course. After this step a coach reads every workout their students log (their own quick sessions, sessions toward a goal, the first week's starter sessions) while they are enrolled in one of the coach's courses, and can leave feedback on any of them. Nobody but the athlete can change or delete a workout. It stops when the athlete leaves the course. This is what the privacy page already says. Running it twice is harmless.
+
+The app works without it: the coach then simply sees course sessions only, as before.
+
+To check it took: `select polname from pg_policy where polname = 'logs_read';` returns one row, and a coach opening a student in Coach Studio → Students sees their own sessions marked "Own session".
+
 ## 13 · More themes
 
 Paste **all of `supabase/migrations/0013_more_themes.sql`** into the SQL editor and run it once. *Success. No rows returned.* The database listed the four theme names it would accept; a fifth (Goku Light) would have been refused. It now accepts any value shaped like a theme name, so later themes need no database step. Nothing stored changes, and running it twice is harmless.

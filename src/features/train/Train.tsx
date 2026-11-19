@@ -170,6 +170,7 @@ export function Train() {
                     </Eyebrow>
                     <div className="display mt-2 text-[24px]">{c.title}</div>
                     <p className="mt-1 text-[13px] text-ink-2">{c.tagline}</p>
+                    <p className="mt-2 text-[11.5px] text-ink-3">Your coach sees your results and training while you are in it.</p>
                     <div className="mt-3.5 flex gap-2">
                       <button className="btn btn-primary btn-sm" onClick={() => { joinCourse(c.id); navigate(`/train/course/${c.id}`) }}>Join course</button>
                       <button className="btn btn-outline btn-sm" onClick={() => navigate(`/train/course/${c.id}`)}>Look inside</button>

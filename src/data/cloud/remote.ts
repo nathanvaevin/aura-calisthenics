@@ -105,6 +105,12 @@ export function supabaseRemote(client: SupabaseClient): Remote {
         }
         for (const row of evidence) { put(set, 'evidence', row); note(row.athlete_id) }
         for (const row of feedback) { put(set, 'feedback', row); note(row.coach_id); note(row.athlete_id) }
+        // A coach also sees what their students are working toward.
+        const mineCourses = new Set(courses.filter((c) => c.coach_id === uid).map((c) => String(c.id)))
+        const students = [...new Set(enrollments.filter((e) => mineCourses.has(String(e.course_id))).map((e) => String(e.athlete_id)))].filter((id) => id !== uid)
+        for (let at = 0; at < students.length; at += 100) {
+          for (const row of await all('athlete_goals', '*', ['athlete_id', 'skill_id'], (q) => q.in('athlete_id', students.slice(at, at + 100)))) put(set, 'athlete_goals', row)
+        }
       } else {
         await assessments(set)
       }

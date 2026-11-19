@@ -80,6 +80,7 @@ export function CourseView() {
           <div className="card mt-5 p-5">
             <p className="text-[14px] leading-relaxed text-ink-2">{course.description}</p>
             <button className="btn btn-primary mt-4 w-full" onClick={() => joinCourse(course.id)}>Join this course</button>
+            <p className="mt-2.5 text-[12px] leading-relaxed text-ink-3">{coach?.name.split(' ')[0] ?? 'Your coach'} will see your results and all your training while you are in the course.</p>
           </div>
         )}
       </header>
