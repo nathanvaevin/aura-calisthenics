@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-scheme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#08090B" />
+    <meta name="description" content="Aura — make human potential visible. Calisthenics mastery, skill trees and coaching." />
+    <link rel="icon" type="image/svg+xml" href="/aura-calisthenics/favicon.svg" />
+    <title>Aura</title>
+    <script>
+      try {
+        var s = JSON.parse(localStorage.getItem('aura:v1') || '{}');
+        var t = s && s.state && s.state.settings && s.state.settings.theme;
+        if (t === 'light' || t === 'dark' || t === 'power' || t === 'power-light' || t === 'iron') {
+          document.documentElement.dataset.theme = t;
+          document.documentElement.dataset.scheme = t === 'light' || t === 'power-light' ? 'light' : 'dark';
+        }
+        if (s && s.state && s.state.settings && s.state.settings.size === 'large') document.documentElement.dataset.size = 'large';
+      } catch (e) {}
+    </script>
+    <script type="module" crossorigin src="/aura-calisthenics/assets/index-D4pFF8j-.js"></script>
+    <link rel="modulepreload" crossorigin href="/aura-calisthenics/assets/jsx-runtime-DyZJNswf.js">
+    <link rel="modulepreload" crossorigin href="/aura-calisthenics/assets/styles-BZuilrVy.js">
+    <link rel="modulepreload" crossorigin href="/aura-calisthenics/assets/cast-BRB-hKCO.js">
+    <link rel="modulepreload" crossorigin href="/aura-calisthenics/assets/Stage3D-Bpy5VU6p.js">
+    <link rel="stylesheet" crossorigin href="/aura-calisthenics/assets/index-D-EXz6_0.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
