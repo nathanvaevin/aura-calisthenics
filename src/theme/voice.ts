@@ -78,7 +78,7 @@ const COPY = {
   'tour.train': { aura: 'Your courses and sessions are here.', power: 'Your sessions. This is where you level up.', iron: 'Your sessions. The work is here.' },
   'tour.library': { aura: 'Every exercise, shown and explained.', power: 'Every move, shown in motion.', iron: 'Every exercise, shown properly.' },
   'tour.end.title': { aura: 'That is all you need.', power: 'You are set.', iron: 'That is it.' },
-  'tour.end.go': { aura: 'Start training', power: 'Start training', iron: 'Get to work' },
+  'tour.end.go': { aura: 'Start first training', power: 'Start first training', iron: 'Start first training' },
 
   // Empty pages
   'empty.logs.title': { aura: 'Nothing logged yet', power: 'No sessions cleared yet', iron: 'Nothing on record' },

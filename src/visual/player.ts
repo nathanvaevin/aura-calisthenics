@@ -257,6 +257,10 @@ export class Player {
   /** The end-of-set release, on demand. */
   /** `who`: one performer only, by their place in the cast. */
   release(who?: number) { this.cast.forEach((p, i) => { if (who === undefined || who === i) p.field.release() }) }
+  /** Activate: the Aura charges and bursts. `who` as for `release`. */
+  charge(who?: number) { this.cast.forEach((p, i) => { if (who === undefined || who === i) p.field.charge() }) }
+  /** Whether anyone on stage is charging or bursting. */
+  get charging() { return this.cast.some((p) => p.field.busy) }
 
   private get length() { return setLength(this.cast.find((p) => p.motion)?.motion ?? null) }
 
@@ -319,7 +323,8 @@ export class Player {
       if (this.settle > SETTLE) { this.settle = -1; this.time = 0 }
     } else {
       this.time += step
-      if (this.sets && this.time >= this.length) { this.settle = 0; for (const p of this.cast) if (p.spec.aura.mode === 'living') p.field.release() }
+      // A set ends and starts again. The Aura no longer bursts by itself: that is the athlete's to do (Activate).
+      if (this.sets && this.time >= this.length) this.settle = 0
     }
     // Paused: the body is still, the light is not.
     this.pose(this.playing ? step : dt * 0.35)

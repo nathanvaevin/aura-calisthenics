@@ -136,7 +136,7 @@ export function Shell() {
             <NavLink
               key={to} to={to} end={end} data-tour={`nav-${to.slice(1) || 'home'}`}
               className={({ isActive }) =>
-                cx('flex h-11 items-center gap-3 rounded-xl px-3 text-[14.5px] transition-colors', isActive ? 'bg-surface-2 font-medium text-ink' : 'text-ink-2 hover:bg-surface hover:text-ink')
+                cx('flex h-11 items-center gap-3 rounded-xl px-3 text-[14.5px] transition-colors', isActive ? 'bg-surface-2 font-medium text-accent' : 'text-ink-2 hover:bg-surface hover:text-ink')
               }
             >
               <Icon size={18} strokeWidth={1.8} />
@@ -146,7 +146,7 @@ export function Shell() {
           <div className="my-3 h-px bg-line" />
           <NavLink
             to="/athletes"
-            className={({ isActive }) => cx('flex h-11 items-center gap-3 rounded-xl px-3 text-[14.5px] transition-colors', isActive ? 'bg-surface-2 font-medium text-ink' : 'text-ink-2 hover:bg-surface hover:text-ink')}
+            className={({ isActive }) => cx('flex h-11 items-center gap-3 rounded-xl px-3 text-[14.5px] transition-colors', isActive ? 'bg-surface-2 font-medium text-accent' : 'text-ink-2 hover:bg-surface hover:text-ink')}
           >
             <ScanLine size={18} strokeWidth={1.8} />
             Athletes
@@ -154,7 +154,7 @@ export function Shell() {
           {coach && (
             <NavLink
               to="/coach"
-              className={({ isActive }) => cx('flex h-11 items-center gap-3 rounded-xl px-3 text-[14.5px] transition-colors', isActive ? 'bg-surface-2 font-medium text-ink' : 'text-ink-2 hover:bg-surface hover:text-ink')}
+              className={({ isActive }) => cx('flex h-11 items-center gap-3 rounded-xl px-3 text-[14.5px] transition-colors', isActive ? 'bg-surface-2 font-medium text-accent' : 'text-ink-2 hover:bg-surface hover:text-ink')}
             >
               <ClipboardCheck size={18} strokeWidth={1.8} />
               Coach Studio
@@ -163,7 +163,7 @@ export function Shell() {
           {admin && (
             <NavLink
               to="/studio"
-              className={({ isActive }) => cx('flex h-11 items-center gap-3 rounded-xl px-3 text-[14.5px] transition-colors', isActive ? 'bg-surface-2 font-medium text-ink' : 'text-ink-2 hover:bg-surface hover:text-ink')}
+              className={({ isActive }) => cx('flex h-11 items-center gap-3 rounded-xl px-3 text-[14.5px] transition-colors', isActive ? 'bg-surface-2 font-medium text-accent' : 'text-ink-2 hover:bg-surface hover:text-ink')}
             >
               <Clapperboard size={18} strokeWidth={1.8} />
               Studio
@@ -202,7 +202,7 @@ export function Shell() {
             {TABS.map(({ to, label, icon: Icon, end }) => (
               <NavLink
                 key={to} to={to} end={end} data-tour={`nav-${to.slice(1) || 'home'}`}
-                className={({ isActive }) => cx('group flex h-[58px] flex-1 flex-col items-center justify-center gap-1 transition-colors', isActive ? 'text-ink' : 'text-ink-3')}
+                className={({ isActive }) => cx('group flex h-[58px] flex-1 flex-col items-center justify-center gap-1 transition-colors', isActive ? 'text-accent' : 'text-ink-3')}
               >
                 {({ isActive }) => (
                   <>

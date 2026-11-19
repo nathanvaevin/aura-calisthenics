@@ -267,7 +267,7 @@ function Done({ onClose, onStudio }: { onClose: () => void; onStudio: () => void
   ]
   return (
     <div className="grid items-center gap-8 pt-6 lg:grid-cols-2 lg:pt-10">
-      <Stage3D cast={[performerOf(look, { aura: 'full' })]} ratio={0.82} controls="none" margin={1.42} className="mx-auto max-h-[52dvh] max-w-[440px]" label="Your character" />
+      <Stage3D cast={[performerOf(look, { aura: 'full' })]} ratio={0.82} controls="none" activate="large" margin={1.42} className="mx-auto max-h-[52dvh] max-w-[440px]" label="Your character" />
       <div className="rise">
         <Eyebrow>{done.all ? 'Personalization complete' : 'Your identity is set'}</Eyebrow>
         <h1 className="display mt-2 text-[40px] leading-[1.02] sm:text-[52px]">{me.athlete.name.split(' ')[0]}, {done.all ? 'this is you.' : 'this is a start.'}</h1>

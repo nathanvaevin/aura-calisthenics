@@ -63,6 +63,13 @@ function shader(shared: U, own: Record<string, unknown>, vertex: string, fragmen
 const rnd = (n: number, width: number) => { const a = new Float32Array(n * width); for (let i = 0; i < a.length; i++) a[i] = Math.random(); return a }
 const smooth = (a: number, b: number, x: number) => { const u = Math.min(1, Math.max(0, (x - a) / (b - a))); return u * u * (3 - 2 * u) }
 
+/** How long a charge gathers before it bursts, in seconds. */
+export const CHARGE_SECONDS = 1.2
+/** At rest an Aura is a glow round the body; nothing below shows until it is let go. */
+const LOOSE: ComponentId[] = ['rays', 'ribbons', 'motes', 'streams', 'rings', 'arcs']
+/** Every Aura burns at rest at least this much: a working body's heat, not a still light. */
+const FLAME_FLOOR = 0.75
+
 const RIBBONS = 12, SEGMENTS = 56, MOTES = 260, SPARKS = 140, TRAIL = 4, STREAMS = 24, ARCS = 10, ARC_POINTS = 14
 
 export class AuraField {
@@ -81,6 +88,8 @@ export class AuraField {
   private level = 0
   private pulse = 0
   private burstAge = 99
+  /** Seconds into a charge, or -1. */
+  private chargeAge = -1
   private arcClock = 0
   private readonly centre = new Vector3()
   private readonly size = new Vector3(0.45, 1.9, 0.45)
@@ -424,7 +433,7 @@ export class AuraField {
     const set = (id: ComponentId, values: Record<string, number>) => {
       for (const o of this.parts[id].objects) for (const [k, v] of Object.entries(values)) (o.material as ShaderMaterial).uniforms[k].value = v
     }
-    set('shell', { uFlame: theme.shell.flame })
+    set('shell', { uFlame: Math.max(theme.shell.flame, FLAME_FLOOR) })
     set('rays', { uCount: theme.rays.count, uSharp: theme.rays.sharp })
     set('ribbons', { uTurns: theme.ribbons.turns, uSpread: theme.ribbons.spread, uWidth: theme.ribbons.width, uSpeed: theme.ribbons.speed, uRipple: theme.ribbons.ripple })
     set('motes', { uRise: theme.motes.rise, uSwirl: theme.motes.swirl, uTwinkle: theme.motes.twinkle, uDot: theme.motes.size })
@@ -441,11 +450,21 @@ export class AuraField {
     this.waves.push(this.clock)
   }
 
-  /** The release at the end of a set: everything at once. */
+  /** The release: everything at once. */
   release() {
+    this.chargeAge = -1
     this.burstAge = 0
     this.beat(1)
   }
+
+  /** Activate: the Aura gathers itself, tighter and brighter, then bursts. A charge or a burst already under way is left to finish. */
+  charge() {
+    if (this.chargeAge >= 0 || this.burstAge < 1.4) return
+    this.chargeAge = 0
+  }
+
+  /** Whether a charge or its burst is under way. */
+  get busy() { return this.chargeAge >= 0 || this.burstAge < 2.2 }
 
   /** Where the body is and how much room it takes, from the solved skeleton. */
   private measure(dt: number) {
@@ -484,8 +503,20 @@ export class AuraField {
     this.time += dt * t.flow * (tune.pulse ?? 1)
     this.pulse *= Math.exp(-dt * 2.6)
     this.burstAge += dt
+    // A charge: the light gathers and quickens, and at its height bursts.
+    let gather = 0
+    if (this.chargeAge >= 0) {
+      this.chargeAge += dt
+      gather = Math.min(1, this.chargeAge / CHARGE_SECONDS)
+      this.pulse = Math.max(this.pulse, 0.5 * gather * (0.5 + 0.5 * Math.sin(this.clock * (16 + 34 * gather))))
+      if (gather >= 1) this.release()
+    }
     const surge = Math.exp(-this.burstAge * 1.3)
-    const want = Math.min(1, Math.max(intensity * (tune.intensity ?? 1), surge))
+    /** How far the Aura is let go beyond its glow: nothing at rest, a little as it gathers, all of it in a burst. */
+    const loose = surge
+    /** While it gathers, only what rises from the floor shows: the power coming up, not yet let go. */
+    const rising = Math.max(surge, 0.8 * gather)
+    const want = Math.min(1, Math.max(intensity * (tune.intensity ?? 1), surge, this.chargeAge >= 0 ? 0.55 + 0.45 * gather : 0))
     this.level += (want - this.level) * (1 - Math.exp(-dt * (want > this.level ? 9 : 2.2)))
     const breath = 0.5 + 0.5 * Math.sin(this.clock * Math.PI * 2 * t.breath * (tune.pulse ?? 1))
     const I = Math.min(1, this.level * (0.86 + 0.14 * breath) + this.pulse * 0.18)
@@ -505,14 +536,15 @@ export class AuraField {
     const density = tune.density ?? 1
 
     const gain = (id: ComponentId, level: number, from: number, span = 0.3) => {
-      const g = off.includes(id) ? 0 : level * smooth(from, Math.min(1, from + span), I)
+      const g = off.includes(id) ? 0 : level * smooth(from, Math.min(1, from + span), I) * (id === 'streams' || id === 'motes' ? rising : LOOSE.includes(id) ? loose : 1)
       const part = this.parts[id]
       part.gain.value = g
       for (const o of part.objects) o.visible = g > 0.002
       return g
     }
-    const reach = this.actor.rig.body.scale * 0.006 * t.shell.reach * (0.6 + 0.8 * I + 0.5 * this.pulse)
-    gain('shell', t.shell.level * (0.55 + 0.75 * I) * (0.85 + 0.15 * breath), t.shell.from, 0.2)
+    // The glow is held close while it gathers, and thrown wide by the burst.
+    const reach = this.actor.rig.body.scale * 0.006 * Math.min(1.35, Math.max(t.shell.reach, 0.8)) * (0.6 + 0.8 * I + 0.5 * this.pulse) * (1.9 - 0.7 * gather + 0.5 * surge)
+    gain('shell', Math.max(t.shell.level, 0.9) * (0.7 + 0.8 * I) * (0.85 + 0.15 * breath), t.shell.from, 0.2)
     for (const m of this.shells) (m.material as ShaderMaterial).uniforms.uReach.value = reach
     gain('halo', t.halo.level * (0.25 + 0.75 * I), t.halo.from, 0.35)
     gain('rays', t.rays.level * (0.5 + 0.5 * I + 0.6 * surge), t.rays.from, 0.3)
@@ -529,7 +561,7 @@ export class AuraField {
     ;(rings.material as ShaderMaterial).uniforms.uClock.value = this.clock
     rings.scale.set(this.size.x * 4.6, this.size.z * 4.6, 1)
     // Sparks show on a release whatever the level, and crackle in themes that ask for it.
-    const sparkGain = off.includes('sparks') ? 0 : t.sparks.level * Math.max(this.burstAge < 2 ? 1 : 0, t.sparks.crackle * smooth(t.sparks.from - 0.5, t.sparks.from, I))
+    const sparkGain = off.includes('sparks') ? 0 : t.sparks.level * Math.max(this.burstAge < 2 ? 1 : 0, t.sparks.crackle * loose * smooth(t.sparks.from - 0.5, t.sparks.from, I))
     this.parts.sparks.gain.value = sparkGain
     this.parts.sparks.objects[0].visible = sparkGain > 0.002
     ;(this.parts.sparks.objects[0].material as ShaderMaterial).uniforms.uPx.value = px
@@ -555,7 +587,7 @@ export class AuraField {
 
     // The body's own light.
     const look = this.actor.look
-    look.charge.value = t.body * smooth(0.18, 0.95, I) * (0.88 + 0.12 * breath) + this.pulse * 0.12
+    look.charge.value = t.body * smooth(0.18, 0.95, I) * (0.88 + 0.12 * breath) + this.pulse * 0.12 + 0.45 * gather
     look.rim.value = 0.22 + 0.55 * I
   }
 

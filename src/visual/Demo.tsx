@@ -1,10 +1,10 @@
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
-import { Pause, Play, Rotate3d, RotateCcw, Sparkles } from 'lucide-react'
+import { Pause, Play, Rotate3d, RotateCcw, Sparkles, Zap } from 'lucide-react'
 import { cx } from '@/lib/format'
 import { Player, type PerformerSpec, type PlayerState } from './player'
 import type { CameraAngle } from './stage'
 
-export interface DemoHandle { /** The Aura let go at once: everyone on stage, or one performer by their place in the cast. */ release: (who?: number) => void; restart: () => void; /** Turns the camera round the subject by so many degrees. */ turn: (degrees: number) => void }
+export interface DemoHandle { /** The Aura let go at once: everyone on stage, or one performer by their place in the cast. */ release: (who?: number) => void; /** The Aura charged, then let go. */ charge: (who?: number) => void; restart: () => void; /** Turns the camera round the subject by so many degrees. */ turn: (degrees: number) => void }
 
 /**
  * A stage with characters on it. Looking round the subject is always the
@@ -17,7 +17,7 @@ export interface DemoHandle { /** The Aura let go at once: everyone on stage, or
  *
  * This file brings in the 3D engine: load it lazily.
  */
-export default function Demo({ cast, ratio = 1, controls = 'simple', margin, angle: opening, className, handle, label, fill, safe }: {
+export default function Demo({ cast, ratio = 1, controls = 'simple', margin, angle: opening, className, handle, label, fill, safe, activate }: {
   cast: PerformerSpec[]
   /** Width over height of the stage. */
   ratio?: number
@@ -33,6 +33,8 @@ export default function Demo({ cast, ratio = 1, controls = 'simple', margin, ang
   fill?: boolean
   /** With `fill`: how much of it the screen's controls cover from the top and the bottom, in pixels. The subject is kept between them. */
   safe?: { top: number; bottom: number }
+  /** An Activate button on the stage: at rest an Aura is a glow, and this charges it and lets it burst. Shown only while someone on stage wears an Aura. */
+  activate?: 'small' | 'large'
 }) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const box = useRef<HTMLDivElement>(null)
@@ -52,7 +54,7 @@ export default function Demo({ cast, ratio = 1, controls = 'simple', margin, ang
     if (safe) player.current?.setSafeArea(safe.top, safe.bottom, !shown.current)
   }, [safe?.top, safe?.bottom]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useImperativeHandle(handle, () => ({ release: (who) => player.current?.release(who), restart: () => { player.current?.restart(); setPlaying(true) }, turn: (degrees) => player.current?.turn(degrees) }), [])
+  useImperativeHandle(handle, () => ({ release: (who) => player.current?.release(who), charge: (who) => player.current?.charge(who), restart: () => { player.current?.restart(); setPlaying(true) }, turn: (degrees) => player.current?.turn(degrees) }), [])
 
   useEffect(() => {
     const el = box.current
@@ -123,6 +125,18 @@ export default function Demo({ cast, ratio = 1, controls = 'simple', margin, ang
     spin.current = requestAnimationFrame(step)
   }
   useEffect(() => () => cancelAnimationFrame(spin.current), [])
+
+  // Activate: pressed, the button holds while the Aura charges and bursts, then is ready again.
+  const [charging, setCharging] = useState(false)
+  const activateNow = () => {
+    const p = player.current
+    if (!p || charging) return
+    p.charge()
+    setCharging(true)
+    const wait = () => { if (player.current && player.current.charging) window.setTimeout(wait, 150); else setCharging(false) }
+    window.setTimeout(wait, 400)
+  }
+  const wearsAura = cast.some((c) => c.aura.mode !== 'off')
   const spinButton = (look: string) => (
     <button
       aria-label={turning ? 'Stop turning' : 'Turn the character all the way round'} aria-pressed={turning} title="Turn all the way round. You can also drag the character."
@@ -147,6 +161,19 @@ export default function Demo({ cast, ratio = 1, controls = 'simple', margin, ang
       {!ready && !failed && <div className="absolute inset-0 flex items-center justify-center font-mono text-[10.5px] tracking-[0.14em] text-(--stage-ink) uppercase">Loading</div>}
       {failed && <div className="absolute inset-0 flex items-center justify-center px-8 text-center text-[13px] text-(--stage-ink)">This device could not start the 3D view.</div>}
 
+      {activate && wearsAura && ready && (
+        <button
+          onClick={activateNow} aria-label="Activate the Aura" data-activate={charging ? 'charging' : 'ready'}
+          className={cx(
+            'absolute flex items-center rounded-full font-semibold tracking-[0.04em] text-black transition-[transform,box-shadow,background-color] duration-300 active:scale-95',
+            activate === 'large' ? 'bottom-3 left-3 h-11 gap-2 px-4 text-[13px]' : 'bottom-2 left-1/2 h-7 -translate-x-1/2 gap-1 px-2.5 text-[10.5px]',
+            charging ? 'scale-105 bg-white shadow-[0_0_26px_6px_rgba(255,255,255,0.55)]' : 'bg-white/90 shadow-[0_0_14px_1px_rgba(255,255,255,0.25)] hover:bg-white',
+          )}
+        >
+          <Zap size={activate === 'large' ? 16 : 11} fill="currentColor" className={cx(charging && 'animate-pulse')} />
+          {charging ? 'Charging' : 'Activate'}
+        </button>
+      )}
       {controls === 'spin' && ready && <div className="absolute right-3 bottom-3">{spinButton('h-11 bg-black/45 hover:bg-black/60')}</div>}
       {controls !== 'none' && controls !== 'spin' && ready && (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col gap-2 bg-gradient-to-t from-black/55 to-transparent p-3 pt-10">
@@ -169,7 +196,7 @@ export default function Demo({ cast, ratio = 1, controls = 'simple', margin, ang
               <>
                 <button aria-label="Replay" onClick={() => { player.current?.restart(); setPlaying(true) }} className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full bg-white/14 text-white backdrop-blur-md hover:bg-white/22"><RotateCcw size={14} /></button>
                 <button onClick={() => { player.current?.setSpeed(slow ? 1 : 0.35); setSlow(!slow) }} className={cx('pointer-events-auto flex h-9 items-center rounded-full px-3 font-mono text-[11px] backdrop-blur-md', slow ? 'bg-white text-black' : 'bg-white/14 text-white hover:bg-white/22')}>Slow</button>
-                {cast.some((c) => c.aura.mode !== 'off') && <button onClick={() => player.current?.release()} className="pointer-events-auto flex h-9 items-center gap-1.5 rounded-full bg-white/14 px-3 font-mono text-[11px] text-white backdrop-blur-md hover:bg-white/22"><Sparkles size={12} />Aura burst</button>}
+                {cast.some((c) => c.aura.mode !== 'off') && <button onClick={() => player.current?.charge()} className="pointer-events-auto flex h-9 items-center gap-1.5 rounded-full bg-white/14 px-3 font-mono text-[11px] text-white backdrop-blur-md hover:bg-white/22"><Sparkles size={12} />Activate</button>}
               </>
             )}
             <div className="ml-auto">{spinButton('h-9 bg-white/14 hover:bg-white/22')}</div>

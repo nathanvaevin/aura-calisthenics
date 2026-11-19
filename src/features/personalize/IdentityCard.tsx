@@ -1,4 +1,6 @@
 import { useNavigate } from 'react-router'
+import { useStore } from '@/data/store'
+import { useTour } from '@/features/journey/Tour'
 import { Check, Sparkles } from 'lucide-react'
 import type { Athlete } from '@/domain/types'
 import { performerOf } from '@/theme/cast'
@@ -21,13 +23,17 @@ export function IdentityCard({ athlete }: { athlete: Athlete }) {
   const done = completion(athlete)
   const u = UNIVERSES[look.universe]
   const upcoming = nextForm(look.universe, standing)
+  // Once the introduction is over, making Aura yours is the next thing to do, and the button says so.
+  const toured = useStore((s) => !!s.settings.tour)
+  const touring = useTour((s) => s.open)
+  const calling = toured && !touring && !done.core
 
   return (
     <section className="rise rise-1 card relative isolate overflow-hidden" data-tour="personalize">
       <div className="flex items-stretch">
         <div className="w-[40%] max-w-[230px] shrink-0 p-2 pr-0">
           {done.character
-            ? <Stage3D cast={[performerOf(look, { aura: 'full', level: Math.min(look.intensity, 0.7) })]} ratio={0.74} controls="none" margin={1.3} className="!border-0" label="Your character" />
+            ? <Stage3D cast={[performerOf(look, { aura: 'full', level: Math.min(look.intensity, 0.7) })]} ratio={0.74} controls="none" activate="small" margin={1.3} className="!border-0" label="Your character" />
             : <img src={`${import.meta.env.BASE_URL}${posterOf(look.theme, look.character)}`} alt="" className="aspect-[0.74] w-full rounded-[calc(var(--r-card)*0.7)] bg-(--stage) object-cover object-top" onError={(e) => { e.currentTarget.style.visibility = 'hidden' }} />}
         </div>
         <div className="flex min-w-0 flex-1 flex-col p-4">
@@ -47,7 +53,7 @@ export function IdentityCard({ athlete }: { athlete: Athlete }) {
               {([done.theme, done.character, done.about, done.sharing] as const).map((ok, i) => <span key={i} className={cx('h-1 flex-1 rounded-full', ok ? 'bg-accent' : 'bg-surface-3')} />)}
             </div>
             <div className="flex flex-wrap gap-2">
-              <button className="btn btn-accent btn-sm flex-1" onClick={() => navigate(done.core ? (!done.about ? '/personalize?step=about' : !done.sharing ? '/personalize?step=sharing' : '/personalize') : '/personalize')}>
+              <button className={cx('btn btn-accent btn-sm flex-1', calling && 'aura-call')} data-calling={calling || undefined} onClick={() => navigate(done.core ? (!done.about ? '/personalize?step=about' : !done.sharing ? '/personalize?step=sharing' : '/personalize') : '/personalize')}>
                 {done.all ? <Check size={14} strokeWidth={2.6} /> : <Sparkles size={14} />} Personalize
               </button>
               {done.core && <button className="btn btn-quiet btn-sm" onClick={() => navigate('/character')}>Studio</button>}

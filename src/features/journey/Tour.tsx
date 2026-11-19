@@ -121,6 +121,8 @@ export function Tour() {
         else if (!step.target.startsWith('nav-')) el.scrollIntoView({ block: 'center', behavior: calm() ? 'auto' : 'smooth' })
       }
       if (step.climb) return setBox(null)
+      // The thing spoken about takes the theme's colour while it is lit.
+      if (!el.hasAttribute('data-tour-lit')) { document.querySelectorAll('[data-tour-lit]').forEach((x) => x.removeAttribute('data-tour-lit')); el.setAttribute('data-tour-lit', '') }
       const r = el.getBoundingClientRect()
       setBox((was) => (was && Math.abs(was.left - r.left) < 0.5 && Math.abs(was.top - r.top) < 0.5 && Math.abs(was.width - r.width) < 0.5 && Math.abs(was.height - r.height) < 0.5 ? was : { left: r.left, top: r.top, width: r.width, height: r.height }))
     }
@@ -129,6 +131,7 @@ export function Tour() {
     window.addEventListener('resize', look)
     window.addEventListener('scroll', look, true)
     return () => {
+      document.querySelectorAll('[data-tour-lit]').forEach((x) => x.removeAttribute('data-tour-lit'))
       window.clearInterval(tick)
       window.clearTimeout(settle)
       stopClimb?.()
@@ -171,8 +174,8 @@ export function Tour() {
       <div className="absolute inset-0" onClick={() => setAt((n) => Math.min(steps.length, n + 1))} />
       {!end && box && (
         <div
-          className="pointer-events-none absolute rounded-[18px] ring-[1.5px] ring-accent transition-all duration-300 ease-out motion-reduce:transition-none"
-          style={{ left: box.left - pad, top: box.top - pad, width: box.width + pad * 2, height: box.height + pad * 2, boxShadow: '0 0 0 200vmax rgba(0, 0, 0, 0.68)' }}
+          className="pointer-events-none absolute rounded-[18px] ring-2 ring-accent transition-all duration-300 ease-out motion-reduce:transition-none" data-tour-ring
+          style={{ left: box.left - pad, top: box.top - pad, width: box.width + pad * 2, height: box.height + pad * 2, background: 'color-mix(in oklab, var(--accent) 16%, transparent)', boxShadow: '0 0 26px 4px color-mix(in oklab, var(--accent) 55%, transparent), 0 0 0 200vmax rgba(0, 0, 0, 0.72)' }}
         />
       )}
       {end && <div className="absolute inset-0 bg-black/70" />}
@@ -181,8 +184,8 @@ export function Tour() {
         {end ? (
           <>
             <div className="display text-[28px] leading-tight">{v('tour.end.title')}</div>
-            <button className="btn btn-primary mt-4 w-full" onClick={() => { close(true); navigate('/train') }}>{v('tour.end.go')} <ArrowRight size={16} /></button>
-            <button className="mt-1 flex h-9 w-full items-center justify-center text-[12.5px] text-ink-3 hover:text-ink" onClick={() => { close(true); navigate('/profile') }}>Back to my profile</button>
+            <button className="btn btn-primary mt-4 w-full" onClick={() => { close(true); navigate('/profile') }}>Go to profile <ArrowRight size={16} /></button>
+            <button className="mt-1 flex h-10 w-full items-center justify-center text-[13px] text-ink-3 hover:text-ink" onClick={() => { close(true); navigate('/train') }}>{v('tour.end.go')}</button>
           </>
         ) : (
           <>

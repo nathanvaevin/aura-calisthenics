@@ -76,7 +76,7 @@ export function CharacterStudio({ theme }: { theme?: ThemeId }) {
           )}
         </div>
         <Stage3D
-          cast={cast} ratio={move ? STAGE_RATIO[MOTIONS[move.motion]?.stage ?? 'square'] : 0.9} controls="spin" margin={preview === 'aura' ? 1.36 : 1.12}
+          cast={cast} ratio={move ? STAGE_RATIO[MOTIONS[move.motion]?.stage ?? 'square'] : 0.9} controls="spin" activate="large" margin={preview === 'aura' ? 1.36 : 1.12}
           className="mx-auto max-h-[52dvh] lg:max-h-[66dvh]" label={`Your character, ${shown.form.name}`}
         />
       </div>
@@ -129,7 +129,7 @@ export function CharacterStudio({ theme }: { theme?: ThemeId }) {
               className="h-1.5 w-full cursor-pointer" style={{ accentColor: shown.form.colour }}
             />
           </label>
-          <p className="mt-2 text-[12px] leading-relaxed text-ink-3">How much of it your character carries when it is released: a quiet outline, or everything.</p>
+          <p className="mt-2 text-[12px] leading-relaxed text-ink-3">How strongly it glows. Activate lets it all out.</p>
         </section>
 
         <section>

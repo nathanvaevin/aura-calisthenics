@@ -530,6 +530,39 @@
     white-space: nowrap;
     transition: all 0.18s ease;
   }
+  /* What the introduction is talking about takes the theme's colour while it is lit. */
+  [data-tour-lit] {
+    color: var(--accent) !important;
+  }
+
+  /* A button that is the next thing to do glows like an Aura until it is pressed. */
+  .aura-call {
+    position: relative;
+    animation: aura-call 2.2s ease-in-out infinite;
+  }
+  .aura-call::before {
+    content: '';
+    position: absolute;
+    inset: -12px -10px;
+    z-index: -1;
+    border-radius: inherit;
+    background: radial-gradient(closest-side, color-mix(in oklab, var(--accent) 85%, transparent), transparent);
+    filter: blur(10px);
+    animation: aura-call-halo 2.2s ease-in-out infinite;
+  }
+  @keyframes aura-call {
+    0%, 100% { box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 60%, white), 0 0 22px 5px color-mix(in oklab, var(--accent) 60%, transparent); }
+    50% { box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 40%, white), 0 0 42px 14px color-mix(in oklab, var(--accent) 85%, transparent); }
+  }
+  @keyframes aura-call-halo {
+    0%, 100% { opacity: 0.7; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.1, 1.5); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .aura-call, .aura-call::before { animation: none; }
+    .aura-call { box-shadow: 0 0 22px 4px color-mix(in oklab, var(--accent) 60%, transparent); }
+  }
+
   /* Where a chip is the main thing to press on a phone. */
   .chip-lg {
     height: 44px;
