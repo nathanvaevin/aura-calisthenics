@@ -110,12 +110,21 @@ export function StationMenu({ station, results, chosen, onChoose, onStart, onEdi
     return () => watch.disconnect()
   }, [])
   const list = useRef<HTMLDivElement>(null)
-  const show = (id: string) => { setFocus(id); setMore(false); list.current?.scrollTo({ top: 0, behavior: 'smooth' }) }
+  // Touching an exercise shows it and leaves the list where it is, so one can go down it quickly. Touching the
+  // character (a tap, not a drag to turn it) lowers the list again, back to the exercise and its details.
+  const show = (id: string) => { setFocus(id); setMore(false) }
+  const press = useRef<{ x: number; y: number } | null>(null)
+  const lower = (e: React.PointerEvent) => {
+    const at = press.current
+    press.current = null
+    if (!at || Math.hypot(e.clientX - at.x, e.clientY - at.y) > 8) return
+    list.current?.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   return (
     <div ref={root} className="relative mx-auto h-dvh w-full max-w-[560px] overflow-hidden bg-(--stage)" data-picker={station}>
       {/* The exercise being looked at, performed, behind everything. It changes the moment another is touched. */}
-      <div className="absolute inset-0" data-picker-stage>
+      <div className="absolute inset-0" data-picker-stage onPointerDownCapture={(e) => { press.current = { x: e.clientX, y: e.clientY } }} onPointerUpCapture={lower}>
         {animated
           ? <DemoPreview exerciseId={ex.id} official safe={cover} />
           : <div className="flex items-center justify-center" style={{ paddingTop: cover.top, height: `calc(100% - ${cover.bottom}px)` }}><MuscleMap primary={ex.primary} secondary={ex.secondary} stabilizers={ex.stabilizers} color={color} height={190} /></div>}
