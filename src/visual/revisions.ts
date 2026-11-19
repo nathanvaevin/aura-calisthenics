@@ -90,7 +90,7 @@ export const REVISIONS: Record<string, number> = {
   'back-lever': 1,
   'straddle-fl': 1,
   'front-lever': 1,
-  'scap-pushup': 1,
+  'scap-pushup': 2,
   'assisted-oa-pushup': 1,
   'one-arm-pushup': 1,
   'planche-lean': 1,

@@ -23,6 +23,9 @@ export const pitch = (deg: number) => new Quaternion().setFromAxisAngle(X, deg *
 export const yaw = (deg: number) => new Quaternion().setFromAxisAngle(Y, deg * rad)
 export const roll = (deg: number) => new Quaternion().setFromAxisAngle(Z, deg * rad)
 
+/** How far a shoulder blade set fully forward or back turns the girdle, in degrees. */
+const PROTRACT = 20
+
 export interface ArmPose {
   /** Where the wrist is. */
   hand: Vector3
@@ -34,6 +37,12 @@ export interface ArmPose {
   grip: number
   /** Extra lift of the shoulder girdle, -1 pulled down to 1 shrugged. */
   shrug: number
+  /**
+   * The shoulder blade slid round the ribs on purpose, on top of what the reach of the arm does to it by itself:
+   * 1 wrapped forward (the back broad and round), -1 drawn back towards the spine (the chest sunk between the
+   * shoulders). Unset: 0. What a scapular push-up is made of.
+   */
+  protract?: number
 }
 
 export interface LegPose {
@@ -195,7 +204,7 @@ export class Rig {
       const reach = arm.hand.clone().sub(rigid).normalize().applyQuaternion(rot.upperChest.clone().invert())
       const up = smooth(-0.25, 1, reach.y), fwd = smooth(0.15, 1, reach.z), bwd = smooth(0.15, 1, -reach.z)
       const lift = (-5 + 34 * up + 14 * arm.shrug) * rad
-      const forward = (15 * fwd - 8 * bwd) * rad
+      const forward = (15 * fwd - 8 * bwd + PROTRACT * (arm.protract ?? 0)) * rad
       const girdle = new Quaternion().setFromAxisAngle(Z, sign * lift).multiply(new Quaternion().setFromAxisAngle(Y, -sign * forward))
       rot[B('shoulder')].copy(rot.upperChest).multiply(girdle)
       this.child(B('upperArm'))

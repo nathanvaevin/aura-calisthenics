@@ -143,11 +143,95 @@ function bentLeg(rig: Rig, out: Pose, side: Side, thigh: number, shin: number, p
 const shoulderWide = (b: Body) => b.rest.upperArmL.x + 0.035 * b.scale
 /** A locked arm still has a way it faces: the point of the elbow back towards the feet, the pit forward. */
 const PIT_FORWARD = new Vector3(0.18, 0.45, -1)
+/**
+ * What moves in a scapular push-up is the shoulder blades (the rig's `protract`), from wrapped forward at the top to
+ * drawn together at the bottom; the upper back follows a little, round at the top and open at the bottom.
+ */
+const SCAP = { top: { blade: 0.55, round: 6 }, low: { blade: -0.85, round: -3 }, tuck: 3, look: 9 }
+
+/**
+ * The plank of the scapular push-up at `u` (0 pushed up, 1 sunk). The arms are locked and the hands do not move, so
+ * the shoulder joints stay where they are; the body is one rigid line from the toes that turns on them until the
+ * shoulder blades, set where `u` puts them, meet those joints. So the whole chest comes down between the arms, and
+ * the hips with it by their share: nothing bends.
+ */
+function scapPlank(rig: Rig, out: Pose, hands: number, u: number, start = 0.3) {
+  const b = rig.body
+  const pad = 0.014, f = b.ball.length()
+  const legs = (b.upperLeg + b.lowerLeg) * 0.998
+  const full = reachOf(b) * LOCKED
+  const blade = lerp(SCAP.top.blade, SCAP.low.blade, u), round = lerp(SCAP.top.round, SCAP.low.round, u)
+  let a = start
+  for (let i = 0; i < 9; i++) {
+    const along = at(Math.cos(a), Math.sin(a))
+    const ankle = at(-f * Math.sin(a), pad + f * Math.cos(a))
+    const lean = 90 - a / deg
+    out.pelvis.copy(pitch(lean - SCAP.tuck))
+    out.chest.copy(pitch(lean + round))
+    out.head.copy(pitch(lean - SCAP.look))
+    hipsAt(b, out.pelvis, ankle.clone().addScaledVector(along, legs), out.hips)
+    for (const [side, sign] of SIDES) {
+      const x = sign * b.rest.upperLegL.x
+      onBall(b, ankle.clone().setX(x), at(0, pad, x), out.leg[side])
+      out.leg[side].knee.set(0, -1, 0.2)
+      out.arm[side].protract = blade
+    }
+    handsOnFloor(b, out, hands, shoulderWide(b), PIT_FORWARD, 6)
+    rig.solve(out)
+    if (i === 8) break
+    // The line turns on the toes until the arms are exactly locked: a little more angle lifts the shoulders.
+    a += (full - rig.pos.upperArmL.distanceTo(out.arm.L.hand)) / ((legs + b.trunk) * Math.cos(a))
+  }
+  return a
+}
+
+function scapSetUp(rig: Rig) {
+  return once(rig, 'scap-pushup', () => {
+    const out = emptyPose()
+    // Hands under the shoulders as they are at the top.
+    let hands = 1.15 * rig.body.scale, a = 0.3
+    for (let i = 0; i < 4; i++) {
+      a = scapPlank(rig, out, hands, 0, a)
+      hands = shoulders(rig).z
+    }
+    return { hands, top: a }
+  })
+}
+
+/**
+ * Scapular push-up: a plank on locked arms, and the only thing that moves is
+ * the shoulder blades. They are let together and the chest sinks between
+ * the arms, as far as it will go; then the floor is pushed away until they
+ * are wrapped round the ribs and the upper back is broad. The elbows never
+ * bend and the body stays one line. Revision 2: revision 1 bent the spine a
+ * little instead, and hardly moved.
+ */
+export const scapPushup: Motion = {
+  id: 'scap-pushup',
+  revision: 2,
+  stage: 'low',
+  planted: ['handL', 'handR', 'toesL', 'toesR'],
+  kind: 'reps',
+  period: 3.4,
+  camera: 'side',
+  azimuth: 62,
+  elevation: 8,
+  beat: 0.97,
+  // Pushing the floor away is the serratus; letting the chest sink is held by the muscles between the shoulder blades.
+  shift: (t) => { const u = down(t); return { serratus: 1 - 0.4 * u, traps: 0.6 + 0.4 * u } },
+  standard: 'A plank on locked arms: the elbows stay straight throughout and the body one line. The shoulder blades come together and the chest sinks clearly between the arms, a hand\'s width; then the floor is pushed away until the upper back is broad and round. The shoulders stay over the hands; hips and head go with the chest, they do not sag or nod.',
+  effort: (t) => 0.4 + 0.5 * (1 - down(t)),
+  pose(t, rig, out) {
+    const p = scapSetUp(rig)
+    scapPlank(rig, out, p.hands, down(t), p.top)
+  },
+}
+
 /** The ribcage past the line of the body at the top (pushed up, the upper back domed), and below it at the bottom. */
-const SCAP = { top: 13, low: -12 }
+const SCAP_EARLIER = { top: 13, low: -12 }
 
 /** The plank of the scapular push-up with the arms exactly locked, whatever the ribcage is doing between them. */
-function scapPlank(rig: Rig, out: Pose, hands: number, from: number, round: number): number {
+function scapPlankEarlier(rig: Rig, out: Pose, hands: number, from: number, round: number): number {
   const b = rig.body
   const full = reachOf(b) * LOCKED
   let y = from
@@ -159,27 +243,26 @@ function scapPlank(rig: Rig, out: Pose, hands: number, from: number, round: numb
   return y
 }
 
-function scapSetUp(rig: Rig) {
-  return once(rig, 'scap-pushup', () => {
+function scapSetUpEarlier(rig: Rig) {
+  return once(rig, 'scap-pushup-1', () => {
     const b = rig.body
     const out = emptyPose()
     let top = wristHeight(b) + reachOf(b) * LOCKED
     // Hands under the shoulders as they are at the top.
-    let hands = plankAt(rig, out, top, (sh) => handsOnFloor(b, out, sh.z, shoulderWide(b), PIT_FORWARD, 6), { tuck: 4, round: SCAP.top }).z
+    let hands = plankAt(rig, out, top, (sh) => handsOnFloor(b, out, sh.z, shoulderWide(b), PIT_FORWARD, 6), { tuck: 4, round: SCAP_EARLIER.top }).z
     for (let i = 0; i < 3; i++) {
-      top = scapPlank(rig, out, hands, top, SCAP.top)
+      top = scapPlankEarlier(rig, out, hands, top, SCAP_EARLIER.top)
       hands = shoulders(rig).z - 0.004 * b.scale
     }
-    return { hands, top: scapPlank(rig, out, hands, top, SCAP.top) }
+    return { hands, top: scapPlankEarlier(rig, out, hands, top, SCAP_EARLIER.top) }
   })
 }
 
 /**
- * Scapular push-up: a plank on locked arms. Only the shoulder blades move:
- * the chest sinks between them and is pushed back up until the upper back
- * is round. The elbows never bend and the hips stay where they are.
+ * The scapular push-up as first written (revision 1): the ribcage bent a little at the spine and hardly travelled.
+ * The owner found its range, its execution and its look wrong (2026-11-19). Kept until revision 2 is approved.
  */
-export const scapPushup: Motion = {
+export const scapPushupEarlier: Motion = {
   id: 'scap-pushup',
   revision: 1,
   stage: 'low',
@@ -196,8 +279,8 @@ export const scapPushup: Motion = {
   effort: (t) => 0.4 + 0.5 * (1 - down(t)),
   pose(t, rig, out) {
     const u = down(t)
-    const p = scapSetUp(rig)
-    scapPlank(rig, out, p.hands, p.top, lerp(SCAP.top, SCAP.low, u))
+    const p = scapSetUpEarlier(rig)
+    scapPlankEarlier(rig, out, p.hands, p.top, lerp(SCAP_EARLIER.top, SCAP_EARLIER.low, u))
     // The head travels with the chest: it is not what moves, and it does not lift as the chest sinks.
     headOnLine(rig, out, 12 - 10 * u)
   },

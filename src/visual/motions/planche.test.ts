@@ -37,7 +37,8 @@ describe('the planche family as a set', () => {
     for (const m of PLANCHE) {
       const ex = exerciseById[m.id]
       expect(ex, m.id).toBeDefined()
-      expect(m.revision, m.id).toBe(1)
+      // The scapular push-up was corrected at the owner's first look (revision 2); the rest are as first written.
+      expect(m.revision, m.id).toBe(m.id === 'scap-pushup' ? 2 : 1)
       // Counted in the library means repetitions on the stage; timed means a hold.
       expect(m.kind, m.id).toBe(ex.metric === 'reps' ? 'reps' : 'hold')
       // Equipment on the stage is equipment the library lists for the exercise.
@@ -68,31 +69,37 @@ describe.each(['male', 'female'] as const)('the planche family, %s character', (
     for (const b of ['hips', 'head', 'handL', 'handR', 'footL', 'footR', 'lowerArmL', 'lowerLegL'] as const) expect(last.at(b).distanceTo(first.at(b)), `${id} ${b}`).toBeLessThan(0.02 * s)
   })
 
-  it('scapular push-up: the elbows never bend; the chest sinks between the shoulders and is pushed back up round', () => {
+  it('scapular push-up: the elbows never bend, the body stays one line, and the chest sinks a hand\'s width between the shoulders and is pushed back up', () => {
     const p = f['scap-pushup']
     const top = p[0], low = lowest(p, (x) => x.at('chest').y)
+    /** The trunk against the legs: the angle at the hips between the ankles and the ribcage. */
+    const fold = (x: Frame) => x.mid('foot').sub(x.mid('upperLeg')).angleTo(x.at('upperChest').sub(x.mid('upperLeg'))) * deg
     for (const x of p) {
       for (const side of SIDE) expect(elbow(x, side), `elbow${side} at ${x.t}`).toBeGreaterThan(172)
-      // A plank: ankles, hips and shoulders in one line, on the toes, hands flat.
-      expect(x.line()).toBeGreaterThan(177)
       expect(x.at('handL').y).toBeCloseTo(wristHeight(body), 3)
       // The shoulders stay where the locked arms hold them, over the hands.
       expect(Math.abs(x.mid('upperArm').y - top.mid('upperArm').y)).toBeLessThan(0.004)
       expect(Math.abs(ahead(x))).toBeLessThan(0.04 * s)
-      // Hips level: they do not drop or lift with the chest.
-      expect(Math.abs(x.mid('upperLeg').y - top.mid('upperLeg').y)).toBeLessThan(0.008 * s)
-      // The head goes with the chest; it is not what moves.
-      expect(Math.abs(x.at('head').y - top.at('head').y)).toBeLessThan(0.015 * s)
+      // One line from the toes: the trunk does not fold or sag against the legs as it goes down.
+      expect(Math.abs(fold(x) - fold(top)), `the body bends at ${x.t}`).toBeLessThan(3)
+      // Head and neck go with the chest; the head does not nod.
+      expect(Math.abs((top.at('head').y - x.at('head').y) - (top.at('upperChest').y - x.at('upperChest').y))).toBeLessThan(0.02 * s)
     }
-    // The chest itself travels: down between the shoulder blades, a few centimetres, and back.
-    expect(top.at('chest').y - low.at('chest').y).toBeGreaterThan(0.028 * s)
-    expect(top.at('upperChest').y - low.at('upperChest').y).toBeGreaterThan(0.02 * s)
-    // Round at the top (the back stands above its own line), sunk at the bottom.
-    expect(dome(top)).toBeGreaterThan(dome(low) + 0.03 * s)
-    expect(dome(top)).toBeGreaterThan(0.04 * s)
-    expect(dome(low)).toBeLessThan(0.025 * s)
+    // The range: the chest travels a hand's width, not a centimetre or two.
+    const sink = top.at('chest').y - low.at('chest').y
+    expect(sink).toBeGreaterThan(0.065 * s)
+    expect(sink).toBeLessThan(0.11 * s)
+    expect(top.at('upperChest').y - low.at('upperChest').y).toBeGreaterThan(0.065 * s)
+    // The hips go with it by their share of a rigid body turning on the toes: less than the chest, and not left behind.
+    const hips = top.mid('upperLeg').y - low.mid('upperLeg').y
+    expect(hips).toBeGreaterThan(0.45 * sink)
+    expect(hips).toBeLessThan(0.95 * sink)
+    // What moved is the shoulder blades: at the bottom the shoulder joints stand above the ribcage, at the top it is pushed up between them.
+    const proud = (x: Frame) => x.mid('upperArm').y - x.at('upperChest').y
+    expect(proud(low) - proud(top)).toBeGreaterThan(0.065 * s)
     // The work is pushing the floor away: hardest at the top.
     expect(byId['scap-pushup'].effort(0)).toBeGreaterThan(byId['scap-pushup'].effort(0.46))
+    expect(byId['scap-pushup'].revision).toBe(2)
   })
 
   it.each(['assisted-oa-pushup', 'one-arm-pushup'])('%s: one arm carries it; shoulders and hips stay square over wide feet', (id) => {
