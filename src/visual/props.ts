@@ -55,6 +55,23 @@ export function buildProps(props: Prop[]): Group {
       if (p.z > 0) w.rotation.y = Math.PI
       w.receiveShadow = true
       group.add(w)
+    } else if (p.kind === 'rings') {
+      // Two rings on straps. They hang still: the movement is written round where they are.
+      for (const side of [-1, 1]) {
+        const ring = new Mesh(new TorusGeometry(p.radius, 0.014, 10, 32), matt)
+        ring.position.set(side * p.gap / 2, p.height, p.z ?? 0)
+        ring.rotation.y = Math.PI / 2
+        ring.castShadow = true
+        const strap = new Mesh(new BoxGeometry(0.004, Math.max(0.01, p.top - p.height - p.radius), 0.03), matt)
+        strap.position.set(side * p.gap / 2, (p.top + p.height + p.radius) / 2, p.z ?? 0)
+        group.add(ring, strap)
+      }
+    } else if (p.kind === 'band') {
+      // A band from a fixed point to a joint: the player stretches it between the two every frame.
+      const band = new Mesh(new BoxGeometry(0.03, 1, 0.006), new MeshStandardMaterial({ color: 0x8a2f2a, roughness: 0.7, metalness: 0 }))
+      band.name = 'band'
+      band.userData = { x: p.x, height: p.height, z: p.z ?? 0, to: p.to }
+      group.add(band)
     } else {
       // An ab wheel: the player rolls it along under the hands.
       const wheel = new Group()

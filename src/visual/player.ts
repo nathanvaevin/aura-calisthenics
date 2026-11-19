@@ -20,6 +20,7 @@ import { buildProps } from './props'
 import { ANGLE, Stage, type CameraAngle } from './stage'
 import { styleOf, type PerformerStyle } from './styles'
 import type { Group } from 'three'
+import type { BoneName } from './body/skeleton'
 
 export interface PerformerSpec {
   character: CharacterId
@@ -275,6 +276,15 @@ export class Player {
       if (m) m.pose(phase, p.actor.rig, p.pose)
       else stand(p.actor.rig.body, p.pose, phase)
       p.actor.pose(p.pose)
+      const band = p.props?.getObjectByName('band')
+      if (band) {
+        // From its anchor to the joint it is looped round, as long as that is now.
+        const from = new Vector3(band.userData.x, band.userData.height, band.userData.z)
+        const to = p.actor.rig.pos[band.userData.to as BoneName]
+        band.position.copy(from).add(to).multiplyScalar(0.5)
+        band.scale.y = Math.max(0.01, from.distanceTo(to))
+        band.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), to.clone().sub(from).normalize())
+      }
       const wheel = p.props?.getObjectByName('wheel')
       if (wheel) {
         // The wheel is held in both hands and rolls as they travel.

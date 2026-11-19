@@ -11,6 +11,12 @@ import { PUSHES } from './pushes'
 import { pushup } from './pushup'
 import { ROWS, dipEarlier, negativeDipEarlier } from './rows'
 import { splitSquat, squat } from './squat'
+import { PULLS } from './pulls'
+import { LEVERS } from './levers'
+import { PLANCHE } from './planche'
+import { BALANCE } from './balance'
+import { TRUNK } from './trunk'
+import { FLEX } from './flex'
 
 /** The ten movements of the pilot, in the order they are shown. */
 export const PILOT: Motion[] = [pushup, pullup, squat, plank, pikePushup, hollow, splitSquat, deadHang, handstand, catCow]
@@ -27,7 +33,10 @@ const EARLIER: Motion[] = [
   // Corrected on 2026-11-18 after the owner's review; revision 2 of each waits for approval.
   handstandEarlier, crowEarlier, wallShoulderTapsEarlier, dipEarlier, negativeDipEarlier,
 ]
-const ALL: Motion[] = [...PILOT, ...ASSESSMENT, ...EARLIER]
+/** Every other exercise in the library (2026-11-19): written family by family, each waiting for the owner's approval. */
+export const REST: Motion[] = [...PULLS, ...LEVERS, ...PLANCHE, ...BALANCE, ...TRUNK, ...FLEX]
+
+const ALL: Motion[] = [...PILOT, ...ASSESSMENT, ...REST, ...EARLIER]
 
 /** The current revision of each movement, by the exercise it demonstrates. */
 export const MOTIONS: Record<string, Motion> = {}

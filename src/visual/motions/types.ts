@@ -20,6 +20,10 @@ export type Prop =
   | { kind: 'wall'; z: number; height?: number }
   /** An ab wheel, which follows the hands. */
   | { kind: 'wheel'; radius: number }
+  /** Two gymnastic rings on straps, hanging from `top` with their centres at `height`, `gap` apart. `radius` is the ring's own; the part held is its lowest point. */
+  | { kind: 'rings'; height: number; top: number; gap: number; radius: number; z?: number }
+  /** A resistance band looped over a fixed point (a bar) and stretched down to a joint that moves: it follows `to` every frame. */
+  | { kind: 'band'; x: number; height: number; z?: number; to: BoneName }
 
 /** How the stage is proportioned for a movement: wide for work on the floor, tall for standing and hanging. */
 export type StageShape = 'low' | 'square' | 'tall'
