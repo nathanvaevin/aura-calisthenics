@@ -3,7 +3,7 @@ import { useStore } from '@/data/store'
 import { useTour } from '@/features/journey/Tour'
 import { Check, Sparkles } from 'lucide-react'
 import type { Athlete } from '@/domain/types'
-import { performerOf } from '@/theme/cast'
+import { glowOf, performerOf } from '@/theme/cast'
 import { completion, nextForm, unlockText } from '@/theme/personal'
 import { THEMES, UNIVERSES, posterOf } from '@/theme/themes'
 import { useStanding, useVoice, useWearing } from '@/theme/useTheme'
@@ -36,7 +36,7 @@ export function IdentityCard({ athlete }: { athlete: Athlete }) {
       <div className="flex items-stretch">
         <div className="w-[40%] max-w-[230px] shrink-0 p-2 pr-0">
           {done.character
-            ? <Stage3D cast={[performerOf(look, { aura: 'full', level: Math.min(look.intensity, 0.7) })]} ratio={0.74} controls="none" activate="small" margin={1.3} className="!border-0" label="Your character" />
+            ? <Stage3D cast={[performerOf(look, { aura: 'full', level: Math.min(glowOf(look.intensity), 0.75) })]} ratio={0.74} controls="none" activate="small" margin={1.3} className="!border-0" label="Your character" />
             : <img src={`${import.meta.env.BASE_URL}${posterOf(look.theme, look.character)}`} alt="" className="aspect-[0.74] w-full rounded-[calc(var(--r-card)*0.7)] bg-(--stage) object-cover object-top" onError={(e) => { e.currentTarget.style.visibility = 'hidden' }} />}
         </div>
         <div className="flex min-w-0 flex-1 flex-col p-4">

@@ -122,8 +122,10 @@
   --d-legs: #64900f;
   --d-mobility: #0d927a;
 
+  /* On paper the Aura is laid on as colour, and laid on fully: a pale centre would take it away again. */
   --aura-blend: multiply;
-  --aura-opacity: 0.5;
+  --aura-opacity: 0.92;
+  --aura-core-level: 0.3;
   --aura-core: rgba(255, 252, 244, 0.95);
   --shadow-pop: 0 24px 60px -24px rgba(40, 30, 10, 0.28);
 }
@@ -225,7 +227,8 @@
   --d-mobility: #0d8f7a;
 
   --aura-blend: multiply;
-  --aura-opacity: 0.55;
+  --aura-opacity: 0.95;
+  --aura-core-level: 0.3;
   --aura-blur: 22px;
   --aura-core: rgba(255, 252, 246, 0.95);
   --shadow-pop: 0 24px 60px -24px rgba(17, 17, 20, 0.32);
@@ -290,7 +293,7 @@
   --d-legs: #a9bf72;
   --d-mobility: #6fc2ad;
 
-  --aura-opacity: 0.4;
+  --aura-opacity: 0.66;
   --aura-blur: 34px;
   --shadow-pop: 0 24px 60px -20px rgba(0, 0, 0, 0.85);
 

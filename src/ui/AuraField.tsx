@@ -10,6 +10,8 @@ const IGNITE_FILL = 1.7
 const IGNITE_EASE = 2.6
 export const IGNITE_SECONDS = 2.75
 
+const EVEN_MIX = Object.fromEntries(WHEEL.map((d) => [d, 1 / 6])) as Record<DisciplineId, number>
+
 interface Props {
   /** Each discipline's share of the athlete's total rating. */
   mix: Record<DisciplineId, number>
@@ -31,7 +33,11 @@ interface Props {
  */
 export function AuraField({ mix, aura, size = 320, progress, rings = true, ignite, children, className }: Props) {
   const power = Math.min(1, aura / 9000)
-  const active = aura > 0
+  // An Aura is there at every level and in every theme. With nothing rated yet it is all six colours, evenly and more quietly.
+  const none = !(aura > 0)
+  const shares = none ? EVEN_MIX : mix
+  const quiet = none ? 0.6 : 1
+  const active = true
   const reach = 0.17 + power * 0.07
   const style = { width: size, height: size, maxWidth: '100%', '--aura-blur': `${Math.round(size * 0.085)}px` } as CSSProperties
   const r = 47.5
@@ -42,7 +48,7 @@ export function AuraField({ mix, aura, size = 320, progress, rings = true, ignit
       {active && (
         <div className="aura-orbit">
           {WHEEL.map((d, i) => {
-            const share = mix[d] ?? 0
+            const share = shares[d] ?? 0
             if (share <= 0.01) return null
             const angle = ((i * 60 - 90) * Math.PI) / 180
             const diameter = (0.26 + share * 1.35) * (0.72 + power * 0.42)
@@ -56,6 +62,7 @@ export function AuraField({ mix, aura, size = 320, progress, rings = true, ignit
                   width: `${diameter * 100}%`,
                   height: `${diameter * 100}%`,
                   background: `radial-gradient(circle, ${dvar(d)} 0%, color-mix(in oklab, ${dvar(d)} 55%, transparent) 45%, transparent 72%)`,
+                  opacity: `calc(var(--aura-opacity) * ${quiet})`,
                   animationDelay: `${-i * 1.3}s`,
                 }}
               />
@@ -71,7 +78,8 @@ export function AuraField({ mix, aura, size = 320, progress, rings = true, ignit
             top: '50%',
             width: `${30 + power * 18}%`,
             height: `${30 + power * 18}%`,
-            opacity: 0.35 + power * 0.5,
+            // How much of a pale centre a theme takes is the theme's (`--aura-core-level`): on paper it would wash the colour out.
+            opacity: `calc(var(--aura-core-level, 1) * ${((0.35 + power * 0.5) * quiet).toFixed(3)})`,
           }}
         />
       )}
@@ -96,7 +104,7 @@ export function AuraField({ mix, aura, size = 320, progress, rings = true, ignit
               />
             )
           })}
-          {progress !== undefined && active && (
+          {progress !== undefined && !none && (
             <circle
               cx="50"
               cy="50"

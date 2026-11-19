@@ -34,6 +34,12 @@ export const standardLook = (character: Wearing['character']): Look => ({
   universe: 'aura', character, form: UNIVERSES.aura.list[0], finish: UNIVERSES.aura.finishes[0], intensity: 0.6,
 })
 
+/**
+ * How strongly a worn Aura glows for an athlete's intensity (0 to 1). The lowest setting is still an Aura that can be
+ * seen, on every stage: the slider turns it up from there, it never turns it off.
+ */
+export const glowOf = (intensity: number) => 0.3 + 0.7 * Math.max(0, Math.min(1, intensity))
+
 export function performerOf(look: Look, o: {
   motion?: string | null
   revision?: number
@@ -47,7 +53,7 @@ export function performerOf(look: Look, o: {
 } = {}): PerformerSpec {
   return {
     character: look.character, motion: o.motion ?? null, revision: o.revision, muscles: o.muscles ?? null, glow: MUSCLE_GLOW[look.universe],
-    aura: { theme: look.form.aura, mode: o.aura ?? 'off', level: o.level ?? (o.aura === 'full' ? look.intensity : undefined), tuning: o.tuning },
+    aura: { theme: look.form.aura, mode: o.aura ?? 'off', level: o.level ?? (o.aura === 'full' ? glowOf(look.intensity) : undefined), tuning: o.tuning },
     style: { universe: look.universe, variant: look.theme ? THEMES[look.theme].variant : undefined, skin: look.finish.skin, hair: look.finish.hair, accent: look.finish.accent },
     x: o.x, facing: o.facing,
   }
