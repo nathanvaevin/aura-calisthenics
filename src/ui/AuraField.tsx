@@ -13,6 +13,8 @@ interface Props {
   /** 0–1 progress toward the next Aura class, drawn on the outer ring. */
   progress?: number
   rings?: boolean
+  /** Ignite: the outer ring fills with the six colours, clockwise, and the Aura bursts. Plays once when it turns on (the welcome's "Get started"). */
+  ignite?: boolean
   children?: ReactNode
   className?: string
 }
@@ -22,7 +24,7 @@ interface Props {
  * discipline mix. A handstand specialist glows gold, a puller blue, and an
  * all-rounder resolves toward white. Size and brightness follow the score.
  */
-export function AuraField({ mix, aura, size = 320, progress, rings = true, children, className }: Props) {
+export function AuraField({ mix, aura, size = 320, progress, rings = true, ignite, children, className }: Props) {
   const power = Math.min(1, aura / 9000)
   const active = aura > 0
   const reach = 0.17 + power * 0.07
@@ -31,7 +33,7 @@ export function AuraField({ mix, aura, size = 320, progress, rings = true, child
   const circ = 2 * Math.PI * r
 
   return (
-    <div className={`aura-field ${className ?? ''}`} style={style}>
+    <div className={`aura-field ${ignite ? 'aura-ignite' : ''} ${className ?? ''}`} style={style} data-ignite={ignite || undefined}>
       {active && (
         <div className="aura-orbit">
           {WHEEL.map((d, i) => {
@@ -103,8 +105,20 @@ export function AuraField({ mix, aura, size = 320, progress, rings = true, child
               style={{ transition: 'stroke-dasharray 1.2s var(--ease-out-soft)' }}
             />
           )}
+          {/* Ignite: the border round the clock fills, one discipline's colour after another. */}
+          {ignite && WHEEL.map((d, i) => {
+            const at = (deg: number) => { const a = ((deg - 90) * Math.PI) / 180; return `${50 + Math.cos(a) * r} ${50 + Math.sin(a) * r}` }
+            return (
+              <path
+                key={d} d={`M ${at(i * 60)} A ${r} ${r} 0 0 1 ${at(i * 60 + 60.5)}`} pathLength={1}
+                className="aura-ignite-arc" fill="none" stroke={dvar(d)} strokeWidth="1.3" strokeLinecap="round"
+                style={{ animationDelay: `${i * 0.12}s` }}
+              />
+            )
+          })}
         </svg>
       )}
+      {ignite && <span className="aura-ignite-wave" aria-hidden />}
 
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">{children}</div>
     </div>

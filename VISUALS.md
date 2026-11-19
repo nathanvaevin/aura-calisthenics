@@ -121,6 +121,8 @@ Together these are every exercise of the first-day assessment (all 67 of its gui
 - **Behaviour** (`director.ts`): repetitions climb a little each rep and swell in the hard part; holds build steadily with a growing tremor; balance follows the small corrections; mobility breathes. A completed repetition sends a wave across the floor; the end of a set settles and starts again. **It no longer bursts by itself** (2026-11-19): bursting is the athlete's, with Activate.
 - The field measures the body every frame, so it wraps a standing athlete, a plank and someone hanging alike.
 
+**Theme pictures** (`public/themes/*.jpg`, the cards in Personalize) are rendered from the live characters by `npm run posters` (`scripts/render-posters.mjs` through `scripts/stage.html`, with the dev server running): each universe's poster form, three-quarter view, just after an Activate burst. The Aura pictures show Electric (owner's choice, 2026-11-19); the others are still the earlier renders.
+
 **Adding a theme**: one entry in `THEMES`. A new kind of effect is a new component in `field.ts` plus its entry in every theme.
 
 **Not built**: giving a theme to a challenge or an event; an explosive behaviour (no explosive exercise is in the pilot).

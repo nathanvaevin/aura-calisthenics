@@ -193,6 +193,9 @@ Reference: [VISUALS.md](VISUALS.md) §11 to §13. Theme data: `src/theme/`. "Pro
 | F-152 | **The sample world is no longer offered on the welcome screen** (owner's request, 2026-11-19). It still exists for testing and is opened by address only: `…/?demo` | Sample data | T-20; every journey now enters this way | Nobody finds it by accident. Coach Studio can therefore be looked at without an account only by someone who knows the address | F-01 |
 | F-153 | **At rest an Aura is a strong glow; Activate charges it and lets it burst.** Every theme in every universe: only the burning outline and its field while standing; rays, ribbons, particles, streams, rings, lightning only in a burst. *Activate* on the character (profile, Personalize, Character Studio) gathers for about a second, bursts, and settles. A set in a demonstration no longer bursts by itself | Working (local) | Rendered at rest, gathering, bursting and after, for 4 Aura themes, 4 Goku forms, 3 Baki forms and the paper stage (Goku Light); on the profile: Activate charges, bursts, is ready again (T-20) | Changes how every Aura looks: **look at your forms in the Character Studio**. The theme posters shown before a character is chosen are still the earlier pictures, with ribbons. The instructor screen still bursts in Electric. Exercise demonstrations show no Aura, as before | F-120, F-148 |
 | F-154 | **The introduction lights what it talks about in the theme's colour**, with a glow round it, and the tab of the page you are on is in that colour too. It ends on *Go to profile*, with *Start first training* under it, quieter. Back on the profile, **Personalize glows** until theme and character are chosen | Working (local) | T-20: the lit tab in the theme colour, the ending's two actions, Personalize glowing and stopping once chosen; the journeys re-run | The glow shows only after the introduction was seen or skipped, so it never competes with "Start here" | F-143 |
+| F-155 | **The theme cards are a name, one line and a picture**: the tone, number, description, colour dots and typeface line are gone (the description is kept as the card's tooltip). The Aura themes' picture is now the master character in the **Electric** Aura, just after an Activate burst (`npm run posters -- aura`, `scripts/render-posters.mjs`, from the live 3D characters). The page's own line is one sentence | Working (local) | In a browser: the card's text, the new picture on both Aura cards (owner's screenshot 2026-11-19 as the brief) | **Only the two Aura pictures were remade.** Goku, Goku Light and Baki keep their earlier pictures; the same script remakes them when wanted. The picture shows Electric although an athlete starts in Cosmic: it shows what the theme can be | F-121 |
+| F-156 | **"Get started" ignites the circle**: the ring round the clock fills clockwise in the six discipline colours, the Aura gathers and bursts outward in a wave and a flash, and the next screen comes out of it (about 1.5 s). Also on *Begin* (without accounts). With reduced motion it goes straight on | Working (local) | Filmed in a browser at eight moments; the account step follows; the onboarding journey re-run with it | – | F-150 |
+| F-157 | **On a developer's machine only, a way in without Google**: *Without signing in · this computer only* on the welcome, under Get started. It runs the same questions and makes a local profile on that computer, as Aura without accounts does | Working (local) | In a browser, with the project configured: the button, the questions, the starting line, the profile; **checked absent from the public build** | Exists only in `npm run dev` (`import.meta.env.DEV`): the public site never shows it. A profile made this way is not an account and is not synced | F-01 |
 
 ### A coach sees their students (added 2026-11-19)
 
@@ -415,6 +418,13 @@ Reference: [VISUALS.md](VISUALS.md) §11 to §13. Theme data: `src/theme/`. "Pro
 | Data protection | Any real athletes | Privacy notice, deletion and export, consent for under-18s in classes |
 
 ## F · Change log
+
+**2026-11-19 · Simpler theme cards in Electric; Get started ignites; a local way in**
+
+- At the owner's request: theme cards cut to name, line and picture, with the Aura pictures remade in Electric (F-155). New `npm run posters` and `scripts/stage.html` render them from the live characters.
+- Get started fills the circle's ring and bursts into the next screen (F-156).
+- On localhost only, the questions can be reached without Google (F-157); not in the public build.
+- Journeys 58, 21, 44; 649 tests. **Not on a real phone.** Not published.
 
 **2026-11-19 · The Aura at rest, Activate, and a clearer introduction**
 

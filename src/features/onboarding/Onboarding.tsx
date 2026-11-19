@@ -213,6 +213,14 @@ export function Onboarding() {
   }
 
   const welcome = step === 0 && !accountStep
+  // "Get started" lights the circle first: the ring fills, the Aura bursts, and the next screen comes out of it.
+  const [igniting, setIgniting] = useState(false)
+  const ignite = (then: () => void) => {
+    if (igniting) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return then()
+    setIgniting(true)
+    window.setTimeout(() => { then(); setIgniting(false) }, 1450)
+  }
   const firstName = name.trim().split(' ')[0] || 'Athlete'
 
   return (
@@ -262,21 +270,26 @@ export function Onboarding() {
           )}
 
           {/* 0 · Welcome: one still screen */}
+          {welcome && igniting && <span className="aura-ignite-flash" aria-hidden />}
           {welcome && (
             <div className="safe-top safe-bottom flex min-h-0 flex-1 flex-col items-center text-center">
               <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
-                <AuraField mix={EVEN} aura={7200} size={Math.round(Math.min(300, Math.max(132, tall * 0.33)))}>
+                <AuraField mix={EVEN} aura={7200} size={Math.round(Math.min(300, Math.max(132, tall * 0.33)))} ignite={igniting}>
                   <Wordmark size={tall < 620 ? 40 : 54} />
                 </AuraField>
-                <h1 className="display mt-[2.5dvh] text-[clamp(31px,5.6dvh,52px)] leading-[1.02]">Discover the limitless potential <span className="italic">of your body.</span></h1>
-                <p className="mt-[2dvh] max-w-sm text-[15.5px] leading-relaxed text-ink-2">
+                <h1 className={cx('display mt-[2.5dvh] text-[clamp(31px,5.6dvh,52px)] leading-[1.02] transition-opacity delay-700 duration-500', igniting && 'opacity-0')}>Discover the limitless potential <span className="italic">of your body.</span></h1>
+                <p className={cx('mt-[2dvh] max-w-sm text-[15.5px] leading-relaxed text-ink-2 transition-opacity delay-700 duration-500', igniting && 'opacity-0')}>
                   Aura shows you exactly where you are today, and every step to where you’ve always dreamed of going.
                 </p>
               </div>
-              <div className="flex w-full max-w-sm shrink-0 flex-col gap-2.5 pt-[2.5dvh]">
+              <div className={cx('flex w-full max-w-sm shrink-0 flex-col gap-2.5 pt-[2.5dvh] transition-opacity duration-500', igniting && 'pointer-events-none opacity-0')}>
                 {configured
-                  ? <button className="btn btn-primary btn-lg" onClick={() => setAccountStep(true)}>Get started <ArrowRight size={17} /></button>
-                  : <button className="btn btn-primary btn-lg" onClick={() => setStep(1)}>Begin <ArrowRight size={17} /></button>}
+                  ? <button className="btn btn-primary btn-lg" data-get-started onClick={() => ignite(() => setAccountStep(true))}>Get started <ArrowRight size={17} /></button>
+                  : <button className="btn btn-primary btn-lg" data-get-started onClick={() => ignite(() => setStep(1))}>Begin <ArrowRight size={17} /></button>}
+                {/* Only on a developer's machine (npm run dev): a public build never has this. */}
+                {configured && import.meta.env.DEV && (
+                  <button className="btn btn-quiet btn-sm self-center" data-local-start onClick={() => ignite(() => setStep(1))}>Without signing in · this computer only</button>
+                )}
                 {configured && (
                   <p className="mt-1 text-[13.5px] text-ink-2">
                     Already have an account?{' '}

@@ -20,7 +20,7 @@ import { CharacterStudio } from './CharacterStudio'
 import { TextSize } from './TextSize'
 
 const TITLES: Record<Step, { title: string; sub: string }> = {
-  theme: { title: 'Choose your theme', sub: 'Five ways to experience Aura. Your training, ratings and progress are the same in all of them, and you can change at any time.' },
+  theme: { title: 'Choose your theme', sub: 'Change it any time. Your training and results stay the same.' },
   character: { title: 'Make the character yours', sub: 'This is who performs your exercises and stands on your profile.' },
   about: { title: 'A little about you', sub: 'All of it is optional. Skip it now and fill it in whenever you like.' },
   sharing: { title: 'What you share', sub: 'You decide what other athletes see, part by part. You can change any of it later.' },
@@ -124,8 +124,6 @@ export default function Personalize() {
 
 // ── Step one: the four themes ────────────────────────────────────────────
 
-const SWATCH = ['--bg', '--surface-2', '--text', '--accent', '--d-pull', '--d-push'] as const
-
 function ThemeStep({ value, onChange, released, admin, character }: { value: ThemeId; onChange: (t: ThemeId) => void; released: Parameters<typeof isReleased>[1]; admin: boolean; character: 'male' | 'female' }) {
   return (
     <div className="grid gap-3.5 sm:grid-cols-2">
@@ -137,20 +135,15 @@ function ThemeStep({ value, onChange, released, admin, character }: { value: The
         return (
           <button
             key={id} data-theme={id} data-scheme={t.scheme} aria-pressed={on} disabled={!open} onClick={() => onChange(id)}
-            className={cx('rise group relative isolate flex min-h-[236px] overflow-hidden rounded-card border bg-bg text-left text-ink transition-[box-shadow,transform] duration-300', on ? 'border-transparent shadow-[0_0_0_2px_var(--accent),0_24px_60px_-28px_var(--accent)]' : 'border-line-strong', !open && 'opacity-60')}
+            title={`${t.name}: ${t.blurb} ${u.list.length} ${u.forms === 'Aura' ? 'Auras' : `${u.forms.toLowerCase()}s`}.`}
+            className={cx('rise group relative isolate flex min-h-[200px] overflow-hidden rounded-card border bg-bg text-left text-ink transition-[box-shadow,transform] duration-300', on ? 'border-transparent shadow-[0_0_0_2px_var(--accent),0_24px_60px_-28px_var(--accent)]' : 'border-line-strong', !open && 'opacity-60')}
             style={{ animationDelay: `${i * 0.06}s` }}
           >
             <span className="page-glow !absolute" />
-            <span className="relative z-10 flex min-w-0 flex-1 flex-col p-4 pr-2 sm:p-5">
-              <span className="eyebrow">{String(i + 1).padStart(2, '0')} · {t.tone}</span>
-              <span className="display mt-2 block text-[32px] leading-[0.98] sm:text-[36px]">{t.name}</span>
+            {/* A name, one line, a picture. What else a theme is, the athlete sees by trying it. */}
+            <span className="relative z-10 flex min-w-0 flex-1 flex-col justify-end p-4 pr-2 sm:p-5">
+              <span className="display block text-[34px] leading-[0.98] sm:text-[38px]">{t.name}</span>
               <span className="display mt-2.5 block text-[17px] leading-[1.12] text-ink-2">{t.line}</span>
-              <span className="mt-2.5 block text-[12px] leading-snug text-ink-3">{t.blurb}</span>
-              <span className="mt-auto flex items-center gap-2 pt-4">
-                <span className="flex">{SWATCH.map((v) => <span key={v} className="-ml-1 h-4 w-4 rounded-full border border-line-strong first:ml-0" style={{ background: `var(${v})` }} />)}</span>
-                <span className="flex gap-1">{u.list.slice(0, 5).map((f) => <span key={f.id} title={f.name} className="h-1.5 w-3 rounded-full" style={{ background: f.colour }} />)}</span>
-              </span>
-              <span className="mt-2 block font-mono text-[9.5px] tracking-[0.1em] text-ink-3 uppercase">{t.type} · {u.list.length} {u.forms === 'Aura' ? 'Auras' : `${u.forms.toLowerCase()}s`}</span>
             </span>
             {/* The character of this universe, in its own light. */}
             <span className="relative z-10 m-2.5 ml-0 w-[38%] shrink-0 overflow-hidden rounded-[calc(var(--r-card)*0.7)] bg-(--stage)">

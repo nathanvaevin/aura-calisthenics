@@ -1,0 +1,23 @@
+<!doctype html><meta charset="utf-8"><title>stage</title>
+<!-- A bare stage for rendering pictures (scripts/render-posters.mjs). Opened through the dev server: /scripts/stage.html?… -->
+<style>html,body{margin:0;background:#08090d;overflow:hidden}canvas{display:block;width:100vw;height:100vh}</style>
+<canvas id="c"></canvas>
+<script type="module">
+import { Player } from '/src/visual/player.ts'
+import { UNIVERSES } from '/src/theme/themes.ts'
+const q = new URLSearchParams(location.search)
+const u = UNIVERSES[q.get('uni') ?? 'aura']
+const f = u.finishes[Number(q.get('fin') ?? 0)]
+const player = new Player(document.getElementById('c'))
+player.margin = Number(q.get('margin') ?? 1.2)
+player.resize(innerWidth, innerHeight)
+await player.setCast([{
+  character: q.get('who') ?? 'male', motion: null, muscles: null,
+  aura: { theme: q.get('theme') ?? 'cosmic', mode: 'full', level: Number(q.get('level') ?? 0.7) },
+  style: { universe: u.id, variant: q.get('var') ?? undefined, skin: f.skin, hair: f.hair, accent: f.accent },
+}])
+if (q.has('az')) player.reframe(Number(q.get('az')))
+if (q.has('zoom')) player.zoom(Number(q.get('zoom')))
+window.__player = player
+setTimeout(() => { window.__ready = true }, Number(q.get('at') ?? 2) * 1000)
+</script>

@@ -11,6 +11,7 @@
     "test": "vitest run",
     "db:seed": "tsx scripts/generate-seed.ts",
     "db:check": "tsx scripts/check-schema.ts",
+    "posters": "node scripts/render-posters.mjs",
     "scoring:audit": "tsx scripts/scoring-audit.ts",
     "db:bundle": "tsx scripts/build-bundle.ts",
     "deploy": "sh scripts/deploy.sh",
