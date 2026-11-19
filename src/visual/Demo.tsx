@@ -174,7 +174,8 @@ export default function Demo({ cast, ratio = 1, controls = 'simple', margin, ang
           {charging ? 'Charging' : 'Activate'}
         </button>
       )}
-      {controls === 'spin' && ready && <div className="absolute right-3 bottom-3">{spinButton('h-11 bg-black/45 hover:bg-black/60')}</div>}
+      {/* With part of the stage covered, the button stays in the part that is free. */}
+      {controls === 'spin' && ready && <div className="absolute right-3 transition-[bottom] duration-300 ease-out" style={{ bottom: (fill && safe ? safe.bottom : 0) + 12 }}>{spinButton('h-11 bg-black/45 hover:bg-black/60')}</div>}
       {controls !== 'none' && controls !== 'spin' && ready && (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col gap-2 bg-gradient-to-t from-black/55 to-transparent p-3 pt-10">
           {controls === 'review' && state && (

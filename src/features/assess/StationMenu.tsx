@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { DemoPreview, DemoSlot, useHasDemo } from '@/features/library/DemoSlot'
 import { ArrowLeft, Check, Compass, Play, Plus } from 'lucide-react'
 import type { AssessmentResult, DisciplineId } from '@/domain/types'
@@ -38,6 +38,9 @@ function Details({ t }: { t: AssessmentTest }) {
     </div>
   )
 }
+
+/** How tall the see-through part at the top of the list is: the stage shows through it, and the character's feet may stand in it. */
+const FADE = 96
 
 const ORDINAL = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th']
 
@@ -88,11 +91,39 @@ export function StationMenu({ station, results, chosen, onChoose, onStart, onEdi
     return <button onClick={() => toggle(t.id)} aria-label={`Add ${name}`} className={cx('pressable flex shrink-0 items-center justify-center gap-1 rounded-full border border-line-strong font-medium hover:bg-surface-2', large ? 'h-10 px-4 text-[13.5px]' : 'h-8 w-8')}><Plus size={large ? 15 : 15} />{large && 'Add'}</button>
   }
 
+  // The movement fills the screen. The header lies over its top and the list over its bottom, and the
+  // character is kept in what is left between them, with its feet just inside the list's fade.
+  const header = useRef<HTMLElement>(null)
+  const panel = useRef<HTMLDivElement>(null)
+  const root = useRef<HTMLDivElement>(null)
+  const [cover, setCover] = useState({ top: 0, bottom: 0 })
+  useLayoutEffect(() => {
+    const measure = () => {
+      const h = root.current?.clientHeight ?? 0
+      const top = header.current?.offsetHeight ?? 0
+      const p = panel.current ? h - panel.current.offsetTop : 0
+      setCover((was) => (was.top === top && Math.abs(was.bottom - (p - FADE)) < 1 ? was : { top, bottom: Math.max(0, p - FADE) }))
+    }
+    measure()
+    const watch = new ResizeObserver(measure)
+    for (const el of [root.current, header.current, panel.current]) if (el) watch.observe(el)
+    return () => watch.disconnect()
+  }, [])
+  const list = useRef<HTMLDivElement>(null)
+  const show = (id: string) => { setFocus(id); setMore(false); list.current?.scrollTo({ top: 0, behavior: 'smooth' }) }
+
   return (
-    <div className="relative mx-auto flex h-dvh w-full max-w-[560px] flex-col bg-bg" data-picker={station}>
-      <header className="safe-top relative z-10 shrink-0 px-4">
+    <div ref={root} className="relative mx-auto h-dvh w-full max-w-[560px] overflow-hidden bg-(--stage)" data-picker={station}>
+      {/* The exercise being looked at, performed, behind everything. It changes the moment another is touched. */}
+      <div className="absolute inset-0" data-picker-stage>
+        {animated
+          ? <DemoPreview exerciseId={ex.id} official safe={cover} />
+          : <div className="flex items-center justify-center" style={{ paddingTop: cover.top, height: `calc(100% - ${cover.bottom}px)` }}><MuscleMap primary={ex.primary} secondary={ex.secondary} stabilizers={ex.stabilizers} color={color} height={190} /></div>}
+      </div>
+
+      <header ref={header} className="safe-top pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-(--stage) via-(--stage)/70 to-transparent px-4 pb-6">
         <div className="flex h-14 items-center justify-between">
-          <button onClick={onClose} aria-label="Back to the areas" className="pressable flex h-10 w-10 items-center justify-center rounded-full bg-surface text-ink-2"><ArrowLeft size={18} /></button>
+          <button onClick={onClose} aria-label="Back to the areas" className="pressable pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full bg-black/35 text-ink-2 backdrop-blur-md"><ArrowLeft size={18} /></button>
           <div className="min-w-0 px-3 text-center">
             <div className="flex items-center justify-center gap-2 truncate text-[15px] font-medium"><DisciplineDot id={station} size={7} />{disciplineById[station].short}</div>
             <div className="truncate text-[11.5px] text-ink-3">{forName ? `Recording for ${forName}` : recordedCount ? `${recordedCount} recorded` : 'Tap an exercise to see it'}</div>
@@ -101,67 +132,70 @@ export function StationMenu({ station, results, chosen, onChoose, onStart, onEdi
         </div>
       </header>
 
-      {/* The exercise being looked at, performed. It changes the moment another is touched. */}
-      <div className="relative z-10 mx-4 h-[30dvh] min-h-[200px] shrink-0 overflow-hidden rounded-card border border-line bg-(--stage)">
-        {animated
-          ? <DemoPreview exerciseId={ex.id} official />
-          : <div className="flex h-full items-center justify-center"><MuscleMap primary={ex.primary} secondary={ex.secondary} stabilizers={ex.stabilizers} color={color} height={170} /></div>}
-      </div>
-
-      <div className="relative z-10 shrink-0 px-5 pt-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="display truncate text-[26px] leading-tight">{ex.name}</h1>
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-ink-3"><LevelChip t={focus} /><span className="num">{targetLabel(focus)}</span></div>
-          </div>
-          {act(focus, true)}
-        </div>
-        <p className="mt-2 text-[13.5px] leading-snug text-ink-2">{focus.prompt}</p>
-        {(ex.standard || ex.safety) && (
-          <button className="mt-1 text-[12px] text-ink-3 underline decoration-line-strong underline-offset-4 hover:text-ink" onClick={() => setMore(!more)} aria-expanded={more}>{more ? 'Less' : 'What counts'}</button>
-        )}
-        {more && (
-          <div className="mt-1.5 space-y-1 text-[12.5px] leading-snug text-ink-2">
-            {ex.standard && focus.kind === 'max' && <p>{ex.standard}</p>}
-            {ex.safety && <p className="text-warn">{ex.safety}</p>}
-          </div>
-        )}
-      </div>
-
-      <div className="relative z-10 mt-3 min-h-0 flex-1 overflow-y-auto border-t border-line px-3 pb-2">
-        {tests.map((t) => {
-          const r = results[t.id]
-          const on = focus.id === t.id
-          return (
-            <div key={t.id} data-test={t.id} className={cx('flex items-center gap-2 rounded-2xl pr-2 transition-colors', on && 'bg-surface-2')}>
-              <button className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-2.5 text-left" onClick={() => { setFocus(t.id); setMore(false) }} aria-current={on}>
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full" style={r ? { background: color, color: 'var(--bg)' } : { background: `color-mix(in oklab, ${color} 16%, transparent)`, color }}>
-                  {r ? <Check size={13} strokeWidth={3} /> : <Play size={10} fill="currentColor" className="ml-px" />}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2"><span className="truncate text-[14.5px] font-medium">{exerciseById[t.exerciseId].name}</span>{t.id === entry.id && !r && <span className="shrink-0 rounded-full bg-ink px-1.5 py-px font-mono text-[8.5px] tracking-[0.1em] text-bg uppercase">Start here</span>}</span>
-                  <span className="block truncate text-[11.5px] text-ink-3">
-                    {r ? (r.skipped ? 'Not tested' : t.kind === 'choice' ? t.options?.[r.value]?.label : `Recorded ${r.value}${exerciseById[t.exerciseId].metric === 'hold' ? ' s' : ''}`) : `${levelOf(t).label} · ${targetLabel(t)}`}
-                  </span>
-                </span>
-              </button>
-              {act(t)}
+      {/* Over the bottom of the stage: a see-through veil that deepens downwards, the exercise looked at, and every exercise to scroll through. */}
+      <div ref={panel} className="absolute inset-x-0 bottom-0 z-10 flex h-[56dvh] flex-col" data-picker-panel>
+        <div className="pointer-events-none absolute inset-0" style={{ background: `linear-gradient(to bottom, transparent 0, color-mix(in oklab, var(--bg) 55%, transparent) ${FADE}px, color-mix(in oklab, var(--bg) 88%, transparent) ${FADE + 120}px, var(--bg) 100%)` }} />
+        <div
+          ref={list}
+          className="no-scrollbar relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3"
+          style={{ paddingTop: FADE - 8, WebkitMaskImage: 'linear-gradient(to bottom, transparent 0, #000 22px)', maskImage: 'linear-gradient(to bottom, transparent 0, #000 22px)' }}
+        >
+          <div className="px-2 pb-3" data-picker-focus>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h1 className="display truncate text-[28px] leading-tight [text-shadow:0_2px_18px_rgba(0,0,0,0.6)]">{ex.name}</h1>
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-ink-2"><LevelChip t={focus} /><span className="num">{targetLabel(focus)}</span></div>
+              </div>
+              {act(focus, true)}
             </div>
-          )
-        })}
-        {onSkip && !forName && recordedCount === 0 && (
-          <button className="mt-1 w-full px-2.5 py-2.5 text-left text-[12px] text-ink-3 hover:text-ink" onClick={onSkip}>{skipped ? 'Skipped for today. Tap to bring it back.' : 'Can’t do this area today? Skip it.'}</button>
-        )}
-      </div>
+            <p className="mt-2 text-[13.5px] leading-snug text-ink-2">{focus.prompt}</p>
+            {(ex.standard || ex.safety) && (
+              <button className="mt-1 text-[12px] text-ink-3 underline decoration-line-strong underline-offset-4 hover:text-ink" onClick={() => setMore(!more)} aria-expanded={more}>{more ? 'Less' : 'What counts'}</button>
+            )}
+            {more && (
+              <div className="mt-1.5 space-y-1 text-[12.5px] leading-snug text-ink-2">
+                {ex.standard && focus.kind === 'max' && <p>{ex.standard}</p>}
+                {ex.safety && <p className="text-warn">{ex.safety}</p>}
+              </div>
+            )}
+          </div>
 
-      <footer className="safe-bottom glass relative z-10 shrink-0 border-t border-line px-5 pt-3 pb-4">
-        <button className="btn btn-primary btn-lg w-full" disabled={picked.length === 0} onClick={() => onStart(picked)}>
-          {picked.length === 0 ? 'Add an exercise to begin' : <><Play size={15} fill="currentColor" /> {picked.length === 1 ? `Start ${first!.short}` : `Start · ${first!.short} first, ${picked.length} in all`}</>}
-        </button>
-        <button className="mt-2 flex h-9 w-full items-center justify-center gap-1.5 text-[12.5px] text-ink-2 hover:text-ink" onClick={onGuide}>
-          <Compass size={13} /> Not sure? Let Aura choose for you
-        </button>
-      </footer>
+          <div className="space-y-1">
+            {tests.map((t) => {
+              const r = results[t.id]
+              const on = focus.id === t.id
+              return (
+                <div key={t.id} data-test={t.id} className={cx('flex items-center gap-2 rounded-2xl pr-2 transition-colors', on ? 'bg-surface-2/80 ring-1 ring-line-strong backdrop-blur-md' : 'bg-bg/35 backdrop-blur-[2px]')}>
+                  <button className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-2.5 text-left" onClick={() => show(t.id)} aria-current={on}>
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full" style={r ? { background: color, color: 'var(--bg)' } : { background: `color-mix(in oklab, ${color} 16%, transparent)`, color }}>
+                      {r ? <Check size={13} strokeWidth={3} /> : <Play size={10} fill="currentColor" className="ml-px" />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2"><span className="truncate text-[14.5px] font-medium">{exerciseById[t.exerciseId].name}</span>{t.id === entry.id && !r && <span className="shrink-0 rounded-full bg-ink px-1.5 py-px font-mono text-[8.5px] tracking-[0.1em] text-bg uppercase">Start here</span>}</span>
+                      <span className="block truncate text-[11.5px] text-ink-3">
+                        {r ? (r.skipped ? 'Not tested' : t.kind === 'choice' ? t.options?.[r.value]?.label : `Recorded ${r.value}${exerciseById[t.exerciseId].metric === 'hold' ? ' s' : ''}`) : `${levelOf(t).label} · ${targetLabel(t)}`}
+                      </span>
+                    </span>
+                  </button>
+                  {act(t)}
+                </div>
+              )
+            })}
+          </div>
+          {onSkip && !forName && recordedCount === 0 && (
+            <button className="mt-1 w-full px-2.5 py-2.5 text-left text-[12px] text-ink-3 hover:text-ink" onClick={onSkip}>{skipped ? 'Skipped for today. Tap to bring it back.' : 'Can’t do this area today? Skip it.'}</button>
+          )}
+        </div>
+
+        <footer className="safe-bottom relative shrink-0 bg-bg px-5 pt-2 pb-4">
+          <button className="btn btn-primary btn-lg w-full" disabled={picked.length === 0} onClick={() => onStart(picked)}>
+            {picked.length === 0 ? 'Add an exercise to begin' : <><Play size={15} fill="currentColor" /> {picked.length === 1 ? `Start ${first!.short}` : `Start · ${first!.short} first, ${picked.length} in all`}</>}
+          </button>
+          <button className="mt-1 flex h-9 w-full items-center justify-center gap-1.5 text-[12.5px] text-ink-2 hover:text-ink" onClick={onGuide}>
+            <Compass size={13} /> Not sure? Let Aura choose for you
+          </button>
+        </footer>
+      </div>
     </div>
   )
 }

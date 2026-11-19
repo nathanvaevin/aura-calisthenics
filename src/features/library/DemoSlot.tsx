@@ -79,13 +79,13 @@ export function DemoStage({ exerciseId, official, cover, handle }: { exerciseId:
  * through one after another. One stage stays up and the movement on it
  * changes. Renders nothing when there is no approved animation.
  */
-export function DemoPreview({ exerciseId, official }: { exerciseId: string; official?: boolean }) {
+export function DemoPreview({ exerciseId, official, safe }: { exerciseId: string; official?: boolean; safe?: { top: number; bottom: number } }) {
   const demos = useStore((s) => s.demos)
   const has = useHasDemo(exerciseId)
   if (!has) return null
   return (
     <Suspense fallback={null}>
-      <ExerciseDemos animations={publishedFor(demos, exerciseId).animations} official={official} preview />
+      <ExerciseDemos animations={publishedFor(demos, exerciseId).animations} official={official} preview safe={safe} />
     </Suspense>
   )
 }
