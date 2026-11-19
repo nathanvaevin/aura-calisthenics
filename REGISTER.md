@@ -425,6 +425,11 @@ Reference: [VISUALS.md](VISUALS.md) §11 to §13. Theme data: `src/theme/`. "Pro
 
 ## F · Change log
 
+**2026-11-19 · Published**
+
+- Everything from F-150 to F-163 is on the public address (build `index-D3nT0sCP.js`), at the owner's word. Checked there, signed out, at phone size, 11 checks: the still welcome with a narrower Get started and no demo; the local-only way in absent; the circle ignites and the account step follows with its Google button; the sample world by address; the ring round the initials; the coloured tab; compact theme cards; text size offered; Goku, Goku Light and Baki still "in preparation" for athletes.
+- **Not checked there:** anything behind a real sign-in, and a real phone. **Still yours:** database step 0014 (action 3n) and releasing the three universes in the Studio (action 3k).
+
 **2026-11-19 · The Aura present everywhere**
 
 - At the owner's request: the orb shows at every level and holds its colour in the light themes and in Baki; the character's glow has a visible floor at the lowest intensity (F-163). Presentation only: no rating, Aura figure or unlock changed.
