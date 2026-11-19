@@ -425,6 +425,10 @@ Reference: [VISUALS.md](VISUALS.md) §11 to §13. Theme data: `src/theme/`. "Pro
 
 ## F · Change log
 
+**2026-11-19 · A new profile always gets the introduction**
+
+- Fixed at the owner's report: the introduction and the Personalize call are remembered per device, so a second profile made on the same device (starting over, or a second person) was never offered them. A profile made through the welcome questions now clears both (F-143, F-154). Checked in a browser: first profile offered, skipped, started over, second profile offered again. Not published.
+
 **2026-11-19 · Published**
 
 - Everything from F-150 to F-163 is on the public address (build `index-D3nT0sCP.js`), at the owner's word. Checked there, signed out, at phone size, 11 checks: the still welcome with a narrower Get started and no demo; the local-only way in absent; the circle ignites and the account step follows with its Google button; the sample world by address; the ring round the initials; the coloured tab; compact theme cards; text size offered; Goku, Goku Light and Baki still "in preparation" for athletes.

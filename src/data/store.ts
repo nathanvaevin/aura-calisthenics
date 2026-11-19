@@ -53,6 +53,12 @@ export interface Settings {
   size?: 'large'
 }
 
+/**
+ * What a device remembers about the introduction belongs to whoever saw it. A profile just made through the welcome
+ * questions is someone new, also on a device that has shown it before: it is offered again, and Personalize calls again.
+ */
+const NEWCOMER: Partial<Settings> = { tour: undefined, personalizeOpened: undefined }
+
 export interface NewPlace {
   name: string
   kind: Place['kind']
@@ -404,7 +410,7 @@ export const useStore = create<State>()(
           const estimates: Evidence[] = Object.entries(r.estimates)
             .filter(([, v]) => v > 0)
             .map(([exerciseId, value]) => ({ id: uid(), athleteId: account, exerciseId, value, tier: 'estimated', source: 'onboarding', date: now.toISOString() }))
-          set({ athletes: { ...s.athletes, [account]: me }, evidence: [...s.evidence, ...estimates], meId: account, settings: { ...s.settings, coachMode: r.coach } })
+          set({ athletes: { ...s.athletes, [account]: me }, evidence: [...s.evidence, ...estimates], meId: account, settings: { ...s.settings, coachMode: r.coach, ...NEWCOMER } })
           return
         }
         const world = buildWorld(now, false)
@@ -430,7 +436,7 @@ export const useStore = create<State>()(
           athletes: { ...world.athletes, [ME]: me },
           evidence: [...world.evidence, ...estimates],
           meId: ME,
-          settings: { ...get().settings, coachMode: r.coach },
+          settings: { ...get().settings, coachMode: r.coach, ...NEWCOMER },
         })
       },
 
