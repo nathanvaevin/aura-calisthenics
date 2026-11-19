@@ -11,7 +11,7 @@ const legsOf = (b: Body) => (b.upperLeg + b.lowerLeg) * 0.998
 const reachOf = (b: Body) => b.upperArm + b.lowerArm
 
 /** Where f crosses zero between lo and hi (it must have opposite signs at the two). */
-function root(f: (x: number) => number, lo: number, hi: number, steps = 26): number {
+export function root(f: (x: number) => number, lo: number, hi: number, steps = 26): number {
   let low = f(lo) > 0
   for (let i = 0; i < steps; i++) {
     const mid = (lo + hi) / 2
@@ -23,7 +23,7 @@ function root(f: (x: number) => number, lo: number, hi: number, steps = 26): num
 
 /** Things worked out once per body and movement: where the bar goes, how far the arms let the body down. */
 const once = new Map<string, unknown>()
-function remember<T>(key: string, make: () => T): T {
+export function remember<T>(key: string, make: () => T): T {
   if (!once.has(key)) once.set(key, make())
   return once.get(key) as T
 }
@@ -54,7 +54,7 @@ const ankleOf = (b: Body, shape: RowShape) => at(0, shape.surface(b) + heelHeigh
 const along = (theta: number) => at(-Math.cos(theta * deg), Math.sin(theta * deg))
 
 /** Where the bar is: just clear of the lower chest when the body is at its top angle. */
-function lowBar(b: Body, shape: RowShape): Bar {
+export function lowBar(b: Body, shape: RowShape): Bar {
   const r = b.rest
   const hip = ankleOf(b, shape).addScaledVector(along(shape.top), legsOf(b))
   const chest = new Vector3(0, r.upperArmL.y - BELOW * b.scale - r.upperLegL.y, (0.108 + BAR) * b.scale - r.upperLegL.z).applyQuaternion(pitch(shape.top - 90))
@@ -62,7 +62,7 @@ function lowBar(b: Body, shape: RowShape): Bar {
 }
 
 /** A straight body, face up, heels planted, hands on the bar, at an angle above the floor. `pull` is 0 hanging to 1 chest at the bar. */
-function rowPose(rig: Rig, out: Pose, shape: RowShape, theta: number, pull: number) {
+export function rowPose(rig: Rig, out: Pose, shape: RowShape, theta: number, pull: number) {
   const b = rig.body
   const s = b.scale
   const turn = pitch(theta - 90)

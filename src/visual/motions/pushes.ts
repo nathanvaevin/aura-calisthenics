@@ -551,7 +551,7 @@ export const elevatedPikePushup: Motion = {
 }
 
 /** A handstand with the back to a wall (the wall is at +Z, behind the back): the shoulders are put somewhere and the body leans so that the heels rest on it. */
-function againstWall(rig: Rig, out: Pose, shoulder: Vector3, wall: number, shrug: number, look: number) {
+export function againstWall(rig: Rig, out: Pose, shoulder: Vector3, wall: number, shrug: number, look: number) {
   const b = rig.body
   const s = b.scale
   const lean = Math.asin(Math.max(-0.3, Math.min(0.3, (wall - 0.095 * s - shoulder.z) / (b.trunk + b.upperLeg + b.lowerLeg)))) / deg
@@ -567,7 +567,7 @@ function againstWall(rig: Rig, out: Pose, shoulder: Vector3, wall: number, shrug
 
 const crownOf = (rig: Rig) => rig.pos.head.clone().add(new Vector3(0, rig.body.height - rig.body.rest.head.y, 0).applyQuaternion(rig.rot.head))
 
-function hspuSetUp(rig: Rig) {
+export function hspuSetUp(rig: Rig) {
   return once(rig, 'wall-hspu', () => {
     const b = rig.body
     const s = b.scale

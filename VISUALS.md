@@ -2,7 +2,7 @@
 
 How the two master characters, their muscle activation, the Aura and the exercise animations are made, and how they relate to videos and to the review workflow. Status of each part is in [REGISTER.md](REGISTER.md) (F-100 to F-112); this file explains how it works.
 
-Last updated: 2026-11-17 · the first-day assessment (68 movements)
+Last updated: 2026-11-19 · every exercise in the library has a movement (116); 48 of them wait for the owner's approval
 
 ## 1 · The parts, and what depends on what
 
@@ -87,7 +87,7 @@ A movement is a function: for any moment of one cycle and any body, it writes a 
 
 **Checked automatically.** `testkit.ts` holds what every movement must satisfy, for both characters at 48 moments: hands and feet reach where they are put; what is planted does not drift (under 4 mm); no elbow or knee folds past its range; nothing goes through the floor. Each family then has its own test file with each exercise's standard (lockout, depth, alignment, what touches the equipment, what stays off the floor).
 
-**What exists** (`motions/index.ts`): 68 movements.
+**What exists** (`motions/index.ts`): 116 movements, one for every exercise in the library. The first 68 are approved and published; the 48 added on 2026-11-19 (`REST`, the last six rows) are written, checked and waiting in the Studio.
 
 | Family | File | Exercises |
 | --- | --- | --- |
@@ -99,8 +99,26 @@ A movement is a function: for any moment of one cycle and any body, it writes a 
 | Legs | `legs.ts` | box squat, wall sit, single-leg calf raise, Bulgarian split squat, Cossack squat, deep squat hold, assisted pistol, pistol squat, shrimp squat |
 | Handstand station | `inverted.ts` | box pike hold, crow pose, wall walk, chest-to-wall and back-to-wall handstand, wall and freestanding shoulder taps, elbow lever |
 | Mobility | `mobility.ts` | standing toe touch, deep lunge stretch, overhead wall reach, pancake to elbows, full bridge |
+| Pulling past the pull-up | `pulls.ts` | band-assisted pull-up, archer row, explosive pull-up, archer pull-up, assisted one-arm pull-up, one-arm pull-up |
+| Levers | `levers.ts` | German hang, skin the cat, tuck back lever, hanging windshield wipers, back lever, straddle front lever, front lever |
+| Planche line | `planche.ts` | scapular push-up, incline one-arm push-up, one-arm push-up, planche lean, tuck, advanced tuck, straddle and full planche, ring dip |
+| Handstand, beyond the first | `balance.ts` | wrist preparation, heel pulls, tripod headstand, wall HSPU negative, tuck and straddle handstand, press to handstand, freestanding HSPU, one-arm handstand |
+| Trunk and legs | `trunk.ts` | arch hold, box pistol, dragon flag negative, dragon flag, standing ab-wheel rollout, advanced shrimp squat, Nordic curl, V-sit, manna |
+| Range | `flex.ts` | 90/90 hip switch, lunge with rotation, palms-to-floor fold, seated pike, full pancake, front split, middle split, straight-leg bridge |
 
-Together these are every exercise of the first-day assessment (all 67 of its guided tests and menu variations) plus cat-cow.
+The first eight rows are every exercise of the first-day assessment (all 67 of its guided tests and menu variations) plus cat-cow. The last six are the rest of the library.
+
+**The 48 of 2026-11-19: what the owner should look at.** Each was rendered and looked at from more than one side and on both bodies while it was written, then looked at again in one pass at the end; each has its standard in its test file (413 checks). What is known not to be fully faithful, so that it is judged knowingly:
+- *Balance by calculation.* The lean of every planche, the tuck handstand, the press and the one-arm handstand is solved so that the body's weight is over the hands (`massCentre` in `planche.ts`, `centreOf` in `balance.ts`), not drawn by eye.
+- *Press to handstand:* the shoulders lean about 26° past the wrists at lift-off, more than a flexible gymnast shows (nearer 15°): the skeleton's trunk does not shorten when the back rounds.
+- *Wall HSPU negative* shares the approved wall HSPU's bottom (forearm 31° off vertical); the freestanding HSPU's bottom is a truer tripod (15°). Its way back up is a headstand exit and a kick-up, not a press.
+- *Dragon flag:* the top is 84°, not vertical: the neck cannot fold enough for a true shoulder stand.
+- *Front split:* the thigh cannot be twisted on its own; kneecap and foot of the back leg are turned down by the knee and the foot.
+- *Advanced shrimp squat:* the standing ankle bends more than most have. *V-sit:* the trunk leans back about 28°.
+- *Skin the cat:* the legs pass under the bar with centimetres to spare; look at that moment.
+- *Rings* hang still and are held palms in; the turn-out at the top of a ring dip is not shown. *The band* is one straight strip, without its loop over the bar.
+- *Equipment chosen where the library allows two:* tuck and advanced tuck planche and the V-sit on parallettes; straddle and full planche and the manna on the floor. *Assisted one-arm pull-up:* the free hand holds a band beside the working hand, as the library describes, not the wrist.
+- *Fingers cannot spread* on this hand, and at full shoulder stretch (deep pancake, bridges) the skin at the shoulder bunches, as it does on the approved bridge.
 
 **Adding an exercise.** Write its movement with the kit, give it a standard, its equipment and what is planted, add it to its family's list (or a new family in `motions/index.ts`), add its checks, and generate it in the Studio. It arrives as pending.
 

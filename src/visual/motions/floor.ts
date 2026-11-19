@@ -21,7 +21,7 @@ const lying = (b: Body) => 0.112 * b.scale
  * A straight arm pointing `along` from the shoulder it actually has. The
  * shoulder girdle follows the arm, so the shoulder is measured, twice.
  */
-function reachOut(rig: Rig, out: Pose, side: Side, along: Vector3, share = 0.997) {
+export function reachOut(rig: Rig, out: Pose, side: Side, along: Vector3, share = 0.997) {
   const b = rig.body
   for (let i = 0; i < 3; i++) {
     rig.solve(out)
@@ -30,7 +30,7 @@ function reachOut(rig: Rig, out: Pose, side: Side, along: Vector3, share = 0.997
 }
 
 /** A leg bent in the plane of movement: thigh and shin at angles above the floor, from the hip joint it has. */
-function bentLeg(rig: Rig, out: Pose, side: Side, thigh: number, shin: number, point = 0) {
+export function bentLeg(rig: Rig, out: Pose, side: Side, thigh: number, shin: number, point = 0) {
   const b = rig.body
   const leg = out.leg[side]
   leg.foot.copy(rig.pos[`upperLeg${side}`]).addScaledVector(dir(thigh), b.upperLeg).addScaledVector(dir(shin), b.lowerLeg * 0.999)
@@ -52,7 +52,7 @@ function turnPose(p: Pose, q: Quaternion, about: Vector3, shift: Vector3) {
 }
 
 /** A hand bearing weight on top of a rail that runs front to back: the heel of the hand over it, the fingers closed round the outside. */
-function onRail(b: Body, arm: ArmPose, side: Side, sign: number, rail: Vector3, radius: number) {
+export function onRail(b: Body, arm: ArmPose, side: Side, sign: number, rail: Vector3, radius: number) {
   arm.hand.set(rail.x - sign * 0.034 * b.scale, rail.y + radius + 0.03 * b.scale, rail.z)
   arm.rot.copy(handRot(side, new Vector3(sign * 0.86, -0.5, 0), new Vector3(-sign * 0.5, -0.86, 0)))
   arm.grip = 0.8
@@ -346,7 +346,7 @@ export const reversePlank: Motion = {
 // ── Supported on the hands ───────────────────────────────────────────────
 
 /** A pair of parallettes just outside the shoulders. */
-const parallettes = (b: Body) => ({ height: 0.2 * b.scale, gap: 2 * (b.rest.upperArmL.x + 0.04 * b.scale), length: 0.42 * b.scale, radius: 0.016 * b.scale })
+export const parallettes = (b: Body) => ({ height: 0.2 * b.scale, gap: 2 * (b.rest.upperArmL.x + 0.04 * b.scale), length: 0.42 * b.scale, radius: 0.016 * b.scale })
 
 /** In support on the parallettes with locked arms and the shoulders pushed down; the legs are placed by the caller. */
 function support(rig: Rig, out: Pose, t: number, pelvis: number, chest: number) {
@@ -416,7 +416,7 @@ export const lSit: Motion = {
 // ── Kneeling ─────────────────────────────────────────────────────────────
 
 /** Kneeling with the shins and the tops of the feet on the floor behind: the knees are at z = 0. */
-function kneel(b: Body, out: Pose) {
+export function kneel(b: Body, out: Pose) {
   const s = b.scale
   for (const [side, sign] of SIDES) {
     const leg = out.leg[side]
@@ -428,7 +428,7 @@ function kneel(b: Body, out: Pose) {
   return 0.052 * s
 }
 
-const wheel = (b: Body) => 0.09 * b.scale
+export const wheel = (b: Body) => 0.09 * b.scale
 
 /**
  * Kneeling ab-wheel rollout: from the knees the wheel rolls out, hips and

@@ -436,7 +436,7 @@ const scratch = (): Pose => ({
 })
 
 /** One hand on the bar, `turn` of the way from hanging under it to pressing on top of it. */
-function handOver(b: Body, out: Pose, side: Side, sign: number, half: number, turn: number) {
+export function handOver(b: Body, out: Pose, side: Side, sign: number, half: number, turn: number) {
   const rail = highBar(b)
   const a = 100 * turn * D
   const fingers = new Vector3(0, Math.cos(a), Math.sin(a))

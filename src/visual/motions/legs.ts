@@ -13,7 +13,7 @@ const UP = new Vector3(0, 1, 0)
 const legsOf = (b: Body) => b.upperLeg + b.lowerLeg
 
 /** A foot flat on the floor, turned out by `turn` degrees. */
-function flatFoot(leg: LegPose, b: Body, x: number, z: number, sign: number, turn = 0) {
+export function flatFoot(leg: LegPose, b: Body, x: number, z: number, sign: number, turn = 0) {
   const toes = new Vector3(sign * Math.sin(turn * rad), 0, Math.cos(turn * rad))
   leg.foot.set(x, b.ankle, z)
   leg.rot.copy(footRot(toes, UP))
@@ -22,7 +22,7 @@ function flatFoot(leg: LegPose, b: Body, x: number, z: number, sign: number, tur
 }
 
 /** Places the trunk: the midpoint of the hip joints, and how far pelvis, chest and head are tipped forward. Solved, so joints can be read. */
-function trunk(rig: Rig, out: Pose, hip: Vector3, pelvis: number, chest: number, head: number) {
+export function trunk(rig: Rig, out: Pose, hip: Vector3, pelvis: number, chest: number, head: number) {
   out.pelvis.copy(pitch(pelvis))
   out.chest.copy(pitch(chest))
   out.head.copy(pitch(head))
@@ -31,7 +31,7 @@ function trunk(rig: Rig, out: Pose, hip: Vector3, pelvis: number, chest: number,
 }
 
 /** Arms hanging at u = 0, reaching forward at shoulder height at u = 1: the counterweight of every squat. */
-function armsForward(rig: Rig, out: Pose, u: number, drop = 0) {
+export function armsForward(rig: Rig, out: Pose, u: number, drop = 0) {
   const b = rig.body
   for (const [side, sign] of SIDES) {
     const arm = out.arm[side]
@@ -64,7 +64,7 @@ function handsOnHips(rig: Rig, out: Pose) {
 /** A box a little under knee height, behind the athlete. */
 export const squatBox = (b: Body) => ({ width: 0.5 * b.scale, height: b.ankle + b.lowerLeg * 0.9, depth: 0.42 * b.scale, z: -0.385 * b.scale })
 /** How far the hip joints are above what the buttocks sit on. */
-const SEAT = 0.092
+export const SEAT = 0.092
 
 /**
  * Box squat: the hips reach back and down to touch a knee-height box
@@ -434,7 +434,7 @@ export const assistedPistol: Motion = {
 // ── Shrimp squat ─────────────────────────────────────────────────────────
 
 /** How high the knee joint is when the kneecap rests on the floor. */
-const KNEE_DOWN = 0.052
+export const KNEE_DOWN = 0.052
 
 /**
  * Shrimp squat on the left leg: the right leg is bent behind and its knee

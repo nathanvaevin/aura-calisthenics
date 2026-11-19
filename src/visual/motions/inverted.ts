@@ -33,7 +33,7 @@ interface Stand {
 }
 
 /** A handstand with locked arms: shoulders stacked on the wrists, then the line above them. */
-function stand(rig: Rig, out: Pose, o: Stand) {
+export function stand(rig: Rig, out: Pose, o: Stand) {
   const b = rig.body
   const reach = b.upperArm + b.lowerArm
   const drift = o.drift ?? 0
@@ -50,11 +50,11 @@ function stand(rig: Rig, out: Pose, o: Stand) {
 }
 
 const CHEST: Stand = { tilt: -0.6, head: 6, point: 8 }
-const BACK: Stand = { tilt: 6.5, head: 16, point: 38 }
+export const BACK: Stand = { tilt: 6.5, head: 16, point: 38 }
 
 /** Where the walls stand for a body: at the toes of the one handstand, at the heels of the other. */
 const walls = new Map<string, { chest: number; back: number }>()
-function wallsOf(b: Body) {
+export function wallsOf(b: Body) {
   let w = walls.get(b.id)
   if (!w) {
     const rig = new Rig(b.id)

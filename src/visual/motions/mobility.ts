@@ -9,20 +9,20 @@ import { ease, lerp, type Motion } from './types'
  */
 
 /** 0 at the start of a breath, 1 while the position is kept, back to 0 at the end. */
-const settle = (t: number) => (t < 0.38 ? ease(t / 0.38) : t < 0.72 ? 1 : 1 - ease((t - 0.72) / 0.28))
+export const settle = (t: number) => (t < 0.38 ? ease(t / 0.38) : t < 0.72 ? 1 : 1 - ease((t - 0.72) / 0.28))
 /** How far into the position: `off` when eased off, 1 when fully there. */
-const depth = (t: number, off: number) => off + (1 - off) * settle(t)
-const stretch = (t: number) => 0.4 + 0.5 * settle(t)
+export const depth = (t: number, off: number) => off + (1 - off) * settle(t)
+export const stretch = (t: number) => 0.4 + 0.5 * settle(t)
 
 /** Wrist to fingertips, and how far the thumb stands out from the wrist. */
-const handLength = (b: Body) => b.knuckle * (0.192 / 0.094)
+export const handLength = (b: Body) => b.knuckle * (0.192 / 0.094)
 const thumbReach = (b: Body) => b.knuckle * (0.072 / 0.094)
 
 const UP = new Vector3(0, 1, 0)
 const FORWARD = new Vector3(0, 0, 1)
 
 /** The value at which `f` is zero, by the secant method. `f` is last called with the answer, so the pose is left there. */
-function zeroOf(f: (x: number) => number, start: number, step: number, lo: number, hi: number): number {
+export function zeroOf(f: (x: number) => number, start: number, step: number, lo: number, hi: number): number {
   let a = start, fa = f(a), z = start + step, fz = f(z)
   for (let i = 0; i < 9 && Math.abs(fz) > 1e-4 && fz !== fa; i++) {
     const next = z - (fz * (z - a)) / (fz - fa)
@@ -31,10 +31,10 @@ function zeroOf(f: (x: number) => number, start: number, step: number, lo: numbe
   return z
 }
 
-const shoulders = (rig: Rig) => rig.pos.upperArmL.clone().add(rig.pos.upperArmR).multiplyScalar(0.5)
+export const shoulders = (rig: Rig) => rig.pos.upperArmL.clone().add(rig.pos.upperArmR).multiplyScalar(0.5)
 
 /** Both feet flat on the floor, pointing forward, `half` either side of the centre line. */
-function feetFlat(b: Body, out: Pose, z: number, half: number, knee = new Vector3(0, 0, 1)) {
+export function feetFlat(b: Body, out: Pose, z: number, half: number, knee = new Vector3(0, 0, 1)) {
   for (const [side, sign] of SIDES) {
     const leg = out.leg[side]
     leg.foot.set(sign * half, b.ankle, z)
