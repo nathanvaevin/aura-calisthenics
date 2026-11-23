@@ -75,13 +75,15 @@ Back in the Supabase Google provider panel:
 
 ### 3d. Tell Supabase which app URLs may return after login
 
-The app is already hosted on GitHub Pages at **https://nathanvaevin.github.io/aura-calisthenics/**, so use that.
+The app's own address is **https://aurathletics.nl/** (it was https://nathanvaevin.github.io/aura-calisthenics/ until the domain was set up; keep that one listed too, it forwards).
 
 **Authentication → URL Configuration:**
 
-- **Site URL:** `https://nathanvaevin.github.io/aura-calisthenics/`
-- **Redirect URLs → Add URL:** add both, each on its own line:
-  - `https://nathanvaevin.github.io/aura-calisthenics/` (the live app)
+- **Site URL:** `https://aurathletics.nl/`
+- **Redirect URLs → Add URL:** each on its own line:
+  - `https://aurathletics.nl/**` (the live app)
+  - `https://www.aurathletics.nl/**`
+  - `https://nathanvaevin.github.io/aura-calisthenics/` (the old address)
   - `http://localhost:5173` (local development and testing)
 
 The app sends people back to its own address after login, so that address must be listed here or Google will refuse the redirect.
@@ -170,11 +172,31 @@ Students on mobile data are not affected either way.
 npm run deploy
 ```
 
-Runs the tests, builds the app for `https://nathanvaevin.github.io/aura-calisthenics/` with the two values from `.env.local` built in, and replaces the `gh-pages` branch that GitHub Pages serves. About a minute later the public address serves the new build. It stops if `.env.local` has no project, or holds a secret key.
+Runs the tests, builds the app for **https://aurathletics.nl/** once that domain points at GitHub Pages (until then for `https://nathanvaevin.github.io/aura-calisthenics/`; the script checks the DNS itself and says which) with the two values from `.env.local` built in, and replaces the `gh-pages` branch that GitHub Pages serves. About a minute later the public address serves the new build. It stops if `.env.local` has no project, or holds a secret key.
 
 Then open the public address and sign in with Google: you land on the welcome questions (or, if this browser already held a profile from before accounts, straight in your profile with that data moved into your account).
 
 ---
+
+### 7b. The domain aurathletics.nl
+
+At the registrar's DNS settings for aurathletics.nl (remove any other A, AAAA or CNAME records for the bare domain and for www first):
+
+| Type | Name | Value |
+| --- | --- | --- |
+| A | @ (the bare domain) | 185.199.108.153 |
+| A | @ | 185.199.109.153 |
+| A | @ | 185.199.110.153 |
+| A | @ | 185.199.111.153 |
+| AAAA | @ | 2606:50c0:8000::153 |
+| AAAA | @ | 2606:50c0:8001::153 |
+| AAAA | @ | 2606:50c0:8002::153 |
+| AAAA | @ | 2606:50c0:8003::153 |
+| CNAME | www | nathanvaevin.github.io |
+
+Then step 3d's URLs in Supabase, and publish: the deploy script sees the domain answer and moves the site there. GitHub issues the HTTPS certificate on its own, usually within an hour.
+
+**What athletes notice.** A browser keeps a site's data per address, so on aurathletics.nl every device starts empty: athletes with an account sign in again and find everything; what was never synced stays behind at the old address (places and check-ins, a workout in progress, device settings such as text size). A guest profile (no Google account) cannot be found again from the new address. Move on a day with no workout or assessment running.
 
 ## 8 · Coaching by approval, and your account as owner
 

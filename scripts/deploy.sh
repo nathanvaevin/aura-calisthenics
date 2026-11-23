@@ -8,7 +8,26 @@
 set -e
 cd "$(dirname "$0")/.."
 
-BASE="${AURA_BASE:-/aura-calisthenics/}"
+# Aura's own address. It is used as soon as it points at GitHub Pages; until then
+# the build keeps going to the old one, so a publish can never send athletes to
+# an address that does not answer yet. (Its DNS: four A records to GitHub's
+# 185.199.108–111.153, and www as a CNAME to nathanvaevin.github.io.)
+DOMAIN="${AURA_DOMAIN:-aurathletics.nl}"
+GITHUB_IPS="185.199.108.153 185.199.109.153 185.199.110.153 185.199.111.153"
+ready=0
+if [ -n "$DOMAIN" ]; then
+  for ip in $(dig +short A "$DOMAIN" 2>/dev/null); do
+    case " $GITHUB_IPS " in *" $ip "*) ready=1 ;; esac
+  done
+fi
+if [ "$ready" = 1 ]; then
+  BASE="/"
+  echo "Publishing to https://$DOMAIN/"
+else
+  BASE="${AURA_BASE:-/aura-calisthenics/}"
+  DOMAIN=""
+  echo "Publishing to https://nathanvaevin.github.io/aura-calisthenics/ (aurathletics.nl does not point at GitHub Pages yet)"
+fi
 
 if ! grep -q '^VITE_SUPABASE_URL=https://' .env.local 2>/dev/null || ! grep -q '^VITE_SUPABASE_ANON_KEY=.\+' .env.local 2>/dev/null; then
   echo "No Supabase project in .env.local: this would publish a demo-only build. Stopping." >&2
@@ -26,6 +45,8 @@ VITE_BASE="$BASE" npm run build
 # reload on /train or /coach opens the app instead of an error page.
 cp dist/index.html dist/404.html
 touch dist/.nojekyll
+# With its own domain, this one file tells GitHub Pages to serve the site there; the old address then forwards to it.
+if [ -n "$DOMAIN" ]; then echo "$DOMAIN" > dist/CNAME; fi
 
 REMOTE="$(git remote get-url origin)"
 cd dist
