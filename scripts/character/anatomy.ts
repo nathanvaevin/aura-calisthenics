@@ -197,8 +197,9 @@ export function anatomyOf(id: CharacterId, build: BuildId = 'aura'): Anatomy {
     // Her chest, as it is and not as a ball set on the ribs: most of its fullness low and a little to the side, and
     // above that a long slope that rises out of the upper chest with no edge to it. A natural size for an athlete.
     const tissue = { bones: { upperChest: 1, chest: 0.6 }, soft: 1 }
-    E(tm(0.071, 1.337, 0.074), R(0.054, 0.046, 0.039), { k: 0.036, rot: [0, 10, 0], ...tissue })
-    E(tm(0.069, 1.378, 0.062), R(0.047, 0.056, 0.026), { k: 0.042, rot: [16, 8, 0], ...tissue })
+    // Apart enough that there is a valley between the two sides, as there is.
+    E(tm(0.076, 1.337, 0.074), R(0.05, 0.046, 0.039), { k: 0.03, rot: [0, 12, 0], ...tissue })
+    E(tm(0.075, 1.378, 0.062), R(0.042, 0.056, 0.026), { k: 0.034, rot: [16, 10, 0], ...tissue })
   }
   E(tm(0.075, 1.375, -0.078), R(0.085 * wT, 0.1, 0.045), { k: 0.045, bones: { upperChest: 1, chest: 0.8, shoulderL: 0.4 } })
   E(tm(0.124, 1.275, -0.056), R(0.054 * fem.lat * tu('lat'), 0.125, 0.046 * m), { k: 0.035, rot: [0, 0, -13], bones: { chest: 1, upperChest: 1, spine: 0.6 } })
@@ -392,9 +393,10 @@ export function anatomyOf(id: CharacterId, build: BuildId = 'aura'): Anatomy {
     region: (x, y, z) => Math.max(y - waist, dot(sub([Math.abs(x), y, z], hem), down)),
   }]
   if (F) {
-    // A halter top (the owner's choice of cut, 2026-11-24): a band round the ribs, two triangles over the chest, and a
-    // thin strap from the point of each that meets the other behind the neck. The back is bare but for the band.
-    const band = 1.262 * S, bandTop = band + 0.03 * S
+    // A halter top (the owner's choice of cut, 2026-11-24): a thin band round the ribs, two wide cups that meet in a
+    // scooped V and wrap round her sides, and a thin strap from the point of each that meets the other behind the neck.
+    // The back is bare but for the band.
+    const band = 1.262 * S, bandTop = band + 0.022 * S
     const skin = new Field(body.filter((x) => !x.relief))
     const at: Fn = (x, y, z) => skin.value(x, y, z)
     /** The point of the skin nearest to a point beside it. */
@@ -403,26 +405,22 @@ export function anatomyOf(id: CharacterId, build: BuildId = 'aura'): Anatomy {
       for (let pass = 0; pass < 12; pass++) q = sub(q, mul(unit(gradient(at, q[0], q[1], q[2], 0.002)), at(q[0], q[1], q[2])))
       return q
     }
-    // How wide the ribs are where the band's upper edge runs: the triangles come down to the band exactly at her side.
-    let ribs = 0.1 * S
-    while (at(ribs, bandTop, 0) < 0) ribs += 0.001 * S
-    // Seen from the front, a triangle has a point on the upper chest, an inner edge down to the bottom of the neckline
-    // and an outer edge down to her side. It is wide enough to cover the side of the chest.
-    const point: [number, number] = [0.07 * S, 1.462 * S]
-    const neckline: [number, number] = [0.004 * S, band + 0.062 * S]
-    const flank: [number, number] = [ribs + 0.006 * S, bandTop]
-    /** How far a place is outside the line from one point to the next: cloth is on the right of it. */
-    const outside = (from: [number, number], to: [number, number]) => {
-      const dx = to[0] - from[0], dy = to[1] - from[1], len = Math.hypot(dx, dy)
-      return (ax: number, y: number) => ((y - from[1]) * dx - (ax - from[0]) * dy) / len
-    }
-    const inner = outside(neckline, point), outer = outside(point, flank)
-    // The strap, laid on the skin: up from the point of the triangle, over the muscle beside the neck, round to the nape.
-    const through = [[0.07, 1.45, 0.09], [0.066, 1.5, 0.05], [0.055, 1.535, 0.004], [0.036, 1.55, -0.04], [0, 1.548, -0.066]] as V3[]
+    // Each cup, seen from the front. Its point, where the strap begins, is well out towards the shoulder. From there:
+    const point: [number, number] = [0.09 * S, 1.455 * S]
+    // inwards, the neckline curves down to meet the other cup a third of the way up from the band (a scooped V, not a slit);
+    const meet = bandTop + 0.038 * S
+    const neck = (ax: number, y: number) => (y <= meet ? -1 : point[0] * Math.pow(Math.min(1.4, (y - meet) / (point[1] - meet)), 0.6) - ax) * 0.75
+    // outwards, its edge runs steeply down to her side, wide of the chest, and carries on round it.
+    const dx = 0.058 * S, dy = -0.092 * S, len = Math.hypot(dx, dy)
+    const outer = (ax: number, y: number) => ((y - point[1]) * dx - (ax - point[0]) * dy) / len
+    // Seen from her side, the cup covers the side of the chest and narrows to the band behind the arm: a wing.
+    const wing = (y: number, z: number) => y - (bandTop + 1.05 * Math.max(0, z + 0.05 * S) + 3 * Math.max(0, z - 0.02 * S))
+    // The strap, laid on the skin: up from the point of the cup, over the muscle beside the neck, round to the nape.
+    const through = [[0.09, 1.447, 0.085], [0.079, 1.5, 0.045], [0.06, 1.535, 0.004], [0.036, 1.55, -0.04], [0, 1.548, -0.066]] as V3[]
     const strap: V3[] = []
     for (let i = 0; i + 1 < through.length; i++) for (let k = 0; k < 6; k++) strap.push(onSkin(mul(mix(through[i], through[i + 1], k / 6), S)))
     strap.push(onSkin(mul(through[through.length - 1], S)))
-    const width = 0.009 * S
+    const width = 0.008 * S
     const fromStrap = (ax: number, y: number, z: number) => {
       let best = Infinity
       for (let i = 0; i + 1 < strap.length; i++) {
@@ -436,16 +434,15 @@ export function anatomyOf(id: CharacterId, build: BuildId = 'aura'): Anatomy {
       name: 'top',
       // Its edges run beside the folds of the armpit, where the skin slides: it is worn on the skin.
       fitted: true,
-      seams: [(_x, y) => y - (band + 0.024 * S)],
       // A sports top holds to the ribcage. It does not go with the arms anywhere; its straps lift with the shoulders,
       // and from the armpit down it does not, or its corner under the arm is drawn out to a point when the arms go up.
       stays: (bone, _x, y) => (bone === 'shoulder' ? smooth(J.upperArmL[1] - 0.012 * S, J.upperArmL[1] - 0.05 * S, y) : bone === 'upperArm' || bone === 'lowerArm' || bone === 'foreTwist' ? 1 : 0),
-      thickness: (_x, y) => (0.005 + 0.002 * smooth(band + 0.03 * S, band + 0.024 * S, y)) * S,
+      thickness: (_x, y) => (0.0048 + 0.0018 * smooth(bandTop + 0.004 * S, bandTop - 0.001 * S, y)) * S,
       region: (x, y, z) => {
         const ax = Math.abs(x)
         const round = Math.max(band - y, y - bandTop)
-        const triangle = Math.max(inner(ax, y), outer(ax, y), band - y, -0.02 * S - z)
-        return Math.min(round, triangle, fromStrap(ax, y, z))
+        const cup = Math.max(neck(ax, y), outer(ax, y), wing(y, z), band - y)
+        return Math.min(round, cup, fromStrap(ax, y, z))
       },
     })
   }

@@ -43,11 +43,61 @@ function blend(out: { pos: number[]; nrm: number[]; joints: number[]; weights: n
 }
 
 /**
+ * Makes sure no edge of the surface crosses `f = 0` twice without a point between: an edge that starts and ends on
+ * one side with its middle on the other (a thin band of cloth narrower than the triangle it lies across) is given a
+ * point at its middle, and the triangles round it are divided to match. Without this the cut below, which looks at
+ * the ends of each edge, never sees such a band and leaves holes in it.
+ */
+function refine(p: Surface, f: Fn): Surface {
+  let now = p
+  for (let pass = 0; pass < 4; pass++) {
+    const out = { pos: Array.from(now.pos), nrm: Array.from(now.nrm), joints: Array.from(now.joints), weights: Array.from(now.weights), muscle: Array.from(now.muscle) }
+    const count = now.pos.length / 3
+    const val = new Float64Array(count)
+    for (let v = 0; v < count; v++) val[v] = f(now.pos[v * 3], now.pos[v * 3 + 1], now.pos[v * 3 + 2])
+    const middle = new Map<number, number>()
+    /** The point added at the middle of an edge, or -1 where none is needed. */
+    const mid = (a: number, b: number) => {
+      const [i, j] = a < b ? [a, b] : [b, a]
+      const key = i * count + j
+      const had = middle.get(key)
+      if (had !== undefined) return had
+      let made = -1
+      if (!(val[i] < -EPS && val[j] > EPS) && !(val[i] > EPS && val[j] < -EPS)) {
+        const m = f((now.pos[i * 3] + now.pos[j * 3]) / 2, (now.pos[i * 3 + 1] + now.pos[j * 3 + 1]) / 2, (now.pos[i * 3 + 2] + now.pos[j * 3 + 2]) / 2)
+        if ((m < -EPS && val[i] >= -EPS && val[j] >= -EPS) || (m > EPS && val[i] <= EPS && val[j] <= EPS)) made = blend(out, i, j, 0.5)
+      }
+      middle.set(key, made)
+      return made
+    }
+    const idx: number[] = []
+    for (let t = 0; t < now.idx.length; t += 3) {
+      const a = now.idx[t], b = now.idx[t + 1], c = now.idx[t + 2]
+      const ab = mid(a, b), bc = mid(b, c), ca = mid(c, a)
+      const n = (ab >= 0 ? 1 : 0) + (bc >= 0 ? 1 : 0) + (ca >= 0 ? 1 : 0)
+      if (n === 0) idx.push(a, b, c)
+      else if (n === 3) idx.push(a, ab, ca, ab, b, bc, ca, bc, c, ab, bc, ca)
+      else if (n === 1) {
+        if (ab >= 0) idx.push(a, ab, c, ab, b, c)
+        else if (bc >= 0) idx.push(a, b, bc, a, bc, c)
+        else idx.push(a, b, ca, ca, b, c)
+      } else if (ab < 0) idx.push(a, b, bc, a, bc, ca, ca, bc, c)
+      else if (bc < 0) idx.push(a, ab, ca, ab, b, ca, ca, b, c)
+      else idx.push(a, ab, c, ab, bc, c, ab, b, bc)
+    }
+    if (out.pos.length === now.pos.length) break
+    now = { pos: new Float32Array(out.pos), nrm: new Float32Array(out.nrm), idx: new Uint32Array(idx), joints: new Uint8Array(out.joints), weights: new Uint8Array(out.weights), muscle: new Uint8Array(out.muscle) }
+  }
+  return now
+}
+
+/**
  * Cuts every triangle that `f = 0` passes through, so that an unbroken line of
  * edges runs exactly along it. Returns the surface and, for each of its
  * triangles, the side it lies on: -1 where `f` is negative.
  */
-export function cut(p: Surface, f: Fn): { surface: Surface; side: Int8Array } {
+export function cut(whole: Surface, f: Fn): { surface: Surface; side: Int8Array } {
+  const p = refine(whole, f)
   const out = { pos: Array.from(p.pos), nrm: Array.from(p.nrm), joints: Array.from(p.joints), weights: Array.from(p.weights), muscle: Array.from(p.muscle) }
   const at = (i: number, j: number, t: number) => f(out.pos[i * 3] + (out.pos[j * 3] - out.pos[i * 3]) * t, out.pos[i * 3 + 1] + (out.pos[j * 3 + 1] - out.pos[i * 3 + 1]) * t, out.pos[i * 3 + 2] + (out.pos[j * 3 + 2] - out.pos[i * 3 + 2]) * t)
   const val: number[] = []

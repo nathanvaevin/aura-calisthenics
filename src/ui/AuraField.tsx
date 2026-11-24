@@ -10,6 +10,8 @@ export const WHEEL: DisciplineId[] = ['handstand', 'push', 'core', 'legs', 'mobi
 const IGNITE_FILL = 1.7
 const IGNITE_EASE = 2.6
 export const IGNITE_SECONDS = 2.75
+/** When the Aura bursts, in seconds from the start: the nebula pours out from here. Goes with the keyframes of `.aura-ignite`. */
+export const IGNITE_BURST = 1.98
 
 const EVEN_MIX = Object.fromEntries(WHEEL.map((d) => [d, 1 / 6])) as Record<DisciplineId, number>
 
@@ -21,7 +23,7 @@ interface Props {
   /** 0–1 progress toward the next Aura class, drawn on the outer ring. */
   progress?: number
   rings?: boolean
-  /** Ignite: a thick band of light fills the ring in the six colours, clockwise, and the Aura bursts. Plays once when it turns on ("Get started" on the welcome, joining an assessment). */
+  /** Ignite: warm golden light fills the ring, clockwise and gathering speed, and the Aura bursts. Plays once when it turns on ("Get started" on the welcome, joining an assessment). */
   ignite?: boolean
   children?: ReactNode
   className?: string
@@ -121,9 +123,8 @@ export function AuraField({ mix, aura, size = 320, progress, rings = true, ignit
           )}
         </svg>
       )}
-      {/* Ignite: a band of light fills the ring, slowly and then faster, beating as it goes. */}
-      {ignite && <IgniteRing order={WHEEL} fill={IGNITE_FILL} ease={IGNITE_EASE} />}
-      {ignite && <span className="aura-ignite-wave" aria-hidden />}
+      {/* Ignite: warm golden light fills the ring, slowly and then faster. The burst after it is `nebula.ts`, started by `useIgnite`. */}
+      {ignite && <IgniteRing fill={IGNITE_FILL} ease={IGNITE_EASE} />}
 
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">{children}</div>
     </div>

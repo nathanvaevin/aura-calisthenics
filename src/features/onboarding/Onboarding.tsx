@@ -265,7 +265,6 @@ export function Onboarding() {
           )}
 
           {/* 0 · Welcome: one still screen */}
-          {welcome && igniting && <span className="aura-ignite-flash" aria-hidden />}
           {welcome && (
             <div className="safe-top safe-bottom flex min-h-0 flex-1 flex-col items-center text-center">
               <div className="flex min-h-0 flex-1 flex-col items-center justify-center">

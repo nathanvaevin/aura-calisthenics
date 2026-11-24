@@ -69,6 +69,8 @@ async function build(id: CharacterId, kind: BuildId) {
   const S = sk.scale
   const J = sk.joints
   const field = new Field(an.body)
+  // Soft tissue is blended widely into the body, and skin over it can stand clear of every shape: it gets a longer reach to find its bones.
+  const reaches = an.body.some((x) => x.soft) ? [0.02, 0.07] : [0.02]
   const bodyFn: Fn = (x, y, z) => field.value(x, y, z)
   const { wrist, neck, ankle, rise } = an.cuts
   /** Height of the neck cut at this distance from the centre line. */
@@ -104,7 +106,7 @@ async function build(id: CharacterId, kind: BuildId) {
     ;({ mesh } = await simplify(mesh, Math.round(triangles / q), 0.0022 * S))
     const kinds = settle(mesh, bodyFn, cut, h * q)
     const nrm = normals(mesh, bodyFn, cut, kinds)
-    const { joints, weights } = skin(mesh, field, sk)
+    const { joints, weights } = skin(mesh, field, sk, undefined, undefined, 0, reaches)
     const muscle = muscles(mesh, nrm, field)
     // Cut faces are inside the body: they carry no muscle.
     kinds.forEach((k, v) => { if (k === 1) muscle.fill(0, v * 4, v * 4 + 4) })
@@ -171,17 +173,18 @@ async function build(id: CharacterId, kind: BuildId) {
   if (an.body.some((x) => x.soft)) {
     const firm = new Field(an.body.filter((x) => !x.soft))
     const most = Math.max(...an.body.map((x) => x.soft ?? 0))
-    for (const part of parts) {
-      const soft = new Uint8Array(part.pos.length / 3)
-      for (let v = 0; v < soft.length; v++) {
-        // What the soft tissue adds here: the same for cloth as for the skin under it, and nothing for hair or a sash.
-        const x = part.pos[v * 3], y = part.pos[v * 3 + 1], z = part.pos[v * 3 + 2]
-        const out = firm.value(x, y, z) - field.value(x, y, z)
-        const u = Math.min(1, Math.max(0, (out - 0.002 * S) / (0.02 * S)))
-        soft[v] = Math.round(255 * most * u * u * (3 - 2 * u))
-      }
-      part.soft = soft
-    }
+    // What the soft tissue adds at each point: the same for cloth as for the skin under it, and nothing for hair or a sash.
+    const adds = parts.map((part) => Float32Array.from({ length: part.pos.length / 3 }, (_, v) => {
+      const x = part.pos[v * 3], y = part.pos[v * 3 + 1], z = part.pos[v * 3 + 2]
+      return firm.value(x, y, z) - field.value(x, y, z)
+    }))
+    const fullest = Math.max(0.004 * S, ...adds.map((a) => a.reduce((m, v) => Math.max(m, v), 0)))
+    parts.forEach((part, i) => {
+      part.soft = Uint8Array.from(adds[i], (out) => {
+        const u = Math.min(1, Math.max(0, (out - 0.002 * S) / (fullest * 0.8 - 0.002 * S)))
+        return Math.round(255 * most * u * u * (3 - 2 * u))
+      })
+    })
   }
 
   // The Aura masters were written before builds existed: their files stay as they were, byte for byte.

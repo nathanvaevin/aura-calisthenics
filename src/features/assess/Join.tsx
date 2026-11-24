@@ -84,7 +84,6 @@ export function JoinInvite({ data }: { data: string }) {
 function InviteIntro({ coachName, groupName, title, kind, stations, course, igniting }: { coachName: string; groupName: string; title: string; kind: 'baseline' | 'retest'; stations: DisciplineId[]; course?: string | null; igniting?: boolean }) {
   return (
     <>
-      {igniting && <span className="aura-ignite-flash" aria-hidden />}
       <div className="rise -mx-2 flex justify-center">
         <AuraField mix={EVEN} aura={5200} size={200} rings={false} ignite={igniting}>
           <Users size={30} strokeWidth={1.4} />

@@ -70,9 +70,9 @@ export interface Skin { joints: Uint8Array; weights: Uint8Array }
 /**
  * `lift` is for clothing: its vertices sit that far above the skin along
  * `nrm`, and are weighted as the skin directly under them, so the two move
- * as one.
+ * as one. `reaches`: how far from a shape its skin may lie, in body heights; a second value is tried where the first finds nothing.
  */
-export function skin(mesh: Mesh, field: Field, sk: Skeleton, only?: BoneName, nrm?: Float32Array, lift: number | ((x: number, y: number, z: number) => number) = 0): Skin {
+export function skin(mesh: Mesh, field: Field, sk: Skeleton, only?: BoneName, nrm?: Float32Array, lift: number | ((x: number, y: number, z: number) => number) = 0, reaches: number[] = [0.02]): Skin {
   if (nrm) {
     const pos = new Float32Array(mesh.pos)
     for (let v = 0; v < pos.length / 3; v++) {
@@ -92,18 +92,23 @@ export function skin(mesh: Mesh, field: Field, sk: Skeleton, only?: BoneName, nr
     const x = mesh.pos[v * 3], y = mesh.pos[v * 3 + 1], z = mesh.pos[v * 3 + 2]
     const row = w.subarray(v * B, v * B + B)
     if (only) { row[boneIndex[only]] = 1; continue }
-    // Which bones this patch of skin may follow at all.
-    for (const code of field.near(x, y, z)) {
-      const shape = field.shapes[code >> 1]
-      if (shape.sub || shape.relief) continue
-      const right = (code & 1) === 1
-      const d = field.one(code >> 1, right ? -x : x, y, z)
-      const close = 1 - Math.max(0, d) / (0.02 * sk.scale)
-      if (close <= 0) continue
-      for (const [name, strength] of Object.entries(shape.bones)) {
-        const i = boneIndex[right ? swap(name) : name]
-        row[i] = Math.max(row[i], close * strength)
+    // Which bones this patch of skin may follow at all: those of the shapes it lies on. Where shapes are blended
+    // widely the skin can stand clear of every one of them (the middle of her chest); a body like that is given a
+    // second, longer reach to try (`reaches`), and only failing that is the skin left to the hips, below.
+    for (const reach of reaches) {
+      for (const code of field.near(x, y, z)) {
+        const shape = field.shapes[code >> 1]
+        if (shape.sub || shape.relief) continue
+        const right = (code & 1) === 1
+        const d = field.one(code >> 1, right ? -x : x, y, z)
+        const close = 1 - Math.max(0, d) / (reach * sk.scale)
+        if (close <= 0) continue
+        for (const [name, strength] of Object.entries(shape.bones)) {
+          const i = boneIndex[right ? swap(name) : name]
+          row[i] = Math.max(row[i], close * strength)
+        }
       }
+      if (row.some((w) => w > 0)) break
     }
     // Shared out by position along each of those bones.
     let sum = 0
