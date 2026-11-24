@@ -1,31 +1,76 @@
 <!doctype html>
-<html lang="en" data-theme="dark" data-scheme="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#08090B" />
-    <meta name="description" content="Aura — make human potential visible. Calisthenics mastery, skill trees and coaching." />
-    <link rel="icon" type="image/svg+xml" href="/aura-calisthenics/favicon.svg" />
-    <title>Aura</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <!-- The new address checks that people really come from here. -->
+    <meta name="referrer" content="strict-origin" />
+    <title>Aura has moved</title>
+    <style>
+      body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #08090b; color: #f3f0e8; font: 16px/1.5 system-ui, sans-serif; text-align: center; }
+      a { color: #ecc77f; }
+    </style>
     <script>
-      try {
-        var s = JSON.parse(localStorage.getItem('aura:v1') || '{}');
-        var t = s && s.state && s.state.settings && s.state.settings.theme;
-        if (t === 'light' || t === 'dark' || t === 'power' || t === 'power-light' || t === 'iron') {
-          document.documentElement.dataset.theme = t;
-          document.documentElement.dataset.scheme = t === 'light' || t === 'power-light' ? 'light' : 'dark';
+      // What is left at Aura's old address: it sends everyone on to aurathletics.nl, with what this browser had
+      // stored here in the part of the address after the "#" (never sent to a server). See src/data/moveIn.ts.
+      ;(function () {
+        var HOME = 'https://aurathletics.nl'
+        var BASE = '/aura-calisthenics'
+        var KEYS = ['aura:v1', 'aura:auth', 'aura:cloud-user', 'aura:pending-join', 'aura:before-sign-in', 'aura:hand-over']
+        // Longer addresses than this are not safe in every browser.
+        var MOST = 1500000
+        var at = window.location
+        var path = at.pathname.indexOf(BASE) === 0 ? at.pathname.slice(BASE.length) : at.pathname
+        if (path.charAt(0) !== '/') path = '/' + path
+        // Never hand on luggage that came in with the address: only what is stored here goes along.
+        var own = at.hash.indexOf('#move=') === 0 ? '' : at.hash
+
+        function pack(value) {
+          var bytes = new TextEncoder().encode(JSON.stringify(value)), raw = ''
+          for (var i = 0; i < bytes.length; i += 8192) raw += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192))
+          return btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
         }
-        if (s && s.state && s.state.settings && s.state.settings.size === 'large') document.documentElement.dataset.size = 'large';
-      } catch (e) {}
+
+        function luggage() {
+          var items = {}, some = false
+          for (var i = 0; i < KEYS.length; i++) {
+            var v = window.localStorage.getItem(KEYS[i])
+            if (v !== null) items[KEYS[i]] = v
+          }
+          var signedIn = !!items['aura:auth']
+          if (items['aura:v1']) {
+            var kept = JSON.parse(items['aura:v1'])
+            var s = kept.state || {}
+            if (!signedIn && (!s.meId || s.demo)) delete items['aura:v1']
+            else {
+              // Demonstrations are fetched again by everyone; only changes not yet sent have to come along.
+              if (!s.contentDirty || !s.contentDirty.length) { delete s.demos; delete s.workoutVideos }
+              if (!s.demos) s.demos = []
+              if (!s.workoutVideos) s.workoutVideos = []
+              items['aura:v1'] = JSON.stringify(kept)
+              some = true
+            }
+          }
+          if (!some && !signedIn) return ''
+          var out = pack({ v: 1, hash: own, items: items })
+          if (out.length > MOST) {
+            // Too much for an address. First without the safety copy; then, for someone signed in, the sign-in
+            // alone (everything synced is fetched again). What is stored here stays here either way.
+            delete items['aura:before-sign-in']
+            out = pack({ v: 1, hash: own, items: items })
+          }
+          if (out.length > MOST) out = signedIn ? pack({ v: 1, hash: own, items: { 'aura:auth': items['aura:auth'] } }) : ''
+          return out
+        }
+
+        var bag = ''
+        try { bag = luggage() } catch (e) { bag = '' }
+        at.replace(HOME + path + at.search + (bag ? '#move=' + bag : own))
+      })()
     </script>
-    <script type="module" crossorigin src="/aura-calisthenics/assets/index-D4pFF8j-.js"></script>
-    <link rel="modulepreload" crossorigin href="/aura-calisthenics/assets/jsx-runtime-DyZJNswf.js">
-    <link rel="modulepreload" crossorigin href="/aura-calisthenics/assets/styles-BZuilrVy.js">
-    <link rel="modulepreload" crossorigin href="/aura-calisthenics/assets/cast-BRB-hKCO.js">
-    <link rel="modulepreload" crossorigin href="/aura-calisthenics/assets/Stage3D-Bpy5VU6p.js">
-    <link rel="stylesheet" crossorigin href="/aura-calisthenics/assets/index-D-EXz6_0.css">
   </head>
   <body>
-    <div id="root"></div>
+    <p>Aura has moved to <a href="https://aurathletics.nl/">aurathletics.nl</a>.</p>
   </body>
 </html>
