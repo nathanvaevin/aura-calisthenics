@@ -23,6 +23,12 @@ export interface Garment {
   name: string
   thickness: Fn
   region: Fn
+  /**
+   * Worn on the skin: cut from the skin's own surface and moving exactly as it does (see `wear.ts`), where a garment
+   * laid over the body would show the skin sliding at its edge. `seams` are lines its thickness changes along.
+   */
+  fitted?: boolean
+  seams?: Fn[]
   /** `accent` pieces take the colour of the athlete's theme. */
   material?: 'cloth' | 'accent'
   /** Where to mesh it, when it is not on the trunk. */
@@ -137,7 +143,13 @@ export function anatomyOf(id: CharacterId, build: BuildId = 'aura'): Anatomy {
   const m = pick(1, 0.8) * tu('mus')
   const wT = pick(1, 0.9) * tu('trunkW')
   const dT = pick(1, 0.94) * tu('trunkD')
-  const def = pick(1, 0.62) * tu('def')
+  const def = pick(1, 0.56) * tu('def')
+  /**
+   * The female body is drawn as its own, not as the male's made smaller (2026-11-24): the mass of the upper arm, the
+   * sweep of the back, the neck and the knee are each lighter by their own measure; the pelvis, the seat and the
+   * calf are fuller. Shapes only: both bodies stand on the skeleton they had.
+   */
+  const fem = { fold: pick(1, 0.78), upperArm: pick(1, 0.8), lat: pick(1, 0.66), trap: pick(1, 0.8), knee: pick(1, 0.9), shin: pick(1, 0.94), deltLong: pick(1, 0.86), deltTall: pick(1, 0.84) }
   const t = (x: number, y: number, z: number): V3 => [x * S, y * S, z * S]
   const tm = (x: number, y: number, z: number): V3 => [x * S * wT, y * S, z * S * dT]
   const R = (a: number, b: number, c: number): V3 => [a * S, b * S, c * S]
@@ -151,8 +163,8 @@ export function anatomyOf(id: CharacterId, build: BuildId = 'aura'): Anatomy {
     body.push({ kind: 'ell', c, r, axes: o.axes ?? (o.rot ? turned(o.rot) : undefined), k: 0, mirror: true, bones: {}, muscle: channel, relief: height * S * def, edge: Math.max(0.15, Math.min(0.85, (o.edge ?? 0.5) + T.edge)), power: (o.power ?? 2.6) * T.power })
 
   // ── Trunk ──────────────────────────────────────────────────────────────
-  E(t(0, 0.975, -0.008), R(0.14 * pick(1, 1.03), 0.095, 0.097 * pick(1, 1.02)), { k: 0.05, bones: { hips: 1, spine: 0.6 } })
-  E(t(0, 1.1, -0.002), R(0.121 * pick(1, 0.93) * tu('waist'), 0.115, 0.08 * pick(1, 0.94)), { k: 0.05, bones: { spine: 1, chest: 1, hips: 0.7 } })
+  E(t(0, 0.975, -0.008), R(0.14 * pick(1, 1.09), 0.095, 0.097 * pick(1, 1.05)), { k: 0.05, bones: { hips: 1, spine: 0.6 } })
+  E(t(0, 1.1, -0.002), R(0.121 * pick(1, 0.95) * tu('waist'), 0.115, 0.08 * pick(1, 0.94)), { k: 0.05, bones: { spine: 1, chest: 1, hips: 0.7 } })
   E(t(0, 1.285, -0.01), R(0.15 * wT, 0.15, 0.107 * dT), { k: 0.05, bones: { chest: 1, upperChest: 1, spine: 0.6 } })
   E(t(0, 1.405, -0.018), [J.upperArmL[0] * 0.86, 0.075 * S, 0.09 * S * dT], { k: 0.05, bones: { upperChest: 1, chest: 0.5, neck: 0.3 } })
 
@@ -164,7 +176,7 @@ export function anatomyOf(id: CharacterId, build: BuildId = 'aura'): Anatomy {
   // The female shoulder is fitted, not capped: a slimmer yoke, and a smaller deltoid that sits a little lower so the line from neck to arm slopes.
   const yoke = pick(1, 0.9), cap = pick(1, 0.8)
   C(t(0.04, 1.452, -0.02), sh(-0.012, -0.002, -0.002), 0.058 * aS * yoke, 0.047 * aS * yoke, { k: 0.04, bones: { upperChest: 1, shoulderL: 1 } })
-  const nk = S * pick(1, 0.86) * tu('neck')
+  const nk = S * pick(1, 0.84) * tu('neck')
   C(t(0, 1.45, -0.022), t(0, 1.6, -0.004), 0.058 * nk, 0.052 * nk, { k: 0.035, bones: { neck: 1, upperChest: 0.8, head: 0.8 } })
   E(t(0, 1.693, 0.012), R(0.079, 0.108, 0.095), { k: 0.03, bones: { head: 1 } })
   E(t(0, 1.64, 0.026), R(pick(0.064, 0.059), 0.066, 0.068), { k: 0.03, bones: { head: 1, neck: 0.4 } })
@@ -174,14 +186,14 @@ export function anatomyOf(id: CharacterId, build: BuildId = 'aura'): Anatomy {
   C(t(0.018, 1.452, 0.052), sh(-0.03, 0.008, 0.022), 0.0095 * S, 0.0085 * S, { k: 0.016, bones: { upperChest: 1, shoulderL: 0.8 } })
 
   // Mass: what gives the trunk its athletic shape, blended smooth.
-  E(tm(0.072, 1.372, 0.05), R(0.082 * wT, 0.066, 0.048 * pick(1, 0.7) * tu('chest')), { k: 0.04, rot: [0, 0, 8], bones: { upperChest: 1, shoulderL: 0.4, upperArmL: 0.25 } })
-  C(tm(0.125, 1.4, 0.046), sh(0.04, -0.014, 0.02), 0.03 * S * m, 0.022 * aS, { k: 0.035, bones: { upperChest: 1, shoulderL: 0.8, upperArmL: 0.35 } })
+  E(tm(0.072, 1.372, 0.05), R(0.082 * wT, 0.066, 0.048 * pick(1, 0.7) * tu('chest')), { k: 0.04, rot: [0, 0, 8], bones: { upperChest: 1, shoulderL: 0.4, upperArmL: pick(0.25, 0.07) } })
+  C(tm(0.125, 1.4, pick(0.046, 0.036)), sh(0.04, -0.014, pick(0.02, 0.014)), 0.03 * S * m * fem.fold, 0.022 * aS * fem.upperArm * fem.fold, { k: 0.035, bones: { upperChest: 1, shoulderL: 0.8, upperArmL: 0.35 } })
   if (F) E(tm(0.071, 1.35, 0.088), R(0.056, 0.05, 0.047), { k: 0.026, bones: { upperChest: 1, chest: 0.6 } })
   E(tm(0.075, 1.375, -0.078), R(0.085 * wT, 0.1, 0.045), { k: 0.045, bones: { upperChest: 1, chest: 0.8, shoulderL: 0.4 } })
-  E(tm(0.124, 1.275, -0.056), R(0.054 * pick(1, 0.85) * tu('lat'), 0.125, 0.046 * m), { k: 0.035, rot: [0, 0, -13], bones: { chest: 1, upperChest: 1, spine: 0.6 } })
-  C(tm(0.138, 1.375, -0.058), sh(0.04, -0.016, -0.028), 0.032 * S * m, 0.022 * aS, { k: 0.035, bones: { upperChest: 1, shoulderL: 0.8, upperArmL: 0.35 } })
-  E(tm(0.075, 1.49, -0.04), R(0.085 * wT, 0.032 * tu('trap'), 0.042 * tu('trap')), { k: 0.03, rot: [0, 0, -14], bones: { upperChest: 1, neck: 0.5, shoulderL: 0.6 } })
-  C(t(0.03, 1.565, -0.03), tm(0.11, 1.475, -0.03), 0.02 * nk * tu('trap'), 0.03 * S * tu('trap'), { k: 0.03, bones: { neck: 1, upperChest: 1, shoulderL: 0.5 } })
+  E(tm(0.124, 1.275, -0.056), R(0.054 * fem.lat * tu('lat'), 0.125, 0.046 * m), { k: 0.035, rot: [0, 0, -13], bones: { chest: 1, upperChest: 1, spine: 0.6 } })
+  C(tm(0.138, 1.375, -0.058), sh(0.04, -0.016, -0.028), 0.032 * S * m * pick(1, 0.9), 0.022 * aS * fem.upperArm, { k: 0.035, bones: { upperChest: 1, shoulderL: 0.8, upperArmL: 0.35 } })
+  E(tm(0.075, 1.49, -0.04), R(0.085 * wT, 0.032 * tu('trap') * fem.trap, 0.042 * tu('trap') * fem.trap), { k: 0.03, rot: [0, 0, -14], bones: { upperChest: 1, neck: 0.5, shoulderL: 0.6 } })
+  C(t(0.03, 1.565, -0.03), tm(0.11, 1.475, -0.03), 0.02 * nk * tu('trap'), 0.03 * S * tu('trap') * fem.trap, { k: 0.03, bones: { neck: 1, upperChest: 1, shoulderL: 0.5 } })
   E(tm(0.034, 1.11, -0.074), R(0.03, 0.11, 0.022), { k: 0.025, bones: { spine: 1, chest: 1, hips: 1 } })
   E(tm(0.088, 1.13, 0.014), R(0.026, 0.075, 0.05), { k: 0.045, bones: { spine: 1, chest: 1, hips: 0.7 } })
   E(t(0, 1.26, -0.134 * dT), R(0.006, 0.2, 0.012), { k: 0.012, sub: true, bones: {} })
@@ -198,17 +210,17 @@ export function anatomyOf(id: CharacterId, build: BuildId = 'aura'): Anatomy {
   M('traps', t(0.034, 1.548, -0.05), R(0.038, 0.055, 0.05), 0.003)
   M('mid_back', tm(0.046, 1.4, -0.112), R(0.047, 0.095, 0.06), 0.004, { power: 3 })
   M('rear_cuff', tm(0.134, 1.392, -0.1), R(0.056, 0.048, 0.06), 0.0025, { rot: [0, 0, 15], edge: 0.25 })
-  M('lats', tm(0.118, 1.262, -0.085), R(0.066 * pick(1, 0.85), 0.125, 0.08), 0.005, { rot: [0, 0, -13], power: 3 })
+  M('lats', tm(0.118, 1.262, -0.085), R(0.066 * pick(1, 0.8), 0.125, 0.08), 0.005, { rot: [0, 0, -13], power: 3 })
   M('lats', tm(0.156, 1.352, -0.06), R(0.038, 0.066, 0.07), 0.004)
   M('lower_back', tm(0.037, 1.1, -0.09), R(0.034, 0.105, 0.06), 0.004, { power: 3 })
 
   // ── Arm (reaching along +X, palm down: the biceps faces forward) ─────────
-  C(sh(0, 0, 0), sh(0.3, 0, 0), 0.043 * aS, 0.035 * aS, { k: 0.03, bones: { shoulderL: 0.5, upperArmL: 1, lowerArmL: 1 } })
+  C(sh(0, 0, 0), sh(0.3, 0, 0), 0.043 * aS * pick(1, 0.9), 0.035 * aS * pick(1, 0.96), { k: 0.03, bones: { shoulderL: 0.5, upperArmL: 1, lowerArmL: 1 } })
   C(sh(0.3, 0, 0), sh(0.564, 0, 0), 0.036 * aS, 0.0245 * aS, { k: 0.02, bones: { upperArmL: 1, lowerArmL: 1, handL: 1 } })
   E(sh(0.3, 0, -0.03), mul([0.022, 0.02, 0.018], aS), { k: 0.014, bones: { upperArmL: 1, lowerArmL: 1 } })
-  E(sh(0.046, pick(0.024, 0.014), -0.002), [0.098 * A, 0.056 * aS * dl * cap, 0.062 * aS * dl * cap], { k: 0.03, bones: { shoulderL: 0.6, upperArmL: 1, upperChest: 0.2 } })
-  E(sh(0.157, -0.004, 0.028), [0.1 * A, 0.036 * aS, 0.034 * aS * m], { k: 0.026, bones: { upperArmL: 1, lowerArmL: 0.5 } })
-  E(sh(0.142, 0, -0.032), [0.11 * A, 0.038 * aS, 0.034 * aS * m], { k: 0.026, bones: { upperArmL: 1, shoulderL: 0.3 } })
+  E(sh(0.046 * fem.deltLong, pick(0.024, 0.01), -0.002), [0.098 * A * fem.deltLong, 0.056 * aS * dl * cap * fem.deltTall, 0.062 * aS * dl * cap], { k: 0.03, bones: { shoulderL: 0.6, upperArmL: 1, upperChest: 0.2 } })
+  E(sh(0.157, -0.004, 0.028), [0.1 * A, 0.036 * aS * fem.upperArm, 0.034 * aS * m * fem.upperArm], { k: 0.026, bones: { upperArmL: 1, lowerArmL: 0.5 } })
+  E(sh(0.142, 0, -0.032), [0.11 * A, 0.038 * aS * fem.upperArm, 0.034 * aS * m * fem.upperArm], { k: 0.026, bones: { upperArmL: 1, shoulderL: 0.3 } })
   E(sh(0.397, -0.014, 0.008), [0.095 * A, 0.027 * aS * fa, 0.036 * aS * fa], { k: 0.022, bones: { lowerArmL: 1, upperArmL: 0.5 } })
   E(sh(0.382, 0.015, -0.002), [0.092 * A, 0.024 * aS * fa, 0.036 * aS * fa], { k: 0.022, bones: { lowerArmL: 1, upperArmL: 0.5 } })
   E(sh(0.332, 0.006, 0.028), [0.06 * A, 0.022 * aS, 0.02 * aS], { k: 0.022, bones: { upperArmL: 1, lowerArmL: 1 } })
@@ -248,19 +260,19 @@ export function anatomyOf(id: CharacterId, build: BuildId = 'aura'): Anatomy {
   const thigh = sub(knee, hip), shin = sub(ankle, knee)
   const lg = (tt: number, ox: number, oz: number): V3 => add(mix(hip, knee, tt), [ox * S, 0, oz * S])
   const sn = (tt: number, ox: number, oz: number): V3 => add(mix(knee, ankle, tt), [ox * S, 0, oz * S])
-  const gl = pick(1, 1.06) * tu('glute')
-  const lb = pick(1, 0.96) * tu('leg')
-  const cb = pick(1, 0.92) * tu('calf')
+  const gl = pick(1, 1.16) * tu('glute')
+  const lb = pick(1, 0.99) * tu('leg')
+  const cb = pick(1, 0.99) * tu('calf')
   E([hip[0] - 0.012 * S, 0.955 * S, -0.068 * S], R(0.08 * gl, 0.085 * gl, 0.054 * gl), { k: 0.035, bones: { hips: 1, upperLegL: 0.6 } })
   E([hip[0] + 0.03 * S, 1.01 * S, -0.03 * S], R(0.036, 0.05, 0.05), { k: 0.04, bones: { hips: 1, spine: 0.3 } })
   if (F) E([hip[0] + 0.04 * S, 0.93 * S, -0.012 * S], R(0.052, 0.09, 0.076), { k: 0.045, bones: { hips: 1, upperLegL: 0.6 } })
-  C(add(hip, [0.012 * S, -0.03 * S, 0]), knee, 0.086 * S * lb, 0.05 * S, { k: 0.04, bones: { hips: 0.6, upperLegL: 1, lowerLegL: 1 } })
+  C(add(hip, [0.012 * S, -0.03 * S, 0]), knee, 0.086 * S * lb, 0.05 * S * fem.knee, { k: 0.04, bones: { hips: 0.6, upperLegL: 1, lowerLegL: 1 } })
   along(lg(0.42, 0.01, 0.042), thigh, 0.19, 0.058 * lb, 0.044 * lb, { k: 0.035, bones: { upperLegL: 1, hips: 0.3 } })
   along(lg(0.48, 0, -0.044), thigh, 0.18, 0.05 * lb, 0.036 * lb, { k: 0.035, bones: { upperLegL: 1, hips: 0.3 } })
   along(lg(0.2, -0.04, -0.005), thigh, 0.12, 0.034, 0.05, { k: 0.035, bones: { upperLegL: 1, hips: 0.5 } })
   along(lg(0.78, -0.032, 0.022), thigh, 0.06, 0.026 * lb, 0.028 * lb, { k: 0.02, bones: { upperLegL: 1, lowerLegL: 0.4 } })
-  E(add(knee, [0, 0.008 * S, 0.04 * S]), R(0.024, 0.03, 0.014), { k: 0.024, bones: { upperLegL: 1, lowerLegL: 1 } })
-  C(knee, ankle, 0.048 * S, 0.033 * S, { k: 0.03, bones: { upperLegL: 1, lowerLegL: 1, footL: 1 } })
+  E(add(knee, [0, 0.008 * S, 0.04 * S]), R(0.024 * fem.knee, 0.03, 0.014 * fem.knee), { k: 0.024, bones: { upperLegL: 1, lowerLegL: 1 } })
+  C(knee, ankle, 0.048 * S * fem.knee, 0.033 * S * fem.shin, { k: 0.03, bones: { upperLegL: 1, lowerLegL: 1, footL: 1 } })
   along(sn(0.26, 0, -0.034), shin, 0.1, 0.042 * cb, 0.034 * cb, { k: 0.025, bones: { lowerLegL: 1, upperLegL: 0.3 } })
   along(sn(0.55, 0, -0.018), shin, 0.1, 0.033 * cb, 0.022, { k: 0.02, bones: { lowerLegL: 1 } })
   along(sn(0.33, 0.02, 0.026), shin, 0.12, 0.016, 0.018, { k: 0.016, bones: { lowerLegL: 1 } })
@@ -374,14 +386,19 @@ export function anatomyOf(id: CharacterId, build: BuildId = 'aura'): Anatomy {
     const top = J.upperArmL[1] + 0.06 * S
     // Everything on the trunk between the band and the shoulders, less a scooped neck and two armholes.
     const hole = (x: number, y: number, cx: number, cy: number, a: number, b: number) => (1 - Math.hypot((x - cx) / a, (y - cy) / b)) * Math.min(a, b)
+    // Wide and deep enough to take in the folds of skin that run from the chest and the back into the arm: fabric
+    // left on those follows the arm and stands off the body as a flap the moment it moves (it did, until 2026-11-24).
+    const armhole = (ax: number, y: number) => hole(ax, y, J.upperArmL[0] + 0.012 * S, J.upperArmL[1] - 0.012 * S, 0.082 * S, 0.155 * S)
     garments.push({
       name: 'top',
+      // Its armholes run beside the folds of the armpit, where the skin slides: it is worn on the skin.
+      fitted: true,
+      seams: [(_x, y) => y - (band + 0.024 * S), (_x, y) => y - (band + 0.03 * S)],
       thickness: (_x, y) => (0.0055 + 0.002 * smooth(band + 0.03 * S, band + 0.024 * S, y)) * S,
       region: (x, y, z) => {
         const ax = Math.abs(x)
         const neckline = hole(ax, y, 0, 1.52 * S, 0.062 * S, (z > 0 ? 0.135 : 0.1) * S)
-        const armhole = hole(ax, y, J.upperArmL[0] + 0.012 * S, J.upperArmL[1] + 0.012 * S, 0.062 * S, 0.105 * S)
-        return Math.max(band - y, y - top, ax - side, neckline, armhole)
+        return Math.max(band - y, y - top, ax - side, neckline, armhole(ax, y))
       },
     })
   }

@@ -20,6 +20,7 @@ import { writeGlb, type Part } from './glb'
 import { extract, mirrored, normals, settle, simplify, type Mesh } from './mesh'
 import { Field, type Fn } from './sdf'
 import { muscles, skin } from './skin'
+import { wear } from './wear'
 
 const args = process.argv.slice(2)
 const draft = args.includes('--draft')
@@ -74,7 +75,7 @@ async function build(id: CharacterId, kind: BuildId) {
   const neckAt = (x: number) => neck + rise * x * x
 
   /** One part of the skin: meshed inside `box` where `cut` is negative. */
-  async function piece(name: string, cut: Fn, lo: V3, hi: V3, h: number, triangles: number, symmetric: boolean, hidden?: Fn): Promise<Piece> {
+  async function piece(name: string, cut: Fn, lo: V3, hi: V3, h: number, triangles: number, symmetric: boolean, hidden?: Fn, worn?: Fn): Promise<Piece> {
     const clipped: Fn = (x, y, z) => Math.max(bodyFn(x, y, z), cut(x, y, z))
     let mesh: Mesh = extract(clipped, lo, hi, h * q, symmetric)
     settle(mesh, bodyFn, cut, h * q)
@@ -89,6 +90,17 @@ async function build(id: CharacterId, kind: BuildId) {
       }
       mesh = { pos: mesh.pos, idx: new Uint32Array(keep) }
     }
+    if (worn) {
+      // Skin that fitted clothing will be cut from is still here: give it its share of triangles, so the rest keeps the detail it had.
+      let under = 0
+      for (let i = 0; i < mesh.idx.length; i += 3) {
+        let deep = true
+        for (let c = 0; c < 3 && deep; c++) { const v = mesh.idx[i + c]; deep = worn(mesh.pos[v * 3], mesh.pos[v * 3 + 1], mesh.pos[v * 3 + 2]) < -0.007 * S }
+        if (deep) under++
+      }
+      const all = mesh.idx.length / 3
+      triangles = Math.round((triangles * all) / Math.max(1, all - under))
+    }
     ;({ mesh } = await simplify(mesh, Math.round(triangles / q), 0.0022 * S))
     const kinds = settle(mesh, bodyFn, cut, h * q)
     const nrm = normals(mesh, bodyFn, cut, kinds)
@@ -100,17 +112,29 @@ async function build(id: CharacterId, kind: BuildId) {
     return { ...mesh, nrm, joints, weights, muscle }
   }
 
-  const covered: Fn = (x, y, z) => Math.min(...an.garments.map((g) => g.region(x, y, z)))
+  const laid = an.garments.filter((g) => !g.fitted), fitted = an.garments.filter((g) => g.fitted)
+  const covered: Fn = (x, y, z) => Math.min(...laid.map((g) => g.region(x, y, z)))
+  const worn: Fn | undefined = fitted.length ? (x, y, z) => Math.min(...fitted.map((g) => g.region(x, y, z))) : undefined
   const reach = sk.tips.fingertipL[0]
-  const trunk = await piece('trunk', (x, y) => Math.max(Math.abs(x) - wrist, y - neckAt(x), ankle - y), [0, ankle - 0.01, -0.2 * S], [wrist + 0.01, neck + 0.01 + (rise ? 0.12 * S : 0), 0.19 * S], 0.004, 36000, true, covered)
+  const trunk = await piece('trunk', (x, y) => Math.max(Math.abs(x) - wrist, y - neckAt(x), ankle - y), [0, ankle - 0.01, -0.2 * S], [wrist + 0.01, neck + 0.01 + (rise ? 0.12 * S : 0), 0.19 * S], 0.004, 36000, true, covered, worn)
+  const cloths = new Map<string, Piece>()
+  let bare = trunk
+  for (const g of fitted) {
+    const { skin: left, cloth } = wear(bare, g.region, g.thickness, 0.004 * S, g.seams)
+    bare = left
+    cloths.set(g.name, cloth)
+    console.log(`  ${g.name.padEnd(8)} ${String(cloth.idx.length / 3).padStart(16)} triangles, cut from the skin`)
+  }
   const head = await piece('head', (x, y) => neckAt(x) - y, [0, neck - 0.01, -0.14 * S], [0.12 * S, sk.height + 0.02, 0.15 * S], 0.003, 5000, true)
   const hand = await piece('hand', (x) => wrist - x, [wrist - 0.008, J.handL[1] - 0.05 * S, J.handL[2] - 0.075 * S], [reach + 0.015, J.handL[1] + 0.035 * S, J.handL[2] + 0.1 * S], 0.0016, 5200, false)
   const foot = await piece('foot', (_x, y) => y - ankle, [J.footL[0] - 0.075 * S, -0.004, -0.09 * S], [J.footL[0] + 0.085 * S, ankle + 0.008, 0.21 * S], 0.0025, 3000, false)
-  const body = join([trunk, head, hand, otherSide(hand), foot, otherSide(foot)])
+  const body = join([bare, head, hand, otherSide(hand), foot, otherSide(foot)])
 
   const parts: Part[] = [{ name: 'body', material: 'skin', ...body }]
 
   for (const g of an.garments) {
+    const made = cloths.get(g.name)
+    if (made) { parts.push({ name: g.name, material: g.material ?? 'cloth', ...made }); continue }
     const surface: Fn = (x, y, z) => bodyFn(x, y, z) - g.thickness(x, y, z)
     const solid: Fn = (x, y, z) => Math.max(surface(x, y, z), g.region(x, y, z))
     const h = 0.0035 * q

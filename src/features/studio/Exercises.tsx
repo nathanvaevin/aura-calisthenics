@@ -9,13 +9,10 @@ import { MOTIONS, motionAt } from '@/visual/motions'
 import { STAGE_RATIO } from '@/visual/motions/types'
 import { MUSCLE_COLOUR, type PerformerSpec } from '@/visual/player'
 import { cx, dvar } from '@/lib/format'
+import { CHARACTERS, characterState, coverageOf, exerciseState, isCurrent, latestOf, withAthletes, type CoverState } from './coverage'
 import { Stage, StatusPill, useWide } from './shared'
 
-const CHARACTERS = ['male', 'female'] as const
 const when = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
-
-/** The movement an asset shows is current only if nobody has changed the movement since. */
-export const isCurrent = (a: DemoAsset) => !!a.animation && MOTIONS[a.animation.motion]?.revision === (a.animation.revision ?? 1)
 
 /**
  * Where an exercise stands, as the owner sees it:
@@ -23,18 +20,10 @@ export const isCurrent = (a: DemoAsset) => !!a.animation && MOTIONS[a.animation.
  * waiting: a movement is there and at least one character has not been sent ·
  * correction: sent back with notes · live: both characters are with athletes.
  */
-export type ExerciseState = 'waiting' | 'correction' | 'live' | 'none'
-
-const latestOf = (animations: DemoAsset[], exerciseId: string, character: CharacterId) => historyOf(animations, exerciseId, 'animation', character)[0] as DemoAsset | undefined
+export type ExerciseState = CoverState
+export const stateOf = exerciseState
+export { isCurrent }
 const isLive = (a: DemoAsset | undefined) => !!a && a.status === 'published' && isCurrent(a)
-
-export function stateOf(animations: DemoAsset[], exerciseId: string): ExerciseState {
-  if (!MOTIONS[exerciseId]) return 'none'
-  const latest = CHARACTERS.map((c) => latestOf(animations, exerciseId, c))
-  if (latest.every(isLive)) return 'live'
-  if (latest.some((a) => a?.status === 'needs_correction')) return 'correction'
-  return 'waiting'
-}
 
 /** How many exercises are waiting for the owner. Shown on the tab. */
 export const waitingCount = (demos: DemoAsset[]) => {
@@ -45,6 +34,11 @@ export const waitingCount = (demos: DemoAsset[]) => {
 const STATE_LABEL: Record<ExerciseState, string> = { waiting: 'Waiting for you', correction: 'Needs correction', live: 'Live', none: 'No animation yet' }
 const STATE_STYLE: Record<ExerciseState, string> = {
   waiting: 'border-accent/50 text-accent', correction: 'border-warn/50 text-warn', live: 'border-transparent bg-ink text-bg', none: 'border-line text-ink-3',
+}
+
+/** One character's mark in the list: filled when its animation is with athletes. */
+const WHO_STYLE: Record<ExerciseState, string> = {
+  live: 'border-transparent bg-ink/85 text-bg', waiting: 'border-accent/50 text-accent', correction: 'border-warn/50 text-warn', none: 'border-line text-ink-3/60',
 }
 
 function StatePill({ state }: { state: ExerciseState }) {
@@ -63,6 +57,7 @@ export function Exercises() {
   const demos = useStore((s) => s.demos)
   const animations = useMemo(() => demos.filter((d) => d.kind === 'animation' && d.animation), [demos])
   const states = useMemo(() => Object.fromEntries(EXERCISES.map((e) => [e.id, stateOf(animations, e.id)])) as Record<string, ExerciseState>, [animations])
+  const cover = useMemo(() => coverageOf(animations), [animations])
   const counts = useMemo(() => {
     const c: Record<Filter, number> = { waiting: 0, correction: 0, live: 0, none: 0, all: EXERCISES.length }
     for (const e of EXERCISES) c[states[e.id]]++
@@ -107,6 +102,12 @@ export function Exercises() {
         <button className="btn btn-quiet btn-sm ml-auto" onClick={copyReview}><ClipboardCopy size={13} /> {copied ? 'Copied' : 'Copy my review'}</button>
       </div>
 
+      {/* Both characters, counted apart: an exercise counts for one only when its animation is with athletes. */}
+      <p className="mt-3 text-[12.5px] text-ink-3" data-coverage={`${cover.live.male}/${cover.live.female}/${cover.total}`}>
+        With athletes: <span className="num text-ink-2">{cover.live.male}</span> on the male character, <span className="num text-ink-2">{cover.live.female}</span> on the female, of <span className="num">{cover.total}</span> exercises.
+        {cover.uneven.length > 0 && <span className="text-warn"> {cover.uneven.length} on one character only.</span>}
+      </p>
+
       <div className="mt-4 lg:grid lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] lg:items-start lg:gap-8">
         <div>
           <label className="relative mb-3 block">
@@ -123,6 +124,12 @@ export function Exercises() {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[14px] font-medium">{e.name}</span>
                   <span className="block truncate text-[11.5px] text-ink-3">{disciplineById[e.discipline].name}</span>
+                </span>
+                <span className="flex shrink-0 gap-0.5 font-mono text-[10px]">
+                  {CHARACTERS.map((c) => {
+                    const st = withAthletes(animations, e.id, c) ? 'live' : characterState(animations, e.id, c)
+                    return <span key={c} data-who={c} data-state={st} title={`${c === 'male' ? 'Male' : 'Female'}: ${st === 'live' ? 'with athletes' : STATE_LABEL[st].toLowerCase()}`} className={cx('flex h-[18px] w-[18px] items-center justify-center rounded-full border', WHO_STYLE[st])}>{c === 'male' ? 'M' : 'F'}</span>
+                  })}
                 </span>
                 <StatePill state={states[e.id]} />
               </button>
