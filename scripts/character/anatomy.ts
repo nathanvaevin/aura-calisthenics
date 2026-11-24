@@ -29,6 +29,11 @@ export interface Garment {
    */
   fitted?: boolean
   seams?: Fn[]
+  /**
+   * How far (0..1) a fitted garment lets go of a bone at a place, whatever the skin it was cut from did there. Bones
+   * by name without their side (`upperArm`). The skin beside its edge is eased into that over two centimetres.
+   */
+  stays?: (bone: string, x: number, y: number, z: number) => number
   /** `accent` pieces take the colour of the athlete's theme. */
   material?: 'cloth' | 'accent'
   /** Where to mesh it, when it is not on the trunk. */
@@ -57,7 +62,7 @@ export interface Anatomy {
 }
 
 type Bones = Record<string, number>
-interface Opt { k: number; bones: Bones; rot?: V3; sub?: boolean; mirror?: boolean }
+interface Opt { k: number; bones: Bones; rot?: V3; sub?: boolean; mirror?: boolean; soft?: number }
 
 const rad = Math.PI / 180
 
@@ -128,7 +133,7 @@ export function anatomyOf(id: CharacterId, build: BuildId = 'aura'): Anatomy {
   const tu = (k: Exclude<keyof Tune, 'power' | 'edge'>) => T[k][F ? 1 : 0]
 
   const body: Shape[] = []
-  const E = (c: V3, r: V3, o: Opt) => body.push({ kind: 'ell', c, r, axes: o.rot ? turned(o.rot) : undefined, k: o.k * S, sub: o.sub, mirror: o.mirror ?? c[0] > 1e-6, bones: o.bones })
+  const E = (c: V3, r: V3, o: Opt) => body.push({ kind: 'ell', c, r, axes: o.rot ? turned(o.rot) : undefined, k: o.k * S, sub: o.sub, mirror: o.mirror ?? c[0] > 1e-6, bones: o.bones, soft: o.soft })
   const C = (a: V3, b: V3, r1: number, r2: number, o: Opt) => body.push({ kind: 'cone', a, b, r1, r2, k: o.k * S, sub: o.sub, mirror: o.mirror ?? (a[0] > 1e-6 || b[0] > 1e-6), bones: o.bones })
   const limbAxes = (dir: V3): [V3, V3, V3] => {
     const ly = unit(dir)
@@ -188,7 +193,7 @@ export function anatomyOf(id: CharacterId, build: BuildId = 'aura'): Anatomy {
   // Mass: what gives the trunk its athletic shape, blended smooth.
   E(tm(0.072, 1.372, 0.05), R(0.082 * wT, 0.066, 0.048 * pick(1, 0.7) * tu('chest')), { k: 0.04, rot: [0, 0, 8], bones: { upperChest: 1, shoulderL: 0.4, upperArmL: pick(0.25, 0.07) } })
   C(tm(0.125, 1.4, pick(0.046, 0.036)), sh(0.04, -0.014, pick(0.02, 0.014)), 0.03 * S * m * fem.fold, 0.022 * aS * fem.upperArm * fem.fold, { k: 0.035, bones: { upperChest: 1, shoulderL: 0.8, upperArmL: 0.35 } })
-  if (F) E(tm(0.071, 1.35, 0.088), R(0.056, 0.05, 0.047), { k: 0.026, bones: { upperChest: 1, chest: 0.6 } })
+  if (F) E(tm(0.071, 1.35, 0.088), R(0.056, 0.05, 0.047), { k: 0.026, bones: { upperChest: 1, chest: 0.6 }, soft: 1 })
   E(tm(0.075, 1.375, -0.078), R(0.085 * wT, 0.1, 0.045), { k: 0.045, bones: { upperChest: 1, chest: 0.8, shoulderL: 0.4 } })
   E(tm(0.124, 1.275, -0.056), R(0.054 * fem.lat * tu('lat'), 0.125, 0.046 * m), { k: 0.035, rot: [0, 0, -13], bones: { chest: 1, upperChest: 1, spine: 0.6 } })
   C(tm(0.138, 1.375, -0.058), sh(0.04, -0.016, -0.028), 0.032 * S * m * pick(1, 0.9), 0.022 * aS * fem.upperArm, { k: 0.035, bones: { upperChest: 1, shoulderL: 0.8, upperArmL: 0.35 } })
@@ -386,14 +391,18 @@ export function anatomyOf(id: CharacterId, build: BuildId = 'aura'): Anatomy {
     const top = J.upperArmL[1] + 0.06 * S
     // Everything on the trunk between the band and the shoulders, less a scooped neck and two armholes.
     const hole = (x: number, y: number, cx: number, cy: number, a: number, b: number) => (1 - Math.hypot((x - cx) / a, (y - cy) / b)) * Math.min(a, b)
-    // Wide and deep enough to take in the folds of skin that run from the chest and the back into the arm: fabric
-    // left on those follows the arm and stands off the body as a flap the moment it moves (it did, until 2026-11-24).
-    const armhole = (ax: number, y: number) => hole(ax, y, J.upperArmL[0] + 0.012 * S, J.upperArmL[1] - 0.012 * S, 0.082 * S, 0.155 * S)
+    // The armhole, as seen from the front: its edge runs down the chest beside the fold of the armpit and turns under
+    // the arm two fingers below it, so the side of the chest is covered. The cloth inside it stays with the trunk
+    // (`stays`), which is what lets the edge lie this close to skin that goes with the arm.
+    const armhole = (ax: number, y: number) => hole(ax, y, J.upperArmL[0] + 0.012 * S, J.upperArmL[1] - 0.012 * S, 0.082 * S, 0.075 * S)
     garments.push({
       name: 'top',
       // Its armholes run beside the folds of the armpit, where the skin slides: it is worn on the skin.
       fitted: true,
       seams: [(_x, y) => y - (band + 0.024 * S), (_x, y) => y - (band + 0.03 * S)],
+      // A sports top holds to the ribcage. It does not go with the arms anywhere; its straps lift with the shoulders,
+      // and from the armpit down it does not, or the corner under the arm is drawn out to a point when the arms go up.
+      stays: (bone, _x, y) => (bone === 'shoulder' ? smooth(J.upperArmL[1] - 0.012 * S, J.upperArmL[1] - 0.05 * S, y) : bone === 'upperArm' || bone === 'lowerArm' || bone === 'foreTwist' ? 1 : 0),
       thickness: (_x, y) => (0.0055 + 0.002 * smooth(band + 0.03 * S, band + 0.024 * S, y)) * S,
       region: (x, y, z) => {
         const ax = Math.abs(x)

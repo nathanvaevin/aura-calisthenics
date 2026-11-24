@@ -125,15 +125,40 @@ export function keep(p: Surface, side: Int8Array, which: number): Surface {
 }
 
 /**
+ * Makes what lies inside `f < 0` let go of bones, as far as `loose` says for a
+ * bone at a place, and eases the surface just outside (up to `ease` away)
+ * into that, so nothing tears where the two meet. For cloth that holds to the
+ * trunk beside skin that goes with the arm: the cloth's edge then keeps its
+ * shape whatever the arm does.
+ */
+function hold(p: Surface, f: Fn, loose: (bone: number, x: number, y: number, z: number) => number, ease: number) {
+  for (let v = 0; v < p.pos.length / 3; v++) {
+    const x = p.pos[v * 3], y = p.pos[v * 3 + 1], z = p.pos[v * 3 + 2]
+    const d = f(x, y, z)
+    if (d >= ease) continue
+    const u = Math.min(1, Math.max(0, d / ease))
+    const inside = 1 - u * u * (3 - 2 * u)
+    const w = [0, 1, 2, 3].map((c) => p.weights[v * 4 + c] * (1 - inside * loose(p.joints[v * 4 + c], x, y, z)))
+    const total = w.reduce((sum, n) => sum + n, 0)
+    if (total < 1) continue
+    const q = w.map((n) => Math.round((n / total) * 255))
+    q[q.indexOf(Math.max(...q))] += 255 - q.reduce((sum, n) => sum + n, 0)
+    for (let c = 0; c < 4; c++) p.weights[v * 4 + c] = q[c]
+  }
+}
+
+/**
  * Takes a garment out of the skin: `skin` is what is left bare, `cloth` the
  * part inside `region`, raised by `thickness`. The cloth comes down to the
  * skin over `hem`, so the two share their edge; `seams` are lines along which
- * the thickness changes, which get an edge of their own to change along.
+ * the thickness changes, which get an edge of their own to change along;
+ * `loose` says which bones the cloth lets go of, and where (see `hold`).
  */
-export function wear(body: Surface, region: Fn, thickness: Fn, hem: number, seams: Fn[] = []): { skin: Surface; cloth: Surface } {
+export function wear(body: Surface, region: Fn, thickness: Fn, hem: number, seams: Fn[] = [], loose?: (bone: number, x: number, y: number, z: number) => number): { skin: Surface; cloth: Surface } {
   let all = body
   for (const line of [(x: number, y: number, z: number) => region(x, y, z) + hem, ...seams]) all = cut(all, line).surface
   const { surface, side } = cut(all, region)
+  if (loose) hold(surface, region, loose, hem * 5)
   const skin = keep(surface, side, 1), cloth = keep(surface, side, -1)
   const step = (v: number) => { const u = Math.min(1, Math.max(0, v / hem)); return u * u * (3 - 2 * u) }
   for (let v = 0; v < cloth.pos.length / 3; v++) {

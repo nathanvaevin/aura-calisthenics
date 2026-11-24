@@ -94,6 +94,31 @@ describe.each(CAST)('the %s %s character file', (build, id) => {
     }
   })
 
+  // A sports top holds to the ribcage: no point of it goes with an arm, so its armhole keeps its shape with the arms
+  // overhead. (Its straps do lift with the shoulders.)
+  it.runIf(id === 'female')('her top holds to the trunk: none of it follows an arm', () => {
+    const p = json.meshes.find((m: { name: string }) => m.name === 'top').primitives[0]
+    const joints = numbers(p.attributes.JOINTS_0), weights = numbers(p.attributes.WEIGHTS_0)
+    const arm = new Set(BONES.flatMap((b, i) => (/^(upperArm|lowerArm|foreTwist)/.test(b) ? [i] : [])))
+    let held = 0
+    for (let i = 0; i < weights.length; i++) if (weights[i] > 0 && arm.has(joints[i])) held++
+    expect(held).toBe(0)
+  })
+
+  // Soft tissue gives a little to gravity (`skinning.ts`). Only she has any; his files carry nothing for it and are
+  // what they were before it existed.
+  it('says how far each point gives to gravity, on her and not on him', () => {
+    for (const mesh of json.meshes) {
+      const soft = mesh.primitives[0].attributes._SOFT
+      if (id === 'male') { expect(soft, mesh.name).toBeUndefined(); continue }
+      expect(soft, mesh.name).toBeDefined()
+      const most = Math.max(...numbers(soft))
+      // All of it across the front of the chest, under the top; none in a hand, a foot or her hair.
+      if (mesh.name === 'top') expect(most).toBe(255)
+      if (mesh.name === 'shorts' || mesh.name === 'hair') expect(most).toBe(0)
+    }
+  })
+
   it('numbers its muscles the way the app reads them', () => {
     expect(json.scenes[0].extras.channels).toEqual([...CHANNELS])
     expect(json.scenes[0].extras.logo.width).toBeGreaterThan(0.05)

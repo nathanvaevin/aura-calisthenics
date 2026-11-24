@@ -120,7 +120,9 @@ async function build(id: CharacterId, kind: BuildId) {
   const cloths = new Map<string, Piece>()
   let bare = trunk
   for (const g of fitted) {
-    const { skin: left, cloth } = wear(bare, g.region, g.thickness, 0.004 * S, g.seams)
+    const stays = g.stays
+    const loose = stays && ((bone: number, x: number, y: number, z: number) => stays(BONES[bone].replace(/[LR]$/, ''), x, y, z))
+    const { skin: left, cloth } = wear(bare, g.region, g.thickness, 0.004 * S, g.seams, loose)
     bare = left
     cloths.set(g.name, cloth)
     console.log(`  ${g.name.padEnd(8)} ${String(cloth.idx.length / 3).padStart(16)} triangles, cut from the skin`)
@@ -160,6 +162,26 @@ async function build(id: CharacterId, kind: BuildId) {
     const kinds = settle(mesh, fn, null, h)
     parts.push({ name: 'hair', material: 'hair', ...mesh, nrm: normals(mesh, fn, null, kinds), ...skin(mesh, hairField, sk, 'head') })
     console.log(`  ${'hair'.padEnd(8)} ${String(mesh.idx.length / 3).padStart(16)} triangles`)
+  }
+
+  // Soft tissue (her chest) gives a little to gravity: it shifts towards the head when she is upside down, and settles
+  // when she lies down. How far each point gives is how much that tissue adds to the body there: nothing at its base,
+  // all of it across its front. The app does the rest (`skinning.ts`); on a character
+  // with no soft tissue the file carries nothing and is what it was.
+  if (an.body.some((x) => x.soft)) {
+    const firm = new Field(an.body.filter((x) => !x.soft))
+    const most = Math.max(...an.body.map((x) => x.soft ?? 0))
+    for (const part of parts) {
+      const soft = new Uint8Array(part.pos.length / 3)
+      for (let v = 0; v < soft.length; v++) {
+        // What the soft tissue adds here: the same for cloth as for the skin under it, and nothing for hair or a sash.
+        const x = part.pos[v * 3], y = part.pos[v * 3 + 1], z = part.pos[v * 3 + 2]
+        const out = firm.value(x, y, z) - field.value(x, y, z)
+        const u = Math.min(1, Math.max(0, (out - 0.002 * S) / (0.028 * S)))
+        soft[v] = Math.round(255 * most * u * u * (3 - 2 * u))
+      }
+      part.soft = soft
+    }
   }
 
   // The Aura masters were written before builds existed: their files stay as they were, byte for byte.

@@ -36,7 +36,8 @@ Never present simulated or sample behaviour as real. If something cannot work wi
 - Which muscles work comes from the exercise library. Do not invent activation per animation; a movement may only refine it (`detail`, `shift`).
 - Characters, movements, muscles, Aura and video stay separate. A theme is data in `aura/themes.ts`; intensity is never part of a theme.
 - After changing `scripts/character/` or `src/visual/body/`, run `npm run character:build` and commit the `.glb` files. `npm test` fails while they differ from the code.
-- A garment whose edge runs where skin slides (an armhole) is `fitted`: cut from the skin itself (`scripts/character/wear.ts`), never laid over it. The shorts are laid over, and VISUALS.md §2 says why they still are.
+- A garment whose edge runs where skin slides (an armhole) is `fitted`: cut from the skin itself (`scripts/character/wear.ts`), never laid over it. Her top also `stays` with the trunk: none of it may follow an arm, and it covers the side of the chest. The shorts are laid over, and VISUALS.md §2 says why they still are.
+- Soft tissue gives to gravity by one number (`SOFT_GIVE` in `src/visual/body/skinning.ts`), small, and only as a still shift with the pose. It lives in the shared skinning text so everything that draws the body moves together; a character without soft tissue carries no data for it.
 - Both characters show the same muscles for an exercise. A difference by sex needs evidence that clears VISUALS.md §4 and the owner's decision; then it is a `detail` on the movement, small.
 - Update `VISUALS.md` in the same piece of work.
 

@@ -28,6 +28,8 @@ export interface Shape {
   mirror?: boolean
   /** Bones this shape's skin may follow, with a strength. Left names; the right copy swaps sides. */
   bones: Record<string, number>
+  /** Soft tissue: how far (0..1) what this shape adds to the body gives to gravity. See `soft` in `build.ts`. */
+  soft?: number
   /** The muscle channel this shape is, if it is one. */
   muscle?: string
   /**

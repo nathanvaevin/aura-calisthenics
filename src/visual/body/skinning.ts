@@ -15,8 +15,13 @@
  * `#include <skinbase_vertex>`; the rest of three.js's skinning then works
  * on the one blended movement.
  */
+/** How far soft tissue gives, in metres, for each unit that gravity has turned against the chest (upside down is two). She wears a sports top: it is little. */
+export const SOFT_GIVE = 0.005
+
 export const SKIN_DECL = /* glsl */ `
 #ifdef USE_SKINNING
+  // How far this point gives to gravity (soft tissue). Absent from a character that has none, and then it reads 0.
+  attribute float _soft;
   vec4 auraQuat(mat3 m) {
     float t = m[0][0] + m[1][1] + m[2][2];
     if (t > 0.0) { float s = sqrt(t + 1.0) * 2.0; return vec4((m[1][2] - m[2][1]) / s, (m[2][0] - m[0][2]) / s, (m[0][1] - m[1][0]) / s, 0.25 * s); }
@@ -66,6 +71,10 @@ export const SKIN_BLEND = /* glsl */ `
 #ifdef USE_SKINNING
   {
     mat4 auraSkin = auraBlend(boneMatX, boneMatY, boneMatZ, boneMatW, skinWeight);
+    // Soft tissue hangs the way gravity pulls it. Standing is how the body was made, so only the difference from
+    // standing is added: nothing upright, towards the head when upside down, a little flatter lying on the back.
+    // The upper chest is bone 3; its second column is which way "up along the chest" points now.
+    if (_soft > 0.0) auraSkin[3].xyz += _soft * ${SOFT_GIVE.toFixed(4)} * (vec3(0.0, -1.0, 0.0) + normalize(getBoneMatrix(3.0)[1].xyz));
     boneMatX = auraSkin; boneMatY = auraSkin; boneMatZ = auraSkin; boneMatW = auraSkin;
   }
 #endif

@@ -15,6 +15,8 @@ export interface Part {
   weights: Uint8Array
   /** (slot, share, slot, share) per vertex. */
   muscle?: Uint8Array
+  /** How far each vertex gives to gravity, 0..255. Only on a character that has soft tissue. */
+  soft?: Uint8Array
 }
 
 const FLOAT = 5126, UBYTE = 5121, UINT = 5125, USHORT = 5123
@@ -72,6 +74,7 @@ export function writeGlb(sk: Skeleton, parts: Part[], extras: Record<string, unk
       WEIGHTS_0: accessor({ bufferView: view(p.weights, ARRAY_BUFFER), componentType: UBYTE, normalized: true, count, type: 'VEC4' }),
     }
     if (p.muscle) attributes._MUSCLE = accessor({ bufferView: view(p.muscle, ARRAY_BUFFER), componentType: UBYTE, count, type: 'VEC4' })
+    if (p.soft) attributes._SOFT = accessor({ bufferView: view(p.soft, ARRAY_BUFFER), componentType: UBYTE, normalized: true, count, type: 'SCALAR' })
     const indices = accessor({
       bufferView: view(small ? new Uint16Array(p.idx) : p.idx, ELEMENT_ARRAY_BUFFER),
       componentType: small ? USHORT : UINT, count: p.idx.length, type: 'SCALAR',
