@@ -15,6 +15,19 @@
  * `#include <skinbase_vertex>`; the rest of three.js's skinning then works
  * on the one blended movement.
  */
+import { BONES } from './skeleton'
+
+/**
+ * Where the app tells the shaders how far soft tissue has swung with the last movement: the translation of one more
+ * "bone" after the real ones. three.js keeps the bones' matrices in a texture with room to spare (34 bones, room
+ * for 36), every shader that draws the body already reads that texture, and it belongs to one character: so the
+ * swing reaches the body, its outline, its shadow and the Aura alike, with nothing to pass to each of them.
+ */
+export const SOFT_SLOT = BONES.length
+
+/** How far soft tissue may swing from where it rests, in metres, and how it springs back (cycles a second; 1 would not swing at all). */
+export const SOFT_SWING = { most: 0.012, rate: 3.2, damping: 0.42 }
+
 /** How far soft tissue gives, in metres, for each unit that gravity has turned against the chest (upside down is two). She wears a sports top: it is little. */
 export const SOFT_GIVE = 0.005
 
@@ -74,7 +87,8 @@ export const SKIN_BLEND = /* glsl */ `
     // Soft tissue hangs the way gravity pulls it. Standing is how the body was made, so only the difference from
     // standing is added: nothing upright, towards the head when upside down, a little flatter lying on the back.
     // The upper chest is bone 3; its second column is which way "up along the chest" points now.
-    if (_soft > 0.0) auraSkin[3].xyz += _soft * ${SOFT_GIVE.toFixed(4)} * (vec3(0.0, -1.0, 0.0) + normalize(getBoneMatrix(3.0)[1].xyz));
+    // On top of that, how far it has swung with the last movement (worked out by the app, a spring: Actor.sway).
+    if (_soft > 0.0) auraSkin[3].xyz += _soft * (${SOFT_GIVE.toFixed(4)} * (vec3(0.0, -1.0, 0.0) + normalize(getBoneMatrix(3.0)[1].xyz)) + getBoneMatrix(${SOFT_SLOT}.0)[3].xyz);
     boneMatX = auraSkin; boneMatY = auraSkin; boneMatZ = auraSkin; boneMatW = auraSkin;
   }
 #endif

@@ -193,7 +193,13 @@ export function anatomyOf(id: CharacterId, build: BuildId = 'aura'): Anatomy {
   // Mass: what gives the trunk its athletic shape, blended smooth.
   E(tm(0.072, 1.372, 0.05), R(0.082 * wT, 0.066, 0.048 * pick(1, 0.7) * tu('chest')), { k: 0.04, rot: [0, 0, 8], bones: { upperChest: 1, shoulderL: 0.4, upperArmL: pick(0.25, 0.07) } })
   C(tm(0.125, 1.4, pick(0.046, 0.036)), sh(0.04, -0.014, pick(0.02, 0.014)), 0.03 * S * m * fem.fold, 0.022 * aS * fem.upperArm * fem.fold, { k: 0.035, bones: { upperChest: 1, shoulderL: 0.8, upperArmL: 0.35 } })
-  if (F) E(tm(0.071, 1.35, 0.088), R(0.056, 0.05, 0.047), { k: 0.026, bones: { upperChest: 1, chest: 0.6 }, soft: 1 })
+  if (F) {
+    // Her chest, as it is and not as a ball set on the ribs: most of its fullness low and a little to the side, and
+    // above that a long slope that rises out of the upper chest with no edge to it. A natural size for an athlete.
+    const tissue = { bones: { upperChest: 1, chest: 0.6 }, soft: 1 }
+    E(tm(0.071, 1.337, 0.074), R(0.054, 0.046, 0.039), { k: 0.036, rot: [0, 10, 0], ...tissue })
+    E(tm(0.069, 1.378, 0.062), R(0.047, 0.056, 0.026), { k: 0.042, rot: [16, 8, 0], ...tissue })
+  }
   E(tm(0.075, 1.375, -0.078), R(0.085 * wT, 0.1, 0.045), { k: 0.045, bones: { upperChest: 1, chest: 0.8, shoulderL: 0.4 } })
   E(tm(0.124, 1.275, -0.056), R(0.054 * fem.lat * tu('lat'), 0.125, 0.046 * m), { k: 0.035, rot: [0, 0, -13], bones: { chest: 1, upperChest: 1, spine: 0.6 } })
   C(tm(0.138, 1.375, -0.058), sh(0.04, -0.016, -0.028), 0.032 * S * m * pick(1, 0.9), 0.022 * aS * fem.upperArm, { k: 0.035, bones: { upperChest: 1, shoulderL: 0.8, upperArmL: 0.35 } })

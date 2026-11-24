@@ -699,7 +699,7 @@
   mix-blend-mode: soft-light;
 }
 
-/* Ignite (the welcome's "Get started"): the border round the clock fills in the six colours, slowly at first and then faster,
+/* Ignite ("Get started" on the welcome, joining an assessment): a band of light fills the ring (IgniteRing.tsx), slowly at first and then faster,
    while the field turns faster with it; then it gathers, bursts, and is gone. Timings go with IGNITE_* in AuraField.tsx. */
 .aura-ignite {
   animation: aura-ignite 2.75s linear forwards;
@@ -707,11 +707,23 @@
 .aura-ignite .aura-orbit {
   animation: aura-ignite-spin 1.95s cubic-bezier(0.75, 0, 1, 0.6) forwards;
 }
-.aura-ignite-arc {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  filter: drop-shadow(0 0 1.6px currentColor) drop-shadow(0 0 3px rgba(255, 255, 255, 0.5));
-  animation: aura-ignite-arc 0.15s linear forwards;
+.aura-ignite-ring {
+  position: absolute;
+  inset: -30%;
+  pointer-events: none;
+}
+.aura-ignite-ring canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+/* The glow under the bolts: wide, soft and saturated. */
+.aura-ignite-ring canvas:first-child {
+  filter: blur(calc(var(--aura-blur) * 0.55)) saturate(1.9) brightness(1.15);
+}
+[data-scheme='light'] .aura-ignite-ring canvas:first-child {
+  filter: blur(calc(var(--aura-blur) * 0.5)) saturate(1.3);
 }
 .aura-ignite-wave {
   position: absolute;
@@ -731,16 +743,13 @@
   opacity: 0;
   animation: aura-ignite-flash 0.75s 2.02s ease-out forwards;
 }
-@keyframes aura-ignite-arc {
-  to { stroke-dashoffset: 0; }
-}
 @keyframes aura-ignite-spin {
   to { transform: rotate(600deg); }
 }
 @keyframes aura-ignite {
   0% { transform: scale(1); filter: brightness(1); animation-timing-function: ease-in; }
-  62% { transform: scale(1.04); filter: brightness(1.35); animation-timing-function: ease-in-out; }
-  71% { transform: scale(0.94); filter: brightness(1.55); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
+  62% { transform: scale(1.04); filter: brightness(1.12) saturate(1.15); animation-timing-function: ease-in-out; }
+  71% { transform: scale(0.94); filter: brightness(1.25) saturate(1.25); animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1); }
   79% { transform: scale(1.18); filter: brightness(2.1) saturate(1.3); opacity: 1; }
   100% { transform: scale(1.9); filter: brightness(2.6) saturate(1.2); opacity: 0; }
 }
@@ -754,7 +763,7 @@
   100% { opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .aura-ignite, .aura-ignite .aura-orbit, .aura-ignite-arc, .aura-ignite-wave, .aura-ignite-flash { animation-duration: 0.01s !important; animation-delay: 0s !important; }
+  .aura-ignite, .aura-ignite .aura-orbit, .aura-ignite-wave, .aura-ignite-flash { animation-duration: 0.01s !important; animation-delay: 0s !important; }
 }
 
 /* A heading that takes one rush of electric yellow, left to right, and is itself again (the account step). */

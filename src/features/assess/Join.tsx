@@ -8,11 +8,15 @@ import { useStore, type ImportOutcome } from '@/data/store'
 import { continueAsGuest, joinAssessment, peekInvite, rememberJoin, signInWithGoogle, useCloud, type InvitePreview } from '@/data/cloud'
 import { GoogleButton, Notice } from '@/features/account/Account'
 import { AuraField } from '@/ui/AuraField'
+import { useIgnite } from '@/ui/useIgnite'
 import { DisciplineDot, Eyebrow } from '@/ui/primitives'
 import { Wordmark } from '@/app/Shell'
 import { cx } from '@/lib/format'
 
 const EVEN = { handstand: 1 / 6, pull: 1 / 6, push: 1 / 6, core: 1 / 6, legs: 1 / 6, mobility: 1 / 6 }
+
+/** The Aura is at the top of the page and the button at the bottom: bring the page up, so the light is seen. */
+const toTop = () => window.scrollTo({ top: 0, behavior: 'smooth' })
 
 function Frame({ children }: { children: React.ReactNode }) {
   return (
@@ -46,16 +50,18 @@ export function JoinInvite({ data }: { data: string }) {
   const acceptInvite = useStore((s) => s.acceptInvite)
   const [name, setName] = useState('')
   const [sharing, setSharing] = useState<'coach' | 'group'>('coach')
+  const { igniting, ignite } = useIgnite()
 
   if (!invite) return <Problem title="This invitation can’t be read.">The link looks incomplete. Ask your coach to show the QR code again and scan it from the start.</Problem>
   if (!protocolKnown(invite.protocol))
     return <Problem title="This invitation is from a different version.">It was created with another version of the assessment ({invite.protocol}). Ask your coach to refresh Aura and share a new code.</Problem>
 
-  const join = () => navigate(`/assess/${acceptInvite(invite, { name, sharing })}`, { replace: true })
+  // Joining lights the Aura at the top of the page first, as "Get started" does on the welcome.
+  const join = () => { toTop(); void ignite(() => navigate(`/assess/${acceptInvite(invite, { name, sharing })}`, { replace: true })) }
 
   return (
     <Frame>
-      <InviteIntro coachName={invite.coachName} groupName={invite.groupName} title={invite.title} kind={invite.kind} stations={invite.stations} />
+      <InviteIntro coachName={invite.coachName} groupName={invite.groupName} title={invite.title} kind={invite.kind} stations={invite.stations} igniting={igniting} />
 
       {!me ? (
         <label className="rise rise-3 mt-5 block">
@@ -69,17 +75,18 @@ export function JoinInvite({ data }: { data: string }) {
       <SharingChoice coachName={invite.coachName} value={sharing} onChange={setSharing} />
 
       <div className="mt-auto pt-7">
-        <button className="btn btn-primary btn-lg w-full" disabled={!me && !name.trim()} onClick={join}>Join and begin <ArrowRight size={17} /></button>
+        <button className="btn btn-primary btn-lg w-full" disabled={igniting || (!me && !name.trim())} onClick={join}>Join and begin <ArrowRight size={17} /></button>
       </div>
     </Frame>
   )
 }
 
-function InviteIntro({ coachName, groupName, title, kind, stations, course }: { coachName: string; groupName: string; title: string; kind: 'baseline' | 'retest'; stations: DisciplineId[]; course?: string | null }) {
+function InviteIntro({ coachName, groupName, title, kind, stations, course, igniting }: { coachName: string; groupName: string; title: string; kind: 'baseline' | 'retest'; stations: DisciplineId[]; course?: string | null; igniting?: boolean }) {
   return (
     <>
+      {igniting && <span className="aura-ignite-flash" aria-hidden />}
       <div className="rise -mx-2 flex justify-center">
-        <AuraField mix={EVEN} aura={5200} size={200} rings={false}>
+        <AuraField mix={EVEN} aura={5200} size={200} rings={false} ignite={igniting}>
           <Users size={30} strokeWidth={1.4} />
         </AuraField>
       </div>
@@ -151,6 +158,7 @@ export function CloudJoin({ token }: { token: string }) {
   const [sharing, setSharing] = useState<'coach' | 'group'>('coach')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { igniting, ignite } = useIgnite()
 
   useEffect(() => {
     if (!configured) return
@@ -176,17 +184,17 @@ export function CloudJoin({ token }: { token: string }) {
   if (!protocolKnown(invite.protocol))
     return <Problem title="This invitation is from a different version.">It was created with another version of the assessment ({invite.protocol}). Reload this page; if it stays, ask your coach to refresh Aura and share a new code.</Problem>
 
-  const join = async (as: 'me' | 'guest') => {
+  // The Aura lights while the join is on its way, and the assessment opens out of the burst. If joining fails the light goes out.
+  const join = (as: 'me' | 'guest') => {
     setBusy(true)
     setError(null)
-    try {
-      if (as === 'guest' && !(await continueAsGuest())) return
-      navigate(`/assess/${await joinAssessment(token, { name: name.trim() || undefined, sharing })}`, { replace: true })
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not join. Try again.')
-    } finally {
-      setBusy(false)
-    }
+    toTop()
+    ignite(
+      async () => (as === 'guest' && !(await continueAsGuest()) ? null : joinAssessment(token, { name: name.trim() || undefined, sharing })),
+      (id) => { if (id) navigate(`/assess/${id}`, { replace: true }) },
+    )
+      .catch((e) => setError(e instanceof Error ? e.message : 'Could not join. Try again.'))
+      .finally(() => setBusy(false))
   }
 
   const signedIn = auth === 'in' && !!user
@@ -194,7 +202,7 @@ export function CloudJoin({ token }: { token: string }) {
 
   return (
     <Frame>
-      <InviteIntro coachName={invite.coachName} groupName={invite.groupName} title={invite.title} kind={invite.kind} stations={invite.stations} course={invite.courseTitle} />
+      <InviteIntro coachName={invite.coachName} groupName={invite.groupName} title={invite.title} kind={invite.kind} stations={invite.stations} course={invite.courseTitle} igniting={igniting} />
 
       {own ? (
         <div className="mt-auto pt-7">
@@ -213,11 +221,11 @@ export function CloudJoin({ token }: { token: string }) {
 
           <div className="mt-auto space-y-2.5 pt-7">
             {signedIn ? (
-              <button className="btn btn-primary btn-lg w-full" disabled={busy || (!shown && !name.trim())} onClick={() => void join('me')}>{busy ? 'Joining…' : <>Join and begin <ArrowRight size={17} /></>}</button>
+              <button className="btn btn-primary btn-lg w-full" disabled={busy || (!shown && !name.trim())} onClick={() => join('me')}>{busy ? 'Joining…' : <>Join and begin <ArrowRight size={17} /></>}</button>
             ) : (
               <>
-                <GoogleButton className="btn-primary btn-lg w-full" onClick={() => { rememberJoin(token, { name: name.trim() || undefined, sharing }); void signInWithGoogle() }}>Join with Google</GoogleButton>
-                <button className="btn btn-outline btn-lg w-full" disabled={busy || !name.trim()} onClick={() => void join('guest')}>{busy ? 'Joining…' : 'Join as a guest'}</button>
+                <GoogleButton className="btn-primary btn-lg w-full" onClick={() => { toTop(); void ignite(() => { rememberJoin(token, { name: name.trim() || undefined, sharing }); void signInWithGoogle() }) }}>Join with Google</GoogleButton>
+                <button className="btn btn-outline btn-lg w-full" disabled={busy || !name.trim()} onClick={() => join('guest')}>{busy ? 'Joining…' : 'Join as a guest'}</button>
                 <p className="text-center text-[12px] leading-relaxed text-ink-3">
                   {name.trim() ? 'A guest needs no account. Afterwards you can keep your results by adding a Google sign-in, or just screenshot them.' : 'To join as a guest, enter your name first. With Google, your results are saved to your own profile from the start.'}
                 </p>

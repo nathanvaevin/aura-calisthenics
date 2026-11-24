@@ -177,7 +177,7 @@ async function build(id: CharacterId, kind: BuildId) {
         // What the soft tissue adds here: the same for cloth as for the skin under it, and nothing for hair or a sash.
         const x = part.pos[v * 3], y = part.pos[v * 3 + 1], z = part.pos[v * 3 + 2]
         const out = firm.value(x, y, z) - field.value(x, y, z)
-        const u = Math.min(1, Math.max(0, (out - 0.002 * S) / (0.028 * S)))
+        const u = Math.min(1, Math.max(0, (out - 0.002 * S) / (0.02 * S)))
         soft[v] = Math.round(255 * most * u * u * (3 - 2 * u))
       }
       part.soft = soft

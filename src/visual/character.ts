@@ -10,7 +10,7 @@ import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import { BONES, type BoneName, type BuildId, type CharacterId } from './body/skeleton'
 import { SLOTS } from './body/muscles'
-import { SKIN_BLEND, SKIN_DECL, withSkin } from './body/skinning'
+import { SKIN_BLEND, SKIN_DECL, SOFT_SLOT, SOFT_SWING, withSkin } from './body/skinning'
 import { Rig, type Pose } from './rig'
 import { STYLES, styleOf, type CharacterStyle, type PerformerStyle } from './styles'
 
@@ -289,6 +289,8 @@ export class Actor {
   private readonly materials: MeshStandardMaterial[] = []
   private readonly kinds = new Map<MeshStandardMaterial, Kind>()
   private readonly outlines: SkinnedMesh[] = []
+  /** The skeletons of the parts that have soft tissue (none on a character without any). */
+  private readonly soft: SkinnedMesh['skeleton'][] = []
 
   constructor(id: CharacterId, gltf: GLTF) {
     this.id = id
@@ -316,6 +318,7 @@ export class Actor {
       mesh.customDepthMaterial = shadowMaterial()
       this.materials.push(mat)
       this.meshes.push(mesh)
+      if (mesh.geometry.getAttribute('_soft') && (mesh as SkinnedMesh).skeleton && !this.soft.includes((mesh as SkinnedMesh).skeleton)) this.soft.push((mesh as SkinnedMesh).skeleton)
     })
     this.group.add(scene)
   }
@@ -375,11 +378,47 @@ export class Actor {
     }
   }
 
-  pose(p: Pose) {
+  /** `dt`: how long ago the last pose was, in seconds of the clock on the wall. Left out (a jump to another moment), nothing swings. */
+  pose(p: Pose, dt = 0) {
     const rig = this.rig
     rig.solve(p)
     for (const b of BONES) rig.local(b, this.bones[b].quaternion)
     this.bones.hips.position.copy(rig.pos.hips)
+    this.sway(dt)
+  }
+
+  private readonly swing = { mass: new Vector3(), speed: new Vector3(), chest: new Vector3(), off: new Vector3(), live: false }
+
+  /**
+   * Soft tissue has weight: when the chest moves off quickly it stays behind for a moment, and it swings a little
+   * past where it settles. A weight on a spring fixed to the upper chest; how far it is from its place goes to the
+   * shaders (`SOFT_SLOT`). Slow movements, which is most of them, hardly move it. A character with no soft tissue skips this.
+   */
+  private sway(dt: number) {
+    if (!this.soft.length) return
+    const s = this.swing, chest = this.rig.pos.upperChest
+    if (!s.live || dt <= 0 || dt > 0.1 || chest.distanceTo(s.chest) > 0.12) {
+      // The first pose, or a jump to another moment: it is simply in its place.
+      s.mass.copy(chest); s.speed.set(0, 0, 0); s.live = true
+    } else {
+      const w = Math.PI * 2 * SOFT_SWING.rate, k = w * w, c = 2 * SOFT_SWING.damping * w
+      const steps = Math.ceil(dt / 0.006), h = dt / steps
+      const carried = chest.clone().sub(s.chest).divideScalar(dt)
+      for (let i = 1; i <= steps; i++) {
+        const at = s.chest.clone().lerp(chest, i / steps)
+        s.speed.addScaledVector(at.sub(s.mass), k * h).addScaledVector(s.speed.clone().sub(carried), -c * h)
+        s.mass.addScaledVector(s.speed, h)
+      }
+    }
+    s.chest.copy(chest)
+    s.off.copy(s.mass).sub(chest)
+    const most = SOFT_SWING.most * this.rig.body.scale
+    if (s.off.length() > most) { s.off.setLength(most); s.mass.copy(chest).add(s.off) }
+    for (const sk of this.soft) {
+      if (!sk.boneTexture) sk.computeBoneTexture()
+      const at = SOFT_SLOT * 16 + 12
+      if (sk.boneMatrices.length >= at + 3) { sk.boneMatrices[at] = s.off.x; sk.boneMatrices[at + 1] = s.off.y; sk.boneMatrices[at + 2] = s.off.z }
+    }
   }
 
   dispose() {

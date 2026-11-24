@@ -83,6 +83,8 @@ export class Player {
   private cast: Performer[] = []
   private raf = 0
   private last = 0
+  /** Seconds of real time since the last frame, while a frame is being drawn; 0 for a pose set any other way (a jump). */
+  private wall = 0
   private playing = true
   private active = true
   private time = 0
@@ -275,7 +277,7 @@ export class Player {
       const phase = resting ? 0 : cycles % 1
       if (m) m.pose(phase, p.actor.rig, p.pose)
       else stand(p.actor.rig.body, p.pose, phase)
-      p.actor.pose(p.pose)
+      p.actor.pose(p.pose, this.wall)
       const band = p.props?.getObjectByName('band')
       if (band) {
         // From its anchor to the joint it is looped round, as long as that is now.
@@ -337,7 +339,9 @@ export class Player {
       if (this.sets && this.time >= this.length) this.settle = 0
     }
     // Paused: the body is still, the light is not.
+    this.wall = dt
     this.pose(this.playing ? step : dt * 0.35)
+    this.wall = 0
     if (this.stage.settleCover(dt)) this.stage.view.distance = this.stage.fit(this.room.height, this.room.width, this.margin)
     this.stage.render()
     this.frames++

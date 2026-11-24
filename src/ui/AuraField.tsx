@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react'
 import type { DisciplineId } from '@/domain/types'
 import { dvar } from '@/lib/format'
+import { IgniteRing } from './IgniteRing'
 
 /** Clockwise from the top. Shared by the Aura field and the DNA sigil. */
 export const WHEEL: DisciplineId[] = ['handstand', 'push', 'core', 'legs', 'mobility', 'pull']
@@ -20,7 +21,7 @@ interface Props {
   /** 0–1 progress toward the next Aura class, drawn on the outer ring. */
   progress?: number
   rings?: boolean
-  /** Ignite: the outer ring fills with the six colours, clockwise, and the Aura bursts. Plays once when it turns on (the welcome's "Get started"). */
+  /** Ignite: a thick band of light fills the ring in the six colours, clockwise, and the Aura bursts. Plays once when it turns on ("Get started" on the welcome, joining an assessment). */
   ignite?: boolean
   children?: ReactNode
   className?: string
@@ -118,20 +119,10 @@ export function AuraField({ mix, aura, size = 320, progress, rings = true, ignit
               style={{ transition: 'stroke-dasharray 1.2s var(--ease-out-soft)' }}
             />
           )}
-          {/* Ignite: the border round the clock fills, one discipline's colour after another. */}
-          {ignite && WHEEL.map((d, i) => {
-            const at = (deg: number) => { const a = ((deg - 90) * Math.PI) / 180; return `${50 + Math.cos(a) * r} ${50 + Math.sin(a) * r}` }
-            return (
-              <path
-                key={d} d={`M ${at(i * 60)} A ${r} ${r} 0 0 1 ${at(i * 60 + 60.5)}`} pathLength={1}
-                className="aura-ignite-arc" fill="none" stroke={dvar(d)} strokeWidth="1.3" strokeLinecap="round"
-                // It starts slowly and gathers speed: each sixth of the ring takes less time than the one before.
-                style={{ animationDelay: `${IGNITE_FILL * Math.pow(i / 6, 1 / IGNITE_EASE)}s`, animationDuration: `${IGNITE_FILL * (Math.pow((i + 1) / 6, 1 / IGNITE_EASE) - Math.pow(i / 6, 1 / IGNITE_EASE))}s` }}
-              />
-            )
-          })}
         </svg>
       )}
+      {/* Ignite: a band of light fills the ring, slowly and then faster, beating as it goes. */}
+      {ignite && <IgniteRing order={WHEEL} fill={IGNITE_FILL} ease={IGNITE_EASE} />}
       {ignite && <span className="aura-ignite-wave" aria-hidden />}
 
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">{children}</div>

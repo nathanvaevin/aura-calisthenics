@@ -83,14 +83,15 @@ describe.each(CAST)('the %s %s character file', (build, id) => {
     const key = (m: { pos: ArrayLike<number> }, v: number) => [0, 1, 2].map((c) => Math.round(m.pos[v * 3 + c] * 1e5)).join(',')
     const held = (m: { joints: ArrayLike<number>; weights: ArrayLike<number> }, v: number) =>
       [0, 1, 2, 3].filter((c) => m.weights[v * 4 + c] > 0).map((c) => `${m.joints[v * 4 + c]}:${m.weights[v * 4 + c]}`).sort().join(' ')
-    const skin = new Map<string, number>()
-    for (const v of edge(body)) skin.set(key(body, v), v)
+    // Two points of the skin's edge can lie within a hundredth of a millimetre of each other; the top's point is one of them.
+    const skin = new Map<string, string[]>()
+    for (const v of edge(body)) skin.set(key(body, v), [...(skin.get(key(body, v)) ?? []), held(body, v)])
     const hem = [...edge(top)]
     expect(hem.length).toBeGreaterThan(200)
     for (const v of hem) {
       const under = skin.get(key(top, v))
       expect(under, `a point on the top's edge with no skin at it: ${key(top, v)}`).toBeDefined()
-      expect(held(top, v)).toBe(held(body, under!))
+      expect(under).toContain(held(top, v))
     }
   })
 

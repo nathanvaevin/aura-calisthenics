@@ -11,7 +11,8 @@ import { useStore } from '@/data/store'
 import { handleFree, signInWithGoogle, signOut, useCloud } from '@/data/cloud'
 import { GoogleButton, Notice } from '@/features/account/Account'
 import { requestCoach } from '@/features/account/CoachAccess'
-import { AuraField, IGNITE_SECONDS } from '@/ui/AuraField'
+import { AuraField } from '@/ui/AuraField'
+import { useIgnite } from '@/ui/useIgnite'
 import { CountUp } from '@/ui/CountUp'
 import { DisciplineDot, Eyebrow, StatusTag, Stepper, Toggle } from '@/ui/primitives'
 import { Wordmark } from '@/app/Shell'
@@ -214,13 +215,7 @@ export function Onboarding() {
 
   const welcome = step === 0 && !accountStep
   // "Get started" lights the circle first: the ring fills, the Aura bursts, and the next screen comes out of it.
-  const [igniting, setIgniting] = useState(false)
-  const ignite = (then: () => void) => {
-    if (igniting) return
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return then()
-    setIgniting(true)
-    window.setTimeout(() => { then(); setIgniting(false) }, IGNITE_SECONDS * 1000 - 80)
-  }
+  const { igniting, ignite } = useIgnite()
   const firstName = name.trim().split(' ')[0] || 'Athlete'
 
   return (
@@ -284,11 +279,11 @@ export function Onboarding() {
               </div>
               <div className={cx('flex w-full max-w-sm shrink-0 flex-col gap-2.5 pt-[2.5dvh] transition-opacity duration-500', igniting && 'pointer-events-none opacity-0')}>
                 {configured
-                  ? <button className="btn btn-primary btn-lg w-3/4 self-center" data-get-started onClick={() => ignite(() => setAccountStep(true))}>Get started <ArrowRight size={17} /></button>
-                  : <button className="btn btn-primary btn-lg w-3/4 self-center" data-get-started onClick={() => ignite(() => setStep(1))}>Begin <ArrowRight size={17} /></button>}
+                  ? <button className="btn btn-primary btn-lg w-3/4 self-center" data-get-started onClick={() => void ignite(() => setAccountStep(true))}>Get started <ArrowRight size={17} /></button>
+                  : <button className="btn btn-primary btn-lg w-3/4 self-center" data-get-started onClick={() => void ignite(() => setStep(1))}>Begin <ArrowRight size={17} /></button>}
                 {/* Only on a developer's machine (npm run dev): a public build never has this. */}
                 {configured && import.meta.env.DEV && (
-                  <button className="btn btn-quiet btn-sm self-center" data-local-start onClick={() => ignite(() => setStep(1))}>Without signing in · this computer only</button>
+                  <button className="btn btn-quiet btn-sm self-center" data-local-start onClick={() => void ignite(() => setStep(1))}>Without signing in · this computer only</button>
                 )}
                 {configured && (
                   <p className="mt-1 text-[13.5px] text-ink-2">
