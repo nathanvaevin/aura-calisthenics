@@ -172,7 +172,7 @@ Students on mobile data are not affected either way.
 npm run deploy
 ```
 
-Runs the tests, builds the app for **https://aurathletics.nl/** once that domain points at GitHub Pages (until then for `https://nathanvaevin.github.io/aura-calisthenics/`; the script checks the DNS itself and says which) with the two values from `.env.local` built in, and replaces the `gh-pages` branch that GitHub Pages serves. About a minute later the public address serves the new build. It stops if `.env.local` has no project, or holds a secret key.
+Runs the tests, builds the app for **https://aurathletics.nl/** with the two values from `.env.local` built in, and replaces the `gh-pages` branch of the repository that serves it (`nathanvaevin/aurathletics`; this repository only holds the code and, on its own `gh-pages`, the page left at the old address). About a minute later the public address serves the new build. It stops if `.env.local` has no project, or holds a secret key.
 
 Then open the public address and sign in with Google: you land on the welcome questions (or, if this browser already held a profile from before accounts, straight in your profile with that data moved into your account).
 
@@ -194,9 +194,18 @@ At the registrar's DNS settings for aurathletics.nl (remove any other A, AAAA or
 | AAAA | @ | 2606:50c0:8003::153 |
 | CNAME | www | nathanvaevin.github.io |
 
-Then step 3d's URLs in Supabase, and publish: the deploy script sees the domain answer and moves the site there. GitHub issues the HTTPS certificate on its own, usually within an hour.
+Then step 3d's URLs in Supabase.
 
-**What athletes notice.** A browser keeps a site's data per address, so on aurathletics.nl every device starts empty: athletes with an account sign in again and find everything; what was never synced stays behind at the old address (places and check-ins, a workout in progress, device settings such as text size). A guest profile (no Google account) cannot be found again from the new address. Move on a day with no workout or assessment running.
+**The move itself, in this order** (say publish, and it is done for you):
+1. A repository `nathanvaevin/aurathletics` is made, with Pages on its `gh-pages` branch. `npm run deploy` publishes the app there. The old address is not touched.
+2. GitHub issues the HTTPS certificate (minutes to about an hour). Enforce HTTPS.
+3. Only then `npm run deploy:forward` puts `forward/index.html` at the old address. It refuses while the new one does not answer securely.
+
+**Never set a custom domain (a CNAME) on the old repository.** GitHub would then forward the old address by itself, before the page there can run, and guests would lose their profile.
+
+**What athletes notice.** Nothing, when they come by the old address once (a bookmark, an old link, a QR code): that page sends them on with their sign-in and everything their browser had stored, so a guest keeps their profile and nobody signs in again (`src/data/moveIn.ts`). Someone who types the new address without ever passing the old one signs in as on a new device; a guest should open the old link once, before starting anything new on the new address. An app put on a phone's home screen from the old address keeps its own storage: best removed and added again from the new one.
+
+To undo the last step: push the previous commit of the old repository's `gh-pages` again. What was stored there is never deleted.
 
 ## 8 · Coaching by approval, and your account as owner
 

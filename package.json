@@ -15,6 +15,7 @@
     "scoring:audit": "tsx scripts/scoring-audit.ts",
     "db:bundle": "tsx scripts/build-bundle.ts",
     "deploy": "sh scripts/deploy.sh",
+    "deploy:forward": "sh scripts/deploy-forward.sh",
     "character:build": "tsx scripts/character/build.ts"
   },
   "dependencies": {
