@@ -81,13 +81,14 @@ Never present simulated or sample behaviour as real. If something cannot work wi
 - `npm run db:seed` regenerates `supabase/seed.sql` from `src/domain`
 - `npm run db:check` applies all fourteen migrations + seed to an in-process Postgres and checks the access rules
 - `npm run db:bundle` regenerates `supabase/apply.sql` (the one-paste setup) from the migrations and seed — run it after changing either
-- `npm run deploy` tests, builds for the public address and replaces the `gh-pages` branch. Publishing is outward-facing: run it only when the owner says so
+- `npm run deploy` tests, builds and publishes to https://aurathletics.nl (the `gh-pages` branch of `nathanvaevin/aurathletics`). `npm run deploy:forward` puts `forward/index.html` at the old address. Publishing is outward-facing: run either only when the owner says so. Never give the old repository a CNAME
 - `npm run character:build` regenerates the six characters in `public/characters/` (`-- power`, `-- iron male` build some of them; `-- --draft` is quick and coarse, for sculpting)
 - `npm run scoring:audit` recomputes every figure in SCORING.md; `-- --write` regenerates its tables, `-- --check` verifies them
 
 ## Orientation
 
 - `src/domain/` holds the rules, pure TypeScript: catalog, scoring, `assessment.ts`, `places.ts` (privacy, presence, OpenStreetMap conversion).
+- `src/main.tsx` runs `src/data/moveIn.ts` (what a device had at the old address) and only then imports `src/boot.tsx`, the app. Nothing that reads the browser's storage may be imported by `main.tsx`. A new storage key that must survive the move goes in both `MOVING_KEYS` and `forward/index.html`.
 - `src/data/store.ts` is the only place state changes. Screens read and write it and never wait for the network.
 - `src/data/cloud/` keeps that store and Supabase in step while someone is signed in: `rows.ts` (tables and who may write a row), `mappers.ts` (state ↔ rows), `engine.ts` (push, fetch, merge), `remote.ts` (Supabase). A new synced table is added in `rows.ts` and `mappers.ts`; the engine does not change. `cloud.test.ts` runs two simulated devices against a pretend server.
 - `src/visual/` is the 3D side, loaded lazily (never import it from a screen every athlete opens, except through `lazy()`): `body/` (skeleton and muscle channels, shared with the generator; `skinning.ts`, how the skin follows the bones: every shader that draws the body includes it), `rig.ts` (pose → joints), `motions/` (one movement per exercise: all 116 have one; a family per file, each with its test file), `aura/` (themes, field, behaviour), `player.ts`, `Demo.tsx`. `src/visual/pilot.ts` and `aura/themes.ts` are plain data and safe to import anywhere.
