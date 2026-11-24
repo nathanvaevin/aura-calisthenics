@@ -196,7 +196,7 @@ At the registrar's DNS settings for aurathletics.nl (remove any other A, AAAA or
 
 Then step 3d's URLs in Supabase.
 
-**The move itself, in this order** (say publish, and it is done for you):
+**The move itself** was done on 2026-11-24, in this order:
 1. A repository `nathanvaevin/aurathletics` is made, with Pages on its `gh-pages` branch. `npm run deploy` publishes the app there. The old address is not touched.
 2. GitHub issues the HTTPS certificate (minutes to about an hour). Enforce HTTPS.
 3. Only then `npm run deploy:forward` puts `forward/index.html` at the old address. It refuses while the new one does not answer securely.
