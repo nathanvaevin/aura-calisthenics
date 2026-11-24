@@ -718,12 +718,12 @@
   width: 100%;
   height: 100%;
 }
-/* The glow under the bolts: wide, soft and saturated. */
+/* Both are light, and light has no edge: the glow is blurred wide, its heart a little. */
 .aura-ignite-ring canvas:first-child {
-  filter: blur(calc(var(--aura-blur) * 0.6)) saturate(1.15);
+  filter: blur(calc(var(--aura-blur) * 0.7)) saturate(1.15);
 }
-[data-scheme='light'] .aura-ignite-ring canvas:first-child {
-  filter: blur(calc(var(--aura-blur) * 0.5)) saturate(1.3);
+.aura-ignite-ring canvas:last-child {
+  filter: blur(calc(var(--aura-blur) * 0.09));
 }
 @keyframes aura-ignite-spin {
   to { transform: rotate(600deg); }
