@@ -386,28 +386,60 @@ export function anatomyOf(id: CharacterId, build: BuildId = 'aura'): Anatomy {
     region: (x, y, z) => Math.max(y - waist, dot(sub([Math.abs(x), y, z], hem), down)),
   }]
   if (F) {
-    const band = 1.262 * S
-    const side = J.upperArmL[0] - 0.012 * S
-    const top = J.upperArmL[1] + 0.06 * S
-    // Everything on the trunk between the band and the shoulders, less a scooped neck and two armholes.
-    const hole = (x: number, y: number, cx: number, cy: number, a: number, b: number) => (1 - Math.hypot((x - cx) / a, (y - cy) / b)) * Math.min(a, b)
-    // The armhole, as seen from the front: its edge runs down the chest beside the fold of the armpit and turns under
-    // the arm two fingers below it, so the side of the chest is covered. The cloth inside it stays with the trunk
-    // (`stays`), which is what lets the edge lie this close to skin that goes with the arm.
-    const armhole = (ax: number, y: number) => hole(ax, y, J.upperArmL[0] + 0.012 * S, J.upperArmL[1] - 0.012 * S, 0.082 * S, 0.075 * S)
+    // A halter top (the owner's choice of cut, 2026-11-24): a band round the ribs, two triangles over the chest, and a
+    // thin strap from the point of each that meets the other behind the neck. The back is bare but for the band.
+    const band = 1.262 * S, bandTop = band + 0.03 * S
+    const skin = new Field(body.filter((x) => !x.relief))
+    const at: Fn = (x, y, z) => skin.value(x, y, z)
+    /** The point of the skin nearest to a point beside it. */
+    const onSkin = (p: V3): V3 => {
+      let q = p
+      for (let pass = 0; pass < 12; pass++) q = sub(q, mul(unit(gradient(at, q[0], q[1], q[2], 0.002)), at(q[0], q[1], q[2])))
+      return q
+    }
+    // How wide the ribs are where the band's upper edge runs: the triangles come down to the band exactly at her side.
+    let ribs = 0.1 * S
+    while (at(ribs, bandTop, 0) < 0) ribs += 0.001 * S
+    // Seen from the front, a triangle has a point on the upper chest, an inner edge down to the bottom of the neckline
+    // and an outer edge down to her side. It is wide enough to cover the side of the chest.
+    const point: [number, number] = [0.07 * S, 1.462 * S]
+    const neckline: [number, number] = [0.004 * S, band + 0.062 * S]
+    const flank: [number, number] = [ribs + 0.006 * S, bandTop]
+    /** How far a place is outside the line from one point to the next: cloth is on the right of it. */
+    const outside = (from: [number, number], to: [number, number]) => {
+      const dx = to[0] - from[0], dy = to[1] - from[1], len = Math.hypot(dx, dy)
+      return (ax: number, y: number) => ((y - from[1]) * dx - (ax - from[0]) * dy) / len
+    }
+    const inner = outside(neckline, point), outer = outside(point, flank)
+    // The strap, laid on the skin: up from the point of the triangle, over the muscle beside the neck, round to the nape.
+    const through = [[0.07, 1.45, 0.09], [0.066, 1.5, 0.05], [0.055, 1.535, 0.004], [0.036, 1.55, -0.04], [0, 1.548, -0.066]] as V3[]
+    const strap: V3[] = []
+    for (let i = 0; i + 1 < through.length; i++) for (let k = 0; k < 6; k++) strap.push(onSkin(mul(mix(through[i], through[i + 1], k / 6), S)))
+    strap.push(onSkin(mul(through[through.length - 1], S)))
+    const width = 0.009 * S
+    const fromStrap = (ax: number, y: number, z: number) => {
+      let best = Infinity
+      for (let i = 0; i + 1 < strap.length; i++) {
+        const a = strap[i], d = sub(strap[i + 1], a), p = sub([ax, y, z], a)
+        const t = Math.min(1, Math.max(0, dot(p, d) / dot(d, d)))
+        best = Math.min(best, Math.hypot(p[0] - d[0] * t, p[1] - d[1] * t, p[2] - d[2] * t))
+      }
+      return best - width
+    }
     garments.push({
       name: 'top',
-      // Its armholes run beside the folds of the armpit, where the skin slides: it is worn on the skin.
+      // Its edges run beside the folds of the armpit, where the skin slides: it is worn on the skin.
       fitted: true,
-      seams: [(_x, y) => y - (band + 0.024 * S), (_x, y) => y - (band + 0.03 * S)],
+      seams: [(_x, y) => y - (band + 0.024 * S)],
       // A sports top holds to the ribcage. It does not go with the arms anywhere; its straps lift with the shoulders,
-      // and from the armpit down it does not, or the corner under the arm is drawn out to a point when the arms go up.
+      // and from the armpit down it does not, or its corner under the arm is drawn out to a point when the arms go up.
       stays: (bone, _x, y) => (bone === 'shoulder' ? smooth(J.upperArmL[1] - 0.012 * S, J.upperArmL[1] - 0.05 * S, y) : bone === 'upperArm' || bone === 'lowerArm' || bone === 'foreTwist' ? 1 : 0),
-      thickness: (_x, y) => (0.0055 + 0.002 * smooth(band + 0.03 * S, band + 0.024 * S, y)) * S,
+      thickness: (_x, y) => (0.005 + 0.002 * smooth(band + 0.03 * S, band + 0.024 * S, y)) * S,
       region: (x, y, z) => {
         const ax = Math.abs(x)
-        const neckline = hole(ax, y, 0, 1.52 * S, 0.062 * S, (z > 0 ? 0.135 : 0.1) * S)
-        return Math.max(band - y, y - top, ax - side, neckline, armhole(ax, y))
+        const round = Math.max(band - y, y - bandTop)
+        const triangle = Math.max(inner(ax, y), outer(ax, y), band - y, -0.02 * S - z)
+        return Math.min(round, triangle, fromStrap(ax, y, z))
       },
     })
   }
