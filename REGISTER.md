@@ -161,6 +161,7 @@ Reference: [VISUALS.md](VISUALS.md). "Prototype" below means: it works and was r
 | F-179 | **Theme names and order** (2026-11-25, your words): Aura Dark Mode, Goku Dark Mode, Baki Mode, Aura Light Mode, Goku Light Mode. The stored choices are unchanged | Working (local) | Looked at on a phone-size theme page, dark and light; a test holds names and order (T-29) | Older entries in this register use the earlier names (Aura Dark, Goku, Baki, Aura Light, Goku Light) | F-120 |
 | F-180 | **Everything is with every student** (2026-11-25, your word): Goku and Baki themes, and all twelve backgrounds, with no switch to turn on first. Each can be switched off in Studio → Characters and then only you see it. The Aura forms are still earned by level, as before | Working (local) | As a student (not an administrator): every theme entered, both characters in each, an exercise demonstrated in each, every background offered; nothing says "in preparation" (T-31). Published 2026-11-25 | Goku's and Baki's characters and forms are my work and were not reviewed one by one by you before this | F-134, F-172 |
 | F-181 | **The theme page says what a theme is**: your sentence, in front of the one that says it can be changed any time | Working (local) | Seen at phone size (T-31). Published 2026-11-25 | – | F-122 |
+| F-182 | **Aura Dark Mode: a sun gold in place of the yellow** (2026-11-25, your request): menu bar, Personalize, Start here, the chosen theme's border, the dot after Aura. The other four themes and the six discipline colours are unchanged (handstand keeps its yellow) | Working (local) | Four shades compared on the profile; then welcome, Home, profile, Train, theme page, and Aura Light Mode unchanged, looked at at phone size | **Not published.** | F-120 |
 | F-169 | **Both characters, counted apart** in Studio → Exercises: one line (*With athletes: 116 on the male character, 116 on the female, of 116 exercises*, and how many are on one only), and an M and an F on every row, filled when that character's animation is with athletes. A movement that exists or waits for review does not count | Working (local) | Opened in the sample world against what is approved on the live project, wide and phone: 116 / 116 / 116, 232 marks filled; 6 unit tests of the counting (T-23) | Admins only. Published 2026-11-24 (T-26) | F-109 |
 | F-170 | **Muscle activation by sex: looked into, and left the same for both** (2026-11-24). 52 sources on electromyography. No exercise family has a difference in *which* muscles work that is replicated and separable from strength and technique; what recurs (women at a higher share of their maximum in bodyweight work) is effort relative to strength, not a pattern. Reasons, the one borderline case (a little more quadriceps for her in single-leg squats, lunges and step-ups) and the sources are in VISUALS.md §4 | **Decided on the evidence: no difference shown** | The same exercises rendered with muscles on both characters show the same pattern, also through her top (T-23) | **Yours to overrule**: the borderline case can be shown as a small refinement on those movements. Four sources were read in full, the rest from their abstracts | F-102 |
 
@@ -457,6 +458,10 @@ Reference: [VISUALS.md](VISUALS.md) §11 to §13. Theme data: `src/theme/`. "Pro
 | Data protection | Any real athletes | Privacy notice, deletion and export, consent for under-18s in classes |
 
 ## F · Change log
+
+**2026-11-25 · Aura Dark Mode: sun gold**
+
+- Your request: the yellow is now the colour of a low sun, in Aura Dark Mode only (F-182). Not published.
 
 **2026-11-25 · Everything live for every student; Aura outside is the default**
 

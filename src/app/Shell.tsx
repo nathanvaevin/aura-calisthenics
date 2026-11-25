@@ -24,7 +24,7 @@ export function Wordmark({ size = 26 }: { size?: number }) {
   return (
     <span className="wordmark inline-flex items-baseline leading-none" style={{ fontSize: size }}>
       Aura
-      <span className="ml-[3px] inline-block rounded-full" style={{ width: size * 0.19, height: size * 0.19, background: '#ecc77f' }} />
+      <span className="ml-[3px] inline-block rounded-full" style={{ width: size * 0.19, height: size * 0.19, background: 'var(--dot)' }} />
     </span>
   )
 }

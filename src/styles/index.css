@@ -43,8 +43,11 @@
   --text: #f3f0ea;
   --text-2: rgba(243, 240, 234, 0.66);
   --text-3: rgba(243, 240, 234, 0.42);
-  --accent: #ecc77f;
-  --accent-ink: #1a1408;
+  /* The sun going down (the owner, 2026-11-25: less yellow). Short of the orange that stands for pushing. */
+  --accent: #ffb35c;
+  --accent-fill: linear-gradient(180deg, #ffc67a, #ffa04e);
+  --accent-ink: #1f1004;
+  --dot: #ffb35c;
   --good: #7fd6a4;
   --warn: #f0a76a;
 
@@ -111,6 +114,8 @@
   --text-2: rgba(22, 20, 15, 0.68);
   --text-3: rgba(22, 20, 15, 0.46);
   --accent: #97660f;
+  --accent-fill: #97660f;
+  --dot: #ecc77f;
   --accent-ink: #fff9ec;
   --good: #1f8a55;
   --warn: #b5601a;
@@ -144,6 +149,8 @@
   --text-2: rgba(236, 240, 247, 0.72);
   --text-3: rgba(236, 240, 247, 0.46);
   --accent: #ff8a1f;
+  --accent-fill: #ff8a1f;
+  --dot: #ecc77f;
   --accent-ink: #1a0c00;
   --good: #3ee6a0;
   --warn: #ff6a45;
@@ -214,6 +221,8 @@
   --text-2: rgba(17, 17, 20, 0.7);
   --text-3: rgba(17, 17, 20, 0.48);
   --accent: #d2411f;
+  --accent-fill: #d2411f;
+  --dot: #ecc77f;
   --accent-ink: #fff8f3;
   --good: #1f8a55;
   --warn: #b5601a;
@@ -282,6 +291,8 @@
   --text-2: rgba(236, 231, 220, 0.7);
   --text-3: rgba(236, 231, 220, 0.45);
   --accent: #d63a2f;
+  --accent-fill: #d63a2f;
+  --dot: #ecc77f;
   --accent-ink: #fff3ee;
   --good: #a9bf72;
   --warn: #e09a4a;
@@ -499,7 +510,7 @@
     color: var(--bg);
   }
   .btn-accent {
-    background: var(--accent);
+    background: var(--accent-fill);
     color: var(--accent-ink);
   }
   .btn-outline {
