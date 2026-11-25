@@ -27,6 +27,7 @@ import { landing } from './landing'
 import { AssessmentSession } from '@/features/coach/AssessmentSession'
 import { Places } from '@/features/places/Places'
 import { STANDARD_THEME, THEMES } from '@/theme/themes'
+import { toneAttr } from '@/theme/tones'
 import { ThemeContext, usePersonalTheme } from '@/theme/useTheme'
 import { SpotLanding } from '@/features/places/Spot'
 
@@ -88,6 +89,13 @@ export function App() {
     document.documentElement.dataset.scheme = THEMES[theme].scheme
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEMES[theme].chrome)
   }, [theme])
+
+  // The colour chosen for the Aura themes. Never in an assessment: that is shown in the standard one.
+  const tone = toneAttr(useStore((s) => s.settings.tone), official)
+  useEffect(() => {
+    if (tone) document.documentElement.dataset.tone = tone
+    else delete document.documentElement.dataset.tone
+  }, [tone])
 
   // Text size is the device's own, whatever the theme and also in an assessment.
   const size = useStore((s) => s.settings.size)

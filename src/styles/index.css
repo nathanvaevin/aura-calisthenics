@@ -113,10 +113,10 @@
   --text: #16140f;
   --text-2: rgba(22, 20, 15, 0.68);
   --text-3: rgba(22, 20, 15, 0.46);
-  --accent: #97660f;
-  --accent-fill: #97660f;
-  --dot: #ecc77f;
-  --accent-ink: #fff9ec;
+  --accent: #a3560b;
+  --accent-fill: linear-gradient(180deg, #b05d10, #9c520a);
+  --dot: #e08a2e;
+  --accent-ink: #fff9ef;
   --good: #1f8a55;
   --warn: #b5601a;
 
@@ -342,6 +342,53 @@
 
 [data-theme='light'] {
   --stage: #121317;
+}
+
+/*
+ * The colour of the Aura themes, where someone chose another than the theme's own (src/theme/tones.ts). Worn by the
+ * page (`data-tone`), so it reaches whatever is shown in an Aura theme, also a card of one inside another theme.
+ */
+[data-theme='dark'][data-tone='champagne'],
+[data-tone='champagne'] [data-theme='dark'] {
+  --accent: #e6c7a9;
+  --accent-fill: linear-gradient(180deg, #f1d9c0, #d8b190);
+  --accent-ink: #1c130a;
+  --dot: #e6c7a9;
+}
+[data-theme='dark'][data-tone='moonlight'],
+[data-tone='moonlight'] [data-theme='dark'] {
+  --accent: #efe9dc;
+  --accent-fill: linear-gradient(180deg, #f8f4ea, #dcd4c2);
+  --accent-ink: #14120d;
+  --dot: #efe9dc;
+}
+[data-theme='dark'][data-tone='aurora'],
+[data-tone='aurora'] [data-theme='dark'] {
+  --accent: #d8d2f6;
+  --accent-fill: linear-gradient(115deg, #ffd6bf, #e2c8ff 52%, #bcd8ff);
+  --accent-ink: #17132a;
+  --dot: #d8d2f6;
+}
+[data-theme='light'][data-tone='champagne'],
+[data-tone='champagne'] [data-theme='light'] {
+  --accent: #7d5d40;
+  --accent-fill: linear-gradient(180deg, #8f6c4e, #745538);
+  --accent-ink: #fff9f2;
+  --dot: #b98f6a;
+}
+[data-theme='light'][data-tone='moonlight'],
+[data-tone='moonlight'] [data-theme='light'] {
+  --accent: #4b4a52;
+  --accent-fill: linear-gradient(180deg, #5d5c66, #3f3e47);
+  --accent-ink: #faf8f3;
+  --dot: #8b8a94;
+}
+[data-theme='light'][data-tone='aurora'],
+[data-tone='aurora'] [data-theme='light'] {
+  --accent: #6a4fb8;
+  --accent-fill: linear-gradient(115deg, #b54f38, #7a4fc0 52%, #3568c4);
+  --accent-ink: #fffaff;
+  --dot: #9a7fe0;
 }
 
 /* ── Base ───────────────────────────────────────────────────────────── */

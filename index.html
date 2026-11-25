@@ -15,6 +15,8 @@
           document.documentElement.dataset.theme = t;
           document.documentElement.dataset.scheme = t === 'light' || t === 'power-light' ? 'light' : 'dark';
         }
+        var c = s && s.state && s.state.settings && s.state.settings.tone;
+        if ((c === 'champagne' || c === 'moonlight' || c === 'aurora') && location.pathname.indexOf('/assess/') !== 0) document.documentElement.dataset.tone = c;
         if (s && s.state && s.state.settings && s.state.settings.size === 'large') document.documentElement.dataset.size = 'large';
       } catch (e) {}
     </script>

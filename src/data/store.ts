@@ -14,6 +14,7 @@ import { startOfWeek } from '@/domain/scoring/aura'
 import { courseFromTemplate, uid } from './courseTemplates'
 import { DEFAULT_PERSONAL, MIN_INTENSITY, personalOf, type Personal, type Step } from '@/theme/personal'
 import type { ThemeId } from '@/theme/themes'
+import type { ToneId } from '@/theme/tones'
 import { ME, buildWorld, isoDay, sampleCommunity } from './seed'
 
 export interface ActiveWorkout {
@@ -40,6 +41,8 @@ export interface Settings {
   coachMode: boolean
   /** The place the character stands in, chosen for each stage (`visual/scenes.ts`: `aura`, `power`, `power-light`, `iron`). On this device only. */
   scenes?: Partial<Record<string, string>>
+  /** The colour of the Aura themes on this device (`theme/tones.ts`). Unset: the first. */
+  tone?: ToneId
   /** The Aura forms this device has already announced as earned (`universe:form`). Unset until an athlete first opens the app here. */
   seenForms?: string[]
   /** Audience chosen at the last check-in, offered again next time. */

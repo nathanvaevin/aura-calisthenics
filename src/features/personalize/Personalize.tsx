@@ -18,6 +18,7 @@ import { Stage3D } from '@/ui/Stage3D'
 import { cx } from '@/lib/format'
 import { CharacterStudio } from './CharacterStudio'
 import { TextSize } from './TextSize'
+import { Tone } from './Tone'
 
 const TITLES: Record<Step, { title: string; sub: string }> = {
   theme: { title: 'Choose your theme', sub: 'Every theme has a different style, design and language. Choose what fits best with your athletic style. Change it any time: your training and results stay the same.' },
@@ -133,29 +134,33 @@ function ThemeStep({ value, onChange, released, admin, character }: { value: The
         const open = isReleased(id, released, admin)
         const on = value === id
         return (
-          <button
-            key={id} data-theme={id} data-scheme={t.scheme} aria-pressed={on} disabled={!open} onClick={() => onChange(id)}
-            className={cx('rise group relative isolate flex items-center gap-4 overflow-hidden rounded-card border bg-bg p-3 pr-4 text-left text-ink transition-[box-shadow,transform] duration-300', on ? 'border-transparent shadow-[0_0_0_2px_var(--accent),0_24px_60px_-28px_var(--accent)]' : 'border-line-strong', !open && 'opacity-60')}
-            style={{ animationDelay: `${i * 0.06}s` }}
-          >
-            <span className="page-glow !absolute" />
-            {/* One row, read left to right: the character in this theme's light, then its name, its line and its Auras, then whether it is the one chosen. */}
-            <span className="relative z-10 h-[116px] w-[92px] shrink-0 overflow-hidden rounded-[calc(var(--r-card)*0.6)] bg-(--stage) sm:w-[104px]">
-              {open
-                ? <img src={`${import.meta.env.BASE_URL}${posterOf(id, character)}`} alt="" loading="lazy" className="h-full w-full object-cover object-[50%_40%]" onError={(e) => { e.currentTarget.style.visibility = 'hidden' }} />
-                : <span className="flex h-full flex-col items-center justify-center gap-1.5 px-2 text-center text-[10.5px] leading-tight text-ink-3"><Lock size={14} />In preparation</span>}
-            </span>
-            <span className="relative z-10 min-w-0 flex-1">
-              <span className="display block text-[24px] leading-none sm:text-[30px]">{t.name}</span>
-              <span className="mt-2 block text-[13.5px] leading-snug text-ink-2">{t.line}</span>
-              {/* Its Auras (or forms, or states), each in its own colour, and how many there are. */}
-              <span className="mt-3 flex items-center gap-2.5" data-forms>
-                <span className="flex gap-1.5">{u.list.map((f) => <span key={f.id} title={f.name} className="h-2.5 w-2.5 rounded-full" style={{ background: f.colour, boxShadow: `0 0 7px ${f.colour}` }} />)}</span>
-                <span className="text-[12px] text-ink-3">{u.list.length} {u.forms === 'Aura' ? 'Auras' : `${u.forms.toLowerCase()}s`}</span>
+          <div key={id}>
+            <button
+              data-theme={id} data-scheme={t.scheme} aria-pressed={on} disabled={!open} onClick={() => onChange(id)}
+              className={cx('rise group relative isolate flex items-center gap-4 overflow-hidden w-full rounded-card border bg-bg p-3 pr-4 text-left text-ink transition-[box-shadow,transform] duration-300', on ? 'border-transparent shadow-[0_0_0_2px_var(--accent),0_24px_60px_-28px_var(--accent)]' : 'border-line-strong', !open && 'opacity-60')}
+              style={{ animationDelay: `${i * 0.06}s` }}
+            >
+              <span className="page-glow !absolute" />
+              {/* One row, read left to right: the character in this theme's light, then its name, its line and its Auras, then whether it is the one chosen. */}
+              <span className="relative z-10 h-[116px] w-[92px] shrink-0 overflow-hidden rounded-[calc(var(--r-card)*0.6)] bg-(--stage) sm:w-[104px]">
+                {open
+                  ? <img src={`${import.meta.env.BASE_URL}${posterOf(id, character)}`} alt="" loading="lazy" className="h-full w-full object-cover object-[50%_40%]" onError={(e) => { e.currentTarget.style.visibility = 'hidden' }} />
+                  : <span className="flex h-full flex-col items-center justify-center gap-1.5 px-2 text-center text-[10.5px] leading-tight text-ink-3"><Lock size={14} />In preparation</span>}
               </span>
-            </span>
-            <span className={cx('relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full', on ? 'bg-accent text-accent-ink' : 'border border-line-strong')}>{on && <Check size={14} strokeWidth={3} />}</span>
-          </button>
+              <span className="relative z-10 min-w-0 flex-1">
+                <span className="display block text-[24px] leading-none sm:text-[30px]">{t.name}</span>
+                <span className="mt-2 block text-[13.5px] leading-snug text-ink-2">{t.line}</span>
+                {/* Its Auras (or forms, or states), each in its own colour, and how many there are. */}
+                <span className="mt-3 flex items-center gap-2.5" data-forms>
+                  <span className="flex gap-1.5">{u.list.map((f) => <span key={f.id} title={f.name} className="h-2.5 w-2.5 rounded-full" style={{ background: f.colour, boxShadow: `0 0 7px ${f.colour}` }} />)}</span>
+                  <span className="text-[12px] text-ink-3">{u.list.length} {u.forms === 'Aura' ? 'Auras' : `${u.forms.toLowerCase()}s`}</span>
+                </span>
+              </span>
+              <span className={cx('relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full', on ? 'bg-accent text-accent-ink' : 'border border-line-strong')}>{on && <Check size={14} strokeWidth={3} />}</span>
+            </button>
+            {/* An Aura theme has a colour of its own to choose, once it is the one being looked at. */}
+            {on && open && t.universe === 'aura' && <div className="rise mt-3"><Eyebrow className="mb-2">Colour</Eyebrow><Tone /></div>}
+          </div>
         )
       })}
     </div>
