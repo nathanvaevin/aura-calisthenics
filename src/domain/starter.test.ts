@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { COURSE_TEMPLATES } from '@/data/courseTemplates'
+import { COURSE_TEMPLATES, blankWeek, moveWeek } from '@/data/courseTemplates'
 import { exerciseById, progressionById, stepAt } from './catalog'
 import { workingLevel } from './scoring/skills'
 import { courseFor, isStarter, starterSessions } from './training'
@@ -78,5 +78,34 @@ describe('the first week of a course that opens with an assessment', () => {
     const last = usc.weeks[usc.weeks.length - 1]
     expect(last.kind).toBe('retest')
     expect(courseFor(usc, []).weeks[usc.weeks.length - 1]).toBe(last)
+  })
+})
+
+describe('moving a week of a course', () => {
+  const course = () => ({ weeks: COURSE_TEMPLATES.find((t) => t.id === 'usc-beginner')!.build() })
+
+  it('takes the week as it is to its new place, and the others close up', () => {
+    const c = course(), before = c.weeks.map((w) => w.id), fourth = structuredClone(c.weeks[3])
+    moveWeek(c, 3, 1)
+    expect(c.weeks.map((w) => w.id)).toEqual([before[0], before[3], before[1], before[2], ...before.slice(4)])
+    // Its sessions, exercises and ids are untouched: what athletes did in it is still theirs.
+    expect(c.weeks[1]).toEqual(fourth)
+    moveWeek(c, 1, 3)
+    expect(c.weeks.map((w) => w.id)).toEqual(before)
+    moveWeek(c, 0, c.weeks.length - 1)
+    expect(c.weeks.map((w) => w.id)).toEqual([...before.slice(1), before[0]])
+  })
+
+  it('leaves the course alone when asked for a place that is not there', () => {
+    const c = course(), before = structuredClone(c.weeks)
+    for (const [from, to] of [[2, 2], [-1, 2], [2, 99], [0.5, 1]]) moveWeek(c, from, to)
+    expect(c.weeks).toEqual(before)
+  })
+
+  it('renames a week that was only called by its number, and no other', () => {
+    const c = { weeks: [blankWeek(1), blankWeek(2), { ...blankWeek(3), title: 'Pulling' }, blankWeek(4)] }
+    moveWeek(c, 3, 1)
+    expect(c.weeks.map((w) => w.title)).toEqual(['Week 1', 'Week 2', 'Week 3', 'Pulling'])
+    expect(new Set(c.weeks.map((w) => w.id)).size).toBe(4)
   })
 })

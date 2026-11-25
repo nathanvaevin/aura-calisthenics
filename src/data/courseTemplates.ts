@@ -446,6 +446,19 @@ export const COURSE_TEMPLATES: CourseTemplate[] = [
 ]
 
 export const blankWeek = (n: number): CourseWeek => week(`Week ${n}`, '', [])
+/**
+ * Puts a week of a course in another place. The week goes as it is, with its sessions and its own id, so what athletes
+ * already did in it stays theirs; the dates follow from where it now stands. A week still called by its number
+ * ("Week 4") is called by its new one.
+ */
+export function moveWeek(course: Pick<Course, 'weeks'>, from: number, to: number) {
+  const n = course.weeks.length
+  if (from === to || from < 0 || to < 0 || from >= n || to >= n || !Number.isInteger(from) || !Number.isInteger(to)) return
+  const [week] = course.weeks.splice(from, 1)
+  course.weeks.splice(to, 0, week)
+  course.weeks.forEach((w, i) => { if (/^Week \d+$/.test(w.title.trim())) w.title = `Week ${i + 1}` })
+}
+
 export const blankSession = (day: number): CourseSession => session(day, 'New session', [])
 
 export function courseFromTemplate(

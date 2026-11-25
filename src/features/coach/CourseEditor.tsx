@@ -7,7 +7,8 @@ import { DISCIPLINES, DISCIPLINE_IDS, disciplineById, exerciseById, formatValue,
 import { auraFor } from '@/domain/scoring/aura'
 import { adaptTarget, makeBlock } from '@/domain/scoring/skills'
 import { estimateMinutes } from '@/domain/training'
-import { blankSession, blankWeek, uid } from '@/data/courseTemplates'
+import { blankSession, blankWeek, moveWeek, uid } from '@/data/courseTemplates'
+import { WeekStrip } from './WeekStrip'
 import { courseClock, logForSession, useIsCoach } from '@/data/hooks'
 import { isoDay, sessionDate } from '@/data/seed'
 import { useStore } from '@/data/store'
@@ -141,29 +142,24 @@ function Program({ course, mutate }: { course: Course; mutate: Mutate }) {
 
   return (
     <div className="lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start lg:gap-10">
-      {/* Weeks */}
-      <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 lg:sticky lg:top-8 lg:mx-0 lg:flex-col lg:px-0">
-        {course.weeks.map((w, i) => (
-          <button
-            key={w.id}
-            onClick={() => setWi(i)}
-            className={cx('pressable flex h-[52px] min-w-[76px] shrink-0 flex-col justify-center rounded-2xl border px-3.5 text-left lg:h-auto lg:py-2.5', i === index ? 'border-ink bg-ink text-bg' : 'border-line text-ink-2 hover:bg-surface')}
-          >
-            <span className="text-[13.5px] font-medium">Week {i + 1}</span>
-            <span className={cx('truncate text-[11px]', i === index ? 'opacity-70' : 'text-ink-3')}>
-              <span className="lg:hidden">{w.kind && w.kind !== 'training' ? 'Assessment' : w.focus ? focusLabel(w.focus) : `${w.sessions.length} sessions`}</span>
-              <span className="hidden lg:inline">{w.title || (w.kind && w.kind !== 'training' ? 'Assessment' : `${w.sessions.length} sessions`)}</span>
-            </span>
-          </button>
-        ))}
-        <button
-          aria-label="Add week"
-          onClick={() => { mutate((c) => { c.weeks.push(blankWeek(c.weeks.length + 1)) }); setWi(course.weeks.length) }}
-          className="pressable flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl border border-dashed border-line-strong text-ink-2 lg:h-11 lg:w-full lg:gap-2 lg:text-[13px]"
-        >
-          <Plus size={17} /><span className="hidden lg:inline">Add week</span>
-        </button>
-      </div>
+      {/* Weeks: choose one, or hold one and carry it to another place. */}
+      <WeekStrip
+        weeks={course.weeks} index={index} onSelect={setWi}
+        onAdd={() => { mutate((c) => { c.weeks.push(blankWeek(c.weeks.length + 1)) }); setWi(course.weeks.length) }}
+        onMove={(from, to) => {
+          // The week being worked on stays the one on screen, wherever it now stands.
+          const ids = course.weeks.map((w) => w.id)
+          ids.splice(to, 0, ...ids.splice(from, 1))
+          mutate((c) => moveWeek(c, from, to))
+          setWi(ids.indexOf(week.id))
+        }}
+        caption={(w) => (
+          <>
+            <span className="lg:hidden">{w.kind && w.kind !== 'training' ? 'Assessment' : w.focus ? focusLabel(w.focus) : `${w.sessions.length} sessions`}</span>
+            <span className="hidden lg:inline">{w.title || (w.kind && w.kind !== 'training' ? 'Assessment' : `${w.sessions.length} sessions`)}</span>
+          </>
+        )}
+      />
 
       <div className="mt-5 lg:mt-0">
         {/* Week header */}
