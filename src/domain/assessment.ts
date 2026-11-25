@@ -255,6 +255,46 @@ export function harderThan(t: AssessmentTest): AssessmentTest | null {
   return section.tests[i + 1] ?? null
 }
 
+// ── A station as levels ──────────────────────────────────────────────────
+//
+// For choosing, an athlete sees a station as one list of levels: every
+// variation, easiest first, level 1 at the top. They can start from the level
+// they think is their hardest; they then do that one and the two below it.
+
+/** Every variation of a station, easiest first. Level n is the nth. */
+export const ladderOf = (station: Station): AssessmentTest[] =>
+  menuOf(station).flatMap((s) => s.tests).sort((a, b) => difficultyOf(a) - difficultyOf(b))
+
+/** How many levels are done below the one someone starts from. */
+export const LEVELS_BELOW = 2
+
+/**
+ * Starting from the level someone thinks is their hardest: that one first, then the levels just below it, nearest
+ * first. What is already on record is not asked again.
+ */
+export function fromLevel(station: Station, id: string, results: Results = {}): string[] {
+  const ladder = ladderOf(station)
+  const at = ladder.findIndex((t) => t.id === id)
+  if (at < 0 || results[id]) return []
+  const below = ladder.slice(0, at).filter((t) => !results[t.id]).reverse().slice(0, LEVELS_BELOW)
+  return [id, ...below.map((t) => t.id)]
+}
+
+/** Every level not yet on record, from the first. */
+export const allLevels = (station: Station, results: Results = {}): string[] =>
+  ladderOf(station).filter((t) => !results[t.id]).map((t) => t.id)
+
+/**
+ * The level to suggest to someone who went past the range of this one: the next one up, while this is the highest
+ * they have shown. Once a harder level is on record or coming there is nothing to suggest: beating an easier level
+ * afterwards says nothing new.
+ */
+export function levelAbove(t: AssessmentTest, results: Results = {}, coming: string[] = []): AssessmentTest | null {
+  const ladder = ladderOf(stationById[stationOfTest[t.id]])
+  const above = ladder.slice(ladder.findIndex((x) => x.id === t.id) + 1)
+  return above.some((x) => results[x.id] || coming.includes(x.id)) ? null : above[0] ?? null
+}
+
 /** Past the top of the target range: worth suggesting the harder variation. Never a limit. */
 export const beyondTarget = (t: AssessmentTest, value: number) => t.kind === 'max' && !!t.target && value > t.target[1]
 

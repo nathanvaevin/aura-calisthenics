@@ -5,7 +5,7 @@ import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router'
 import { ArrowLeft, ArrowRight, Check, Hand, Minus, Pause, Play, Plus } from 'lucide-react'
 import type { DisciplineId } from '@/domain/types'
 import {
-  beyondTarget, demonstrated, groupCount, harderThan, nextTest, overallProgress, rotationOf, startingStation, stationById, stationOfTest, stationProgress,
+  beyondTarget, demonstrated, groupCount, harderThan, levelAbove, nextTest, overallProgress, rotationOf, startingStation, stationById, stationOfTest, stationProgress,
   testById, visibleTests, type AssessmentMode, type AssessmentTest,
 } from '@/domain/assessment'
 import { disciplineById, exerciseById } from '@/domain/catalog'
@@ -235,6 +235,10 @@ export function StationRunner() {
   const guide = params.get('guide') === '1'
   const picking = mode === 'stations'
   const withChosen = (ids: string[]): Record<string, string> => ({ ...pOnly, ...(ids.length ? { c: ids.join(',') } : {}) })
+  /** Begun from the level the athlete thought was their hardest: what is "harder" is then the level above, as the list shows it. */
+  const ladder = params.get('l') === '1'
+  const withQueue = (ids: string[]): Record<string, string> => ({ ...pOnly, q: ids.join(','), ...(ladder ? { l: '1' } : {}) })
+  const harderOf = (t: AssessmentTest) => (ladder ? levelAbove(t, target.results, queue ?? []) : harderThan(t))
 
   if (picking && !queue && !editing && !guide)
     return (
@@ -244,7 +248,7 @@ export function StationRunner() {
         chosen={chosen.filter((id) => !target.results[id])}
         onChoose={(ids) => setParams(withChosen(ids), { replace: true })}
         forName={forOther ? target.name : undefined}
-        onStart={(ids) => setParams({ ...pOnly, q: ids.join(',') })}
+        onStart={(ids, fromLevel) => setParams({ ...pOnly, q: ids.join(','), ...(fromLevel ? { l: '1' } : {}) })}
         onEdit={(id) => setParams({ ...withChosen(chosen), t: id })}
         onGuide={() => setParams({ ...pOnly, guide: '1' })}
         onClose={() => navigate(exit)}
@@ -268,9 +272,9 @@ export function StationRunner() {
   const record = (test: AssessmentTest, value: number, skipped = false) => {
     recordResult(target.id, test.id, value, { tier: forOther ? 'observed' : 'self', skipped })
     if (sound && !skipped) tick()
-    if (editing) setParams(queue ? { ...pOnly, q: queue.join(',') } : picking && !guide ? withChosen(chosen) : { ...pOnly, ...(guide ? { guide: '1' } : {}) }, { replace: true })
+    if (editing) setParams(queue ? withQueue(queue) : picking && !guide ? withChosen(chosen) : { ...pOnly, ...(guide ? { guide: '1' } : {}) }, { replace: true })
     // Past the range: suggest the next variation, once, without stopping anyone.
-    const harder = !skipped && beyondTarget(test, value) ? harderThan(test) : null
+    const harder = !skipped && beyondTarget(test, value) ? harderOf(test) : null
     if (harder && !target.results[harder.id] && !queue?.includes(harder.id) && (queue || mode === 'stations')) setNudge({ test, harder, value })
   }
 
@@ -305,14 +309,14 @@ export function StationRunner() {
             <p className="mt-3 text-[15px] leading-relaxed text-ink-2">
               You recorded {resultLabel(nudge.test, nudge.value)} on {exerciseById[nudge.test.exerciseId].name}, past the suggested {targetLabel(nudge.test)}. It is saved as it is. A harder variation usually shows more of what you can do than more repetitions of this one.
             </p>
-            <p className="mt-2 text-[13px] text-ink-3">{exerciseById[nudge.harder.exerciseId].name}: {targetLabel(nudge.harder)} suggested.</p>
+            <p className="mt-2 text-[13px] text-ink-3">{exerciseById[nudge.harder.exerciseId].name}: {targetLabel(nudge.harder)} suggested.{ladder && (queue?.filter((id) => !target.results[id] && id !== nudge.test.id).length ?? 0) > 0 ? ' The easier levels come after it, either way.' : ''}</p>
           </div>
           <div className="space-y-2.5 pt-6">
             <button className="btn btn-primary btn-lg w-full" onClick={() => {
               const at = queue ? queue.indexOf(nudge.test.id) + 1 : 0
               const next = queue ? [...queue.slice(0, at), nudge.harder.id, ...queue.slice(at)] : [nudge.harder.id]
               setNudge(null)
-              setParams({ ...pOnly, q: next.join(',') }, { replace: true })
+              setParams(withQueue(next), { replace: true })
             }}>Try {exerciseById[nudge.harder.exerciseId].name} <ArrowRight size={17} /></button>
             <button className="btn btn-outline w-full" onClick={() => setNudge(null)}>Not now</button>
           </div>
@@ -328,7 +332,7 @@ export function StationRunner() {
           sound={sound}
           onRecord={(v) => record(current, v)}
           onSkip={() => record(current, 0, true)}
-          harder={harderThan(current)}
+          harder={harderOf(current)}
           footer={
             !forOther && session.origin !== 'solo' ? (
               <button className={cx('flex h-8 items-center gap-1.5', target.flags.includes(st.id) ? 'font-medium text-ink' : 'hover:text-ink')} onClick={() => toggleFlag(target.id, st.id)}>

@@ -1,8 +1,8 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { DemoPreview, DemoSlot, useHasDemo } from '@/features/library/DemoSlot'
-import { ArrowLeft, Check, Compass, Play, Plus } from 'lucide-react'
+import { ArrowLeft, Check, Compass, ListOrdered, Play, Plus } from 'lucide-react'
 import type { AssessmentResult, DisciplineId } from '@/domain/types'
-import { difficultyOf, entryTest, menuOf, stationById, type AssessmentTest } from '@/domain/assessment'
+import { allLevels, difficultyOf, entryTest, fromLevel, ladderOf, menuOf, stationById, type AssessmentTest } from '@/domain/assessment'
 import { disciplineById, exerciseById } from '@/domain/catalog'
 import { bandOf } from '@/domain/scoring/config'
 import { MuscleMap } from '@/ui/MuscleMap'
@@ -46,9 +46,12 @@ const ORDINAL = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th']
 
 /**
  * One area of the assessment, the athlete's side: every exercise in it in one
- * list, easiest first. Touching an exercise shows it being performed, at
- * once, in the stage above the list. The ones the athlete adds are done in
- * the order they were added. Nothing is locked; the guidance is in the words.
+ * list of levels, easiest first. Touching a level shows it being performed,
+ * at once, in the stage above the list. There are three ways to begin, all
+ * the athlete's own choice: start from the level they think is their hardest
+ * (that one, then the two below it), add a few and do them in the order they
+ * were added, or do every level from the first. Nothing is locked; the
+ * guidance is in the words.
  *
  * What is chosen lives with the caller (in the address), so going into a test
  * and back out again loses nothing.
@@ -59,7 +62,8 @@ export function StationMenu({ station, results, chosen, onChoose, onStart, onEdi
   /** The exercises picked so far, in the order they will be done. */
   chosen: string[]
   onChoose: (ids: string[]) => void
-  onStart: (ids: string[]) => void
+  /** `fromLevel`: begun from one level, so a result past its range points to the level above. */
+  onStart: (ids: string[], fromLevel?: boolean) => void
   onEdit: (id: string) => void
   onGuide: () => void
   onClose: () => void
@@ -69,7 +73,7 @@ export function StationMenu({ station, results, chosen, onChoose, onStart, onEdi
   onSkip?: () => void
 }) {
   const st = stationById[station]
-  const tests = useMemo(() => menuOf(st).flatMap((x) => x.tests).sort((a, b) => difficultyOf(a) - difficultyOf(b)), [st])
+  const tests = useMemo(() => ladderOf(st), [st])
   const entry = entryTest(st)
   const [focusId, setFocus] = useState(chosen[0] ?? entry.id)
   const [more, setMore] = useState(false)
@@ -81,6 +85,10 @@ export function StationMenu({ station, results, chosen, onChoose, onStart, onEdi
   const toggle = (id: string) => onChoose(picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id])
   const recordedCount = tests.filter((t) => results[t.id]).length
   const first = picked[0] ? exerciseById[tests.find((t) => t.id === picked[0])!.exerciseId] : null
+  const level = tests.findIndex((t) => t.id === focus.id) + 1
+  /** Starting from the level being looked at: it, and the levels just below it. */
+  const run = fromLevel(st, focus.id, results)
+  const all = allLevels(st, results)
 
   const act = (t: AssessmentTest, large = false) => {
     const r = results[t.id]
@@ -135,7 +143,7 @@ export function StationMenu({ station, results, chosen, onChoose, onStart, onEdi
           <button onClick={onClose} aria-label="Back to the areas" className="pressable pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full bg-black/35 text-ink-2 backdrop-blur-md"><ArrowLeft size={18} /></button>
           <div className="min-w-0 px-3 text-center">
             <div className="flex items-center justify-center gap-2 truncate text-[15px] font-medium"><DisciplineDot id={station} size={7} />{disciplineById[station].short}</div>
-            <div className="truncate text-[11.5px] text-ink-3">{forName ? `Recording for ${forName}` : recordedCount ? `${recordedCount} recorded` : 'Tap an exercise to see it'}</div>
+            <div className="truncate text-[11.5px] text-ink-3">{forName ? `Recording for ${forName}` : recordedCount ? `${recordedCount} recorded` : 'Tap the hardest level you can do'}</div>
           </div>
           <span className="w-10" />
         </div>
@@ -153,7 +161,7 @@ export function StationMenu({ station, results, chosen, onChoose, onStart, onEdi
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h1 className="display truncate text-[28px] leading-tight [text-shadow:0_2px_18px_rgba(0,0,0,0.6)]">{ex.name}</h1>
-                <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-ink-2"><LevelChip t={focus} /><span className="num">{targetLabel(focus)}</span></div>
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-ink-2"><span className="font-medium text-ink" data-level={level}>Level {level}</span><LevelChip t={focus} /><span className="num">{targetLabel(focus)}</span></div>
               </div>
               {act(focus, true)}
             </div>
@@ -170,17 +178,17 @@ export function StationMenu({ station, results, chosen, onChoose, onStart, onEdi
           </div>
 
           <div className="space-y-1">
-            {tests.map((t) => {
+            {tests.map((t, i) => {
               const r = results[t.id]
               const on = focus.id === t.id
               return (
                 <div key={t.id} data-test={t.id} className={cx('flex items-center gap-2 rounded-2xl pr-2 transition-colors', on ? 'bg-surface-2/80 ring-1 ring-line-strong backdrop-blur-md' : 'bg-bg/35 backdrop-blur-[2px]')}>
                   <button className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-2.5 text-left" onClick={() => show(t.id)} aria-current={on}>
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full" style={r ? { background: color, color: 'var(--bg)' } : { background: `color-mix(in oklab, ${color} 16%, transparent)`, color }}>
-                      {r ? <Check size={13} strokeWidth={3} /> : <Play size={10} fill="currentColor" className="ml-px" />}
+                      {r ? <Check size={13} strokeWidth={3} /> : <span className="num text-[12px] font-semibold" aria-label={`Level ${i + 1}`}>{i + 1}</span>}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-2"><span className="truncate text-[14.5px] font-medium">{exerciseById[t.exerciseId].name}</span>{t.id === entry.id && !r && <span className="shrink-0 rounded-full bg-ink px-1.5 py-px font-mono text-[8.5px] tracking-[0.1em] text-bg uppercase">Start here</span>}</span>
+                      <span className="flex items-center gap-2"><span className="truncate text-[14.5px] font-medium">{exerciseById[t.exerciseId].name}</span>{t.id === entry.id && !r && <span className="shrink-0 rounded-full bg-ink px-1.5 py-px font-mono text-[8.5px] tracking-[0.1em] text-bg uppercase">Most start here</span>}</span>
                       <span className="block truncate text-[11.5px] text-ink-3">
                         {r ? (r.skipped ? 'Not tested' : t.kind === 'choice' ? t.options?.[r.value]?.label : `Recorded ${r.value}${exerciseById[t.exerciseId].metric === 'hold' ? ' s' : ''}`) : `${levelOf(t).label} · ${targetLabel(t)}`}
                       </span>
@@ -197,12 +205,23 @@ export function StationMenu({ station, results, chosen, onChoose, onStart, onEdi
         </div>
 
         <footer className="safe-bottom relative shrink-0 bg-bg px-5 pt-2 pb-4">
-          <button className="btn btn-primary btn-lg w-full" disabled={picked.length === 0} onClick={() => onStart(picked)}>
-            {picked.length === 0 ? 'Add an exercise to begin' : <><Play size={15} fill="currentColor" /> {picked.length === 1 ? `Start ${first!.short}` : `Start · ${first!.short} first, ${picked.length} in all`}</>}
-          </button>
-          <button className="mt-1 flex h-9 w-full items-center justify-center gap-1.5 text-[12.5px] text-ink-2 hover:text-ink" onClick={onGuide}>
-            <Compass size={13} /> Not sure? Let Aura choose for you
-          </button>
+          {/* One thing to press: what was added, in that order; with nothing added, the level being looked at and the two below it. */}
+          {picked.length > 0 ? (
+            <button className="btn btn-primary btn-lg w-full" onClick={() => onStart(picked)}>
+              <Play size={15} fill="currentColor" /> {picked.length === 1 ? `Start ${first!.short}` : `Start · ${first!.short} first, ${picked.length} in all`}
+            </button>
+          ) : (
+            <button className="btn btn-primary btn-lg w-full" data-from-level={level} disabled={run.length === 0} onClick={() => onStart(run, true)}>
+              {run.length === 0 ? 'Tap a level to start from' : <><Play size={15} fill="currentColor" /> Start from level {level}</>}
+            </button>
+          )}
+          <p className="mt-1.5 text-center text-[11.5px] text-ink-3" data-start-note>
+            {picked.length > 0 ? 'In the order you added them.' : run.length === 0 ? 'This one is on record.' : run.length === 1 ? 'It is the first level.' : `Then the ${run.length === 2 ? 'level' : 'two levels'} below it.`}
+          </p>
+          <div className="flex items-center justify-center gap-5 text-[12.5px] text-ink-2">
+            <button className="flex h-9 items-center gap-1.5 hover:text-ink disabled:opacity-40" disabled={all.length === 0} onClick={() => onStart(all)}><ListOrdered size={13} /> All levels from the start</button>
+            <button className="flex h-9 items-center gap-1.5 hover:text-ink" onClick={onGuide}><Compass size={13} /> Let Aura choose</button>
+          </div>
         </footer>
       </div>
     </div>

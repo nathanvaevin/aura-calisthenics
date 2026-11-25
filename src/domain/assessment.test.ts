@@ -4,7 +4,7 @@ import { DISCIPLINE_IDS, exerciseById } from './catalog'
 import {
   ALL_TESTS, PROTOCOL, STATIONS, compareProfiles, decodeHandIn, decodeInvite, encodeHandIn, encodeInvite, groupInsights, ladderAdvice,
   needsAttention, nextTest, overallProgress, profileOf, resultsToEvidence, startingStation, stationById, stationProgress, suggestPairs,
-  testById, toMember, visibleTests, type Results, menuOf, harderThan, beyondTarget, protocolKnown, groupOf, rotationOf, compareResults,
+  testById, toMember, visibleTests, type Results, menuOf, harderThan, beyondTarget, ladderOf, fromLevel, levelAbove, allLevels, difficultyOf, protocolKnown, groupOf, rotationOf, compareResults,
 } from './assessment'
 import { allRatings } from './scoring/mastery'
 
@@ -189,6 +189,47 @@ describe('station menus', () => {
     // Whatever was done is what is recorded, and rated: 45 s is worth more than 30 s.
     const at = (v: number) => profileOf({ 'plank': r(v) }).ratings.core
     expect(at(150)).toBeGreaterThan(at(120))
+  })
+
+  it('are one list of levels to choose from, the easiest first, nothing left out', () => {
+    for (const s of STATIONS) {
+      const ladder = ladderOf(s)
+      expect(new Set(ladder.map((t) => t.id)).size, s.id).toBe(s.tests.length + s.extra.length)
+      for (let i = 1; i < ladder.length; i++) expect(difficultyOf(ladder[i]), ladder[i].id).toBeGreaterThanOrEqual(difficultyOf(ladder[i - 1]))
+    }
+  })
+
+  it('start from the level someone thinks is their hardest: that one, then the two below it', () => {
+    const push = stationById.push, ladder = ladderOf(push).map((t) => t.id)
+    const at = ladder.indexOf('pushup')
+    expect(at).toBeGreaterThan(2)
+    expect(fromLevel(push, 'pushup')).toEqual(['pushup', ladder[at - 1], ladder[at - 2]])
+    // Near the bottom there are fewer below.
+    expect(fromLevel(push, ladder[1])).toEqual([ladder[1], ladder[0]])
+    expect(fromLevel(push, ladder[0])).toEqual([ladder[0]])
+    // What is on record is not asked again: the next ones down take its place.
+    expect(fromLevel(push, 'pushup', { [ladder[at - 1]]: r(12) })).toEqual(['pushup', ladder[at - 2], ladder[at - 3]])
+    expect(fromLevel(push, 'pushup', { pushup: r(12) })).toEqual([])
+    expect(fromLevel(push, 'no-such-test')).toEqual([])
+  })
+
+  it('offer the level above to someone who beat the one they thought was their hardest, before the two below', () => {
+    const push = stationById.push, ladder = ladderOf(push).map((t) => t.id)
+    const at = ladder.indexOf('pushup'), queue = fromLevel(push, 'pushup')
+    expect(levelAbove(testById.pushup, {}, queue)?.id).toBe(ladder[at + 1])
+    // Beat that one too, and the next is offered.
+    expect(levelAbove(testById[ladder[at + 1]], { pushup: r(30) }, queue)?.id).toBe(ladder[at + 2])
+    // Going past the range of an easier level afterwards suggests nothing: a harder one is on record, or coming.
+    expect(levelAbove(testById.pushup, { [ladder[at + 1]]: r(5) }, queue)).toBeNull()
+    expect(levelAbove(testById[ladder[at - 1]], { pushup: r(30) }, queue)).toBeNull()
+    expect(levelAbove(testById[ladder[at - 2]], {}, queue)).toBeNull()
+    expect(levelAbove(testById[ladder[ladder.length - 1]])).toBeNull()
+  })
+
+  it('or every level from the first, skipping what is on record', () => {
+    const pull = stationById.pull, ladder = ladderOf(pull).map((t) => t.id)
+    expect(allLevels(pull)).toEqual(ladder)
+    expect(allLevels(pull, { [ladder[0]]: r(30), [ladder[3]]: r(4) })).toEqual(ladder.filter((_, i) => i !== 0 && i !== 3))
   })
 
   it('call a station done in station mode once anything is recorded there', () => {
