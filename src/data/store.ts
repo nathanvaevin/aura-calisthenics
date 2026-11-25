@@ -38,6 +38,8 @@ export interface Settings {
   theme: ThemeId
   sound: boolean
   coachMode: boolean
+  /** The place the character stands in, chosen for each stage (`visual/scenes.ts`: `aura`, `power`, `power-light`, `iron`). On this device only. */
+  scenes?: Partial<Record<string, string>>
   /** The Aura forms this device has already announced as earned (`universe:form`). Unset until an athlete first opens the app here. */
   seenForms?: string[]
   /** Audience chosen at the last check-in, offered again next time. */
@@ -233,7 +235,7 @@ interface State {
   removeDemo: (id: string) => void
   saveWorkoutVideo: (video: WorkoutVideoInput) => string
   removeWorkoutVideo: (id: string) => void
-  setAuraSettings: (patch: Partial<Pick<AuraSettings, 'defaultTheme' | 'themes' | 'universes'>>) => void
+  setAuraSettings: (patch: Partial<Pick<AuraSettings, 'defaultTheme' | 'themes' | 'universes' | 'scenes'>>) => void
   /** Take in what the server holds. Changes still waiting to be sent win; owned by src/data/cloud/content.ts. */
   applyContent: (server: ServerContent) => void
   contentSent: (keys: string[]) => void

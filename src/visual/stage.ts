@@ -8,6 +8,8 @@ import {
   NormalBlending, PCFSoftShadowMap, PerspectiveCamera, PMREMGenerator, Scene, ShaderMaterial, ShadowMaterial, SRGBColorSpace, Vector3, WebGLRenderer,
 } from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
+import { Backdrop } from './backdrop'
+import { sceneLook, type SceneDef, type StageKey } from './scenes'
 import { STYLES, type StageLook } from './styles'
 
 export type CameraAngle = 'front' | 'side' | 'three-quarter' | 'back'
@@ -38,6 +40,8 @@ export class Stage {
   private readonly sun: Mesh<CircleGeometry, ShaderMaterial>
   private readonly back = new Vector3()
   private look: StageLook = STYLES.aura.stage
+  /** The place painted behind the subject, when the stage has been given one. */
+  private readonly place = new Backdrop()
   private readonly size = { width: 1, height: 1 }
   /** How much of the canvas is covered from the top and from the bottom, in the units given to `resize`: now, and where it is heading. */
   private readonly cover = { top: 0, bottom: 0 }
@@ -139,12 +143,18 @@ export class Stage {
     this.sun.renderOrder = -3
     this.sun.visible = false
     scene.add(this.sun)
+    scene.add(this.place.mesh)
   }
 
   add(...objects: Parameters<Scene['add']>) { this.scene.add(...objects) }
 
-  /** Lights the stage the way a universe is lit. */
-  setLook(look: StageLook) {
+  /**
+   * Lights the stage the way a universe is lit, and puts it in a place if it is given one (`scenes.ts`): the place is
+   * painted behind everything and lends the stage its light. `on` says which stage it is, for how bright the place is there.
+   */
+  setLook(own: StageLook, scene?: SceneDef, on: StageKey = 'aura') {
+    const look = sceneLook(own, scene)
+    this.place.set(scene?.paint ?? 0, scene?.on[on] ?? 1)
     this.look = look
     ;(this.scene.background as Color).set(look.backdrop)
     this.key.color.set(look.key.colour)
@@ -240,6 +250,7 @@ export class Stage {
       this.sun.position.set(target.x + this.back.x * 2.6, target.y + this.look.sun.lift, target.z + this.back.z * 2.6)
       this.sun.lookAt(this.camera.position.x, this.sun.position.y, this.camera.position.z)
     }
+    this.place.update(this.camera, performance.now() / 1000, this.size.width / this.size.height)
     this.renderer.render(this.scene, this.camera)
   }
 

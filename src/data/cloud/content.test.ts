@@ -137,6 +137,9 @@ describe('content as database rows', () => {
     expect(workoutFromRow(workoutToRow(w))).toEqual(w)
     expect(settingsFromRow(null)).toBeNull()
     expect(settingsFromRow({ key: 'aura', value: { defaultTheme: 'solar', themes: { solar: { status: 'approved' } } }, updated_at: '2026-11-17T10:00:00+00:00' }))
-      .toEqual({ defaultTheme: 'solar', themes: { solar: { status: 'approved' } }, universes: {}, updatedAt: '2026-11-17T10:00:00+00:00' })
+      .toEqual({ defaultTheme: 'solar', themes: { solar: { status: 'approved' } }, universes: {}, scenes: {}, updatedAt: '2026-11-17T10:00:00+00:00' })
+    // Settings saved before places existed carry none; released ones come back as they were sent.
+    expect(settingsFromRow({ key: 'aura', value: { defaultTheme: 'cosmic', themes: {}, universes: { power: true }, scenes: { dojo: true, storm: false } }, updated_at: '2026-11-25T10:00:00+00:00' })?.scenes)
+      .toEqual({ dojo: true, storm: false })
   })
 })

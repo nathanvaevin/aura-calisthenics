@@ -14,7 +14,7 @@ import { THEMES, THEME_IDS, UNIVERSES, type ThemeId, type UniverseId } from './t
 export const MUSCLE_GLOW: Record<UniverseId, string> = { aura: '#ff2f8f', power: '#e0245e', iron: '#e3261c' }
 
 /** `theme` says which rendition of the universe is shown, where a universe has two (Goku and Goku Light). */
-export type Look = Pick<Wearing, 'universe' | 'character' | 'form' | 'finish' | 'intensity'> & { theme?: ThemeId }
+export type Look = Pick<Wearing, 'universe' | 'character' | 'form' | 'finish' | 'intensity' | 'scene'> & { theme?: ThemeId }
 
 /**
  * The theme whose colours suit a screen laid over the stage of this theme's
@@ -54,7 +54,7 @@ export function performerOf(look: Look, o: {
   return {
     character: look.character, motion: o.motion ?? null, revision: o.revision, muscles: o.muscles ?? null, glow: MUSCLE_GLOW[look.universe],
     aura: { theme: look.form.aura, mode: o.aura ?? 'off', level: o.level ?? (o.aura === 'full' ? glowOf(look.intensity) : undefined), tuning: o.tuning },
-    style: { universe: look.universe, variant: look.theme ? THEMES[look.theme].variant : undefined, skin: look.finish.skin, hair: look.finish.hair, accent: look.finish.accent },
+    style: { universe: look.universe, variant: look.theme ? THEMES[look.theme].variant : undefined, scene: look.scene, skin: look.finish.skin, hair: look.finish.hair, accent: look.finish.accent },
     x: o.x, facing: o.facing,
   }
 }

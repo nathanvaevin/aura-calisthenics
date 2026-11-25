@@ -125,7 +125,11 @@ export const STYLES: Record<UniverseId, CharacterStyle> = {
 }
 
 /** What the athlete chose about the look: which universe, and the colours of its finish. */
-export interface PerformerStyle { universe: UniverseId; variant?: string; skin?: string; hair?: string; accent?: string }
+export interface PerformerStyle {
+  universe: UniverseId; variant?: string; skin?: string; hair?: string; accent?: string
+  /** The place it stands in (`scenes.ts`). Left out: the stage's own plain look. */
+  scene?: string
+}
 
 /** How a performer is drawn and staged: its universe's style, with the variant its theme asks for laid over it. */
 export function styleOf(spec?: Pick<PerformerStyle, 'universe' | 'variant'>): CharacterStyle {

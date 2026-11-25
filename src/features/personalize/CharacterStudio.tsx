@@ -10,6 +10,7 @@ import { useStanding, useWearing } from '@/theme/useTheme'
 import { Eyebrow, Segmented, Toggle } from '@/ui/primitives'
 import { Stage3D } from '@/ui/Stage3D'
 import { isCurrentRevision } from '@/visual/revisions'
+import { PLAIN, sceneFor, scenesOn, stageKeyOf } from '@/visual/scenes'
 import { cx } from '@/lib/format'
 
 type Preview = 'base' | 'muscles' | 'aura'
@@ -40,13 +41,22 @@ export function CharacterStudio({ theme }: { theme?: ThemeId }) {
   const forms = formsFor(universe, standing, admin)
   const saved = forms.find((f) => f.form.id === personal.forms[universe] && f.unlocked) ?? forms[0]
 
+  // The place the character stands in: chosen for each stage, on this device, from what has been released.
+  const stage = stageKeyOf(universe, THEMES[theme ?? worn.theme].variant)
+  const chosen = useStore((s) => s.settings.scenes)
+  const releasedPlaces = useStore((s) => s.auraSettings.scenes) ?? {}
+  const setSettings = useStore((s) => s.setSettings)
+  const places = scenesOn(stage).filter((p) => admin || releasedPlaces[p.id])
+  const place = sceneFor(stage, chosen?.[stage], releasedPlaces, admin)
+  const backgrounds = [{ id: '', ...PLAIN[stage] }, ...places]
+
   const [preview, setPreview] = useState<Preview>('aura')
   /** A form being looked at. A locked one can be seen here, and is never saved. */
   const [trying, setTrying] = useState<string | null>(null)
   const [moving, setMoving] = useState<string | null>(null)
   const shown = forms.find((f) => f.form.id === trying) ?? saved
 
-  const look: Look = { theme: theme ?? worn.theme, universe, character, form: formOf(universe, shown.form.id), finish: finishOf(universe, personal.finishes[universe]), intensity: personal.intensity / 100 }
+  const look: Look = { theme: theme ?? worn.theme, universe, character, form: formOf(universe, shown.form.id), finish: finishOf(universe, personal.finishes[universe]), intensity: personal.intensity / 100, scene: place }
 
   // Only what the owner has approved moves here: the published demonstrations of this character.
   const moves = useMemo(
@@ -127,6 +137,30 @@ export function CharacterStudio({ theme }: { theme?: ThemeId }) {
           )}
           {admin && <p className="mt-2.5 text-[12px] text-ink-3">As an administrator you can wear every one. Athletes earn them.</p>}
         </section>
+
+        {places.length > 0 && (
+          <section data-places>
+            <Eyebrow className="mb-2.5">Background</Eyebrow>
+            <div className="grid grid-cols-2 gap-2">
+              {backgrounds.map((b) => {
+                const on = (place ?? '') === b.id
+                return (
+                  <button
+                    key={b.id || 'plain'} aria-pressed={on} data-place={b.id || 'plain'}
+                    onClick={() => setSettings({ scenes: { ...chosen, [stage]: b.id || undefined } })}
+                    className={cx('pressable flex items-center gap-2.5 rounded-card border p-2.5 text-left', on ? 'border-ink bg-surface-2' : 'border-line bg-surface hover:border-line-strong')}
+                  >
+                    <span className="h-8 w-8 shrink-0 rounded-full border border-line" style={{ background: `linear-gradient(160deg, ${b.swatch[0]} 35%, ${b.swatch[1]})` }} />
+                    <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{b.name}</span>
+                    {on && <Check size={14} className="shrink-0" />}
+                  </button>
+                )
+              })}
+            </div>
+            <p className="mt-2.5 text-[12.5px] leading-relaxed text-ink-2">{(backgrounds.find((b) => b.id === (place ?? '')) ?? backgrounds[0]).line} It is behind your character wherever it demonstrates an exercise, on this device.</p>
+            {admin && <p className="mt-1.5 text-[12px] text-ink-3">You see every one. Athletes see those you switch on in Studio → Characters.</p>}
+          </section>
+        )}
 
         <section>
           <Eyebrow className="mb-2.5">Finish</Eyebrow>

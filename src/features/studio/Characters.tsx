@@ -4,10 +4,12 @@ import type { CharacterId } from '@/domain/media'
 import { useStore } from '@/data/store'
 import { Eyebrow, Segmented } from '@/ui/primitives'
 import { performerOf, type Look } from '@/theme/cast'
-import { UNIVERSES, UNIVERSE_IDS, type UniverseId } from '@/theme/themes'
+import { UNIVERSES, UNIVERSE_IDS, type ThemeId, type UniverseId } from '@/theme/themes'
 import type { PerformerSpec } from '@/visual/player'
 import { STYLES } from '@/visual/styles'
+import { PLAIN, scenesOn, type StageKey } from '@/visual/scenes'
 import { Toggle } from '@/ui/primitives'
+import { cx } from '@/lib/format'
 import { Stage } from './shared'
 
 const STATES = [
@@ -16,11 +18,15 @@ const STATES = [
   { title: 'Full Aura', note: 'Energy released: after a set, a record, an unlocked skill.' },
 ]
 
-function triptych(character: CharacterId, universe: UniverseId, theme: string, finish: number): PerformerSpec[] {
+/** The stages a universe has: Goku has two, the storm and the paper. */
+const STAGES: Record<UniverseId, StageKey[]> = { aura: ['aura'], power: ['power', 'power-light'], iron: ['iron'] }
+const STAGE_THEME: Partial<Record<StageKey, ThemeId>> = { 'power-light': 'power-light' }
+
+function triptych(character: CharacterId, universe: UniverseId, theme: string, finish: number, place: { id: string; stage: StageKey } | null): PerformerSpec[] {
   const u = UNIVERSES[universe]
   // The original universe is shown under the default Aura theme; the others under their own first form.
   const form = universe === 'aura' ? { ...u.list[0], aura: theme } : u.list[0]
-  const look: Look = { universe, character, form, finish: u.finishes[finish] ?? u.finishes[0], intensity: 1 }
+  const look: Look = { universe, character, form, finish: u.finishes[finish] ?? u.finishes[0], intensity: 1, scene: place?.id, theme: place ? STAGE_THEME[place.stage] : undefined }
   return [
     performerOf(look, { x: -1.25 }),
     performerOf(look, { muscles: { primary: ['abs', 'quads'], secondary: ['obliques'], stabilizers: [] }, x: 0 }),
@@ -37,6 +43,9 @@ export function Characters() {
   const [who, setWho] = useState<CharacterId | 'both'>('both')
   const [universe, setUniverse] = useState<UniverseId>('aura')
   const [finish, setFinish] = useState(0)
+  /** A place being looked at on the stages below. */
+  const [place, setPlace] = useState<{ id: string; stage: StageKey } | null>(null)
+  const places = useStore((s) => s.auraSettings.scenes) ?? {}
   const theme = useStore((s) => s.auraSettings.defaultTheme)
   const released = useStore((s) => s.auraSettings.universes)
   const setAuraSettings = useStore((s) => s.setAuraSettings)
@@ -47,7 +56,7 @@ export function Characters() {
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {UNIVERSE_IDS.map((id) => (
-          <button key={id} className="chip" data-on={universe === id} onClick={() => { setUniverse(id); setFinish(0) }}>
+          <button key={id} className="chip" data-on={universe === id} onClick={() => { setUniverse(id); setFinish(0); setPlace(null) }}>
             {UNIVERSES[id].name}{id !== 'aura' && <span className="ml-1 opacity-60">· {released[id] ? 'athletes have it' : 'only you'}</span>}
           </button>
         ))}
@@ -72,7 +81,7 @@ export function Characters() {
       <div className="mt-4 space-y-6">
         {shown.map((id) => (
           <section key={id}>
-            <Stage cast={triptych(id, universe, theme, finish)} ratio={1.62} controls="review" margin={1.12} label={`The ${id} character in its three states`} />
+            <Stage cast={triptych(id, universe, theme, finish, place)} ratio={1.62} controls="review" margin={1.12} label={`The ${id} character in its three states`} />
             <div className="mt-3 grid grid-cols-3 gap-3">
               {STATES.map((s) => (
                 <div key={s.title} className="text-center">
@@ -83,6 +92,34 @@ export function Characters() {
             </div>
           </section>
         ))}
+      </div>
+
+      {/* Places a character can stand in. Each reaches athletes only when it is switched on here. */}
+      <div className="card mt-7 p-5" data-places>
+        <Eyebrow className="mb-1.5">Backgrounds</Eyebrow>
+        <p className="max-w-3xl text-[13px] leading-relaxed text-ink-2">Touch one to see it on the stages above. Switch it on and athletes can choose it for their character.</p>
+        <div className="mt-3 divide-y divide-line">
+          {STAGES[universe].flatMap((stage) => [
+            { id: '', stage, ...PLAIN[stage] },
+            ...scenesOn(stage).map((sc) => ({ id: sc.id, stage, name: sc.name, line: sc.line, swatch: sc.swatch })),
+          ]).map((b) => {
+            const looking = b.id ? place?.id === b.id && place.stage === b.stage : !place && b.stage === STAGES[universe][0]
+            return (
+              <div key={`${b.stage}:${b.id}`} className="flex items-center gap-3 py-2.5">
+                <button className="pressable flex min-w-0 flex-1 items-center gap-3 text-left" aria-pressed={looking} data-place={b.id || 'plain'} onClick={() => setPlace(b.id || b.stage !== STAGES[universe][0] ? { id: b.id, stage: b.stage } : null)}>
+                  <span className={cx('h-9 w-9 shrink-0 rounded-full border', looking ? 'border-ink' : 'border-line')} style={{ background: `linear-gradient(160deg, ${b.swatch[0]} 35%, ${b.swatch[1]})` }} />
+                  <span className="min-w-0">
+                    <span className="block text-[14px] font-medium">{b.name}{STAGES[universe].length > 1 && <span className="ml-1.5 text-[11.5px] font-normal text-ink-3">{b.stage === 'power-light' ? 'Goku Light' : 'Goku'}</span>}</span>
+                    <span className="block truncate text-[12px] text-ink-3">{b.line}</span>
+                  </span>
+                </button>
+                {b.id
+                  ? <Toggle on={!!places[b.id]} onChange={(on) => setAuraSettings({ scenes: { ...places, [b.id]: on } })} label={`Show ${b.name} to athletes`} />
+                  : <span className="shrink-0 text-[11.5px] text-ink-3">always</span>}
+              </div>
+            )
+          })}
+        </div>
       </div>
 
       <div className="card mt-7 p-5">

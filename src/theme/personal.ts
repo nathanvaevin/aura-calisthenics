@@ -97,6 +97,8 @@ export interface Wearing {
   finish: Finish
   /** 0 to 1. */
   intensity: number
+  /** The place the character stands in (`visual/scenes.ts`), when one is chosen and released. Unset: the stage's own plain look. */
+  scene?: string
 }
 
 /**

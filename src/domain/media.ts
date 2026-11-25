@@ -83,10 +83,16 @@ export interface AuraSettings {
    * characters and forms have been looked at; until then only they can open it.
    */
   universes: Partial<Record<'power' | 'iron', boolean>>
+  /**
+   * The places a character can stand in (src/visual/scenes.ts) that athletes may choose, by scene id. Each is
+   * released by an administrator once it has been looked at; until then only they see it. Absent on settings
+   * saved before scenes existed.
+   */
+  scenes?: Partial<Record<string, boolean>>
   updatedAt: string | null
 }
 
-export const DEFAULT_AURA_SETTINGS: AuraSettings = { defaultTheme: 'cosmic', themes: {}, universes: {}, updatedAt: null }
+export const DEFAULT_AURA_SETTINGS: AuraSettings = { defaultTheme: 'cosmic', themes: {}, universes: {}, scenes: {}, updatedAt: null }
 
 export const ASSET_STATUSES: AssetStatus[] = ['draft', 'pending', 'approved', 'published', 'needs_correction', 'archived']
 

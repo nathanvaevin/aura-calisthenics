@@ -18,6 +18,7 @@ import { stand } from './motions/stand'
 import { emptyPose, type Pose } from './rig'
 import { buildProps } from './props'
 import { ANGLE, Stage, type CameraAngle } from './stage'
+import { sceneById, stageKeyOf } from './scenes'
 import { styleOf, type PerformerStyle } from './styles'
 import type { Group } from 'three'
 import type { BoneName } from './body/skeleton'
@@ -129,7 +130,7 @@ export class Player {
       return p
     })
     const look = styleOf(specs[0]?.style).stage
-    this.stage.setLook(look)
+    this.place(specs[0]?.style)
     for (const p of this.cast) p.field.setPaint(!!look.paint)
     this.tint()
     this.sets = specs.some((s) => s.aura.mode === 'living')
@@ -143,9 +144,18 @@ export class Player {
   update(specs: PerformerSpec[]) {
     if (specs.length !== this.cast.length || specs.some((s, i) => s.character !== this.cast[i].spec.character || (s.style?.universe ?? 'aura') !== (this.cast[i].spec.style?.universe ?? 'aura') || s.style?.variant !== this.cast[i].spec.style?.variant || s.motion !== this.cast[i].spec.motion || s.revision !== this.cast[i].spec.revision || (s.x ?? 0) !== (this.cast[i].spec.x ?? 0) || (s.facing ?? 0) !== (this.cast[i].spec.facing ?? 0))) return void this.setCast(specs, { keepView: specs.length === this.cast.length })
     specs.forEach((s, i) => this.apply(this.cast[i], s))
+    if (specs[0]?.style?.scene !== this.scene) this.place(specs[0]?.style)
     this.tint()
     const sets = specs.some((s) => s.aura.mode === 'living')
     if (sets !== this.sets) { this.sets = sets; this.settle = -1 }
+  }
+
+  private scene: string | undefined
+
+  /** Lights the stage for the first performer's universe, in the place it stands in. */
+  private place(style: PerformerStyle | undefined) {
+    this.scene = style?.scene
+    this.stage.setLook(styleOf(style).stage, sceneById(style?.scene), stageKeyOf(style?.universe ?? 'aura', style?.variant))
   }
 
   private apply(p: Performer, spec: PerformerSpec) {

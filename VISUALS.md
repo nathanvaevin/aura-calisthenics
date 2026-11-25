@@ -290,3 +290,36 @@ A **form** is an Aura theme (§6) given a name, a place in a universe and a cond
 - **Demonstrations outside assessments**: the approved movement, performed by the athlete's own character in their universe, with the working muscles as they prefer. The movement and its camera are the approved ones; only who performs it differs.
 - **Official assessments**: always `standardLook()`: the Aura master character, pearl finish, Cosmic Aura, and the whole athlete-side assessment in the Aura Dark theme with its plain wording. Exercise requirements, technique and scoring cannot differ, because they never depended on a theme.
 - **The athlete's Character Studio** (`src/features/personalize/`) previews and saves preferences. The only movements it can play are published ones. It has no way to create, change or publish an asset.
+
+## 14 · Places: what is behind the character
+
+`src/visual/scenes.ts` (which places exist, plain data), `src/visual/backdrop.ts` (how they are painted), 2026-11-25, at the owner's request: the stage of Goku had something epic behind it, and every theme should.
+
+**What a place is.** A background and the light that goes with it. Seven of them, each offered on the stages it suits (a *stage* is what a theme shows its character on: `aura` for both Aura themes, `power`, `power-light`, `iron`):
+
+| Place | What it is | What moves | Stages |
+| --- | --- | --- | --- |
+| Dojo | A wooden hall at the end of the day, sun through paper screens | Dust in the light | Aura, Goku, Baki |
+| Hall at dusk | An empty sports hall, the last light across a polished floor | Dust in the light | Aura, Baki |
+| Mountain meadow | Grass, woods, a mountain, cloud | Cloud, wind in the grass, seeds | Goku, Aura (as evening) |
+| Blossom garden | Dusk under cherry trees, lanterns | Petals, the lanterns swaying | Aura, Goku |
+| Ember sky | A burning sunset over a dark field | Cloud, sparks | Goku, Aura, Baki |
+| Storm night | Stars over still water, cloud | Stars, cloud, lightning far off every few seconds | Goku, Aura, Baki |
+| Ink mountains | Grey wash ranges on paper, mist, the red sun kept | Mist, a few red petals | Goku Light |
+
+Every stage also keeps its own plain look (Studio, Burning sun, Red sun, Black room): what anyone has until they choose otherwise.
+
+**How it is painted.** One rectangle that covers the picture and is drawn first. For each pixel the shader works out which way the camera looks there and paints what lies that way: a floor where the look meets the ground, walls where it meets a room (the two halls are real boxes), a horizon and sky beyond. So a place turns correctly as the camera goes round the subject, the floor is in true perspective under the feet, and the shadow falls on it. Nothing is loaded: it is rules and noise. **None of the pictures the owner gave as a direction is in the app.**
+
+- **The camera looks a little down**, so only about ten degrees of sky are ever in the picture. Everything that makes a place (ridge, trees, cloud, windows) is composed inside that band; the first versions put it higher and showed a bare floor.
+- **It must not get in the way of the exercise.** A place is dimmer on a dark stage than on Goku's (`on` in `scenes.ts`: the meadow is an evening meadow under the Aura), what moves is small and slow, and the workout screen's own shading over the top and bottom of the stage keeps its words readable. Checked behind the workout screen in every theme.
+- **The light follows the place** (`look`): the main light, the two lights from behind, the fill and the floor take the place's colours, and what burned behind the subject (Goku's sun) is taken away, except on paper.
+- Things adrift (dust, petals, sparks, seeds) are drawn between the camera and the place, so they do not turn with the camera.
+
+**Who has it.** Nothing here reaches athletes until the owner switches it on: Studio → Characters → Backgrounds, one switch a place (`auraSettings.scenes`, kept with the other Aura settings, so it needs no database step). An athlete then chooses in the Character Studio, under *Background*; the section is not there at all while nothing is released. The owner sees every place, to look at it first. A place withdrawn again falls back to the plain look and leaves the athlete's choice as it was.
+
+**Where the choice lives.** On the device (`settings.scenes`, one choice a stage), not on the account: signing in elsewhere starts from the plain look. Putting it on the account is three columns and a database step, and was left out so this could be released without one.
+
+**Never in an assessment**: `standardLook()` carries no place, and a test checks it.
+
+**Honest limits.** Painted by rule, so stylised and simple next to a painted picture: the blossom is a line of heaps, the halls are boxes. No depth between layers (the far ridge does not slide against the near woods as you turn). Seen on a computer only: what it costs a phone's graphics chip has not been measured, and the blossom garden is the heaviest. Adding a place: an entry in `scenes.ts`, a branch in `backdrop.ts`, then look at it on each of its stages, from all round, and behind the workout screen.

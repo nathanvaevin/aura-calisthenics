@@ -5,6 +5,7 @@ import { useAthleteModel, useIsAdmin } from '@/data/hooks'
 import { useStore } from '@/data/store'
 import { isReleased, personalOf, wearing, type Standing, type Wearing } from './personal'
 import { THEMES, type ThemeId } from './themes'
+import { sceneFor, stageKeyOf } from '@/visual/scenes'
 import { say, type VoiceKey } from './voice'
 
 /** The theme a part of the app is shown in, where that is not the athlete's own (an official assessment). */
@@ -56,6 +57,13 @@ export function useWearing(): Wearing {
   const admin = useIsAdmin()
   const style = useStore((s) => (s.meId ? s.athletes[s.meId]?.style : undefined))
   const released = useStore((s) => s.auraSettings.universes)
+  const scenes = useStore((s) => s.settings.scenes)
+  const releasedScenes = useStore((s) => s.auraSettings.scenes)
   const standing = useStanding()
-  return useMemo(() => wearing(personalOf({ style }), standing, released, admin), [style, standing, released, admin])
+  return useMemo(() => {
+    const worn = wearing(personalOf({ style }), standing, released, admin)
+    // The place it stands in is chosen on this device, for each stage, from what the owner has released.
+    const stage = stageKeyOf(worn.universe, THEMES[worn.theme].variant)
+    return { ...worn, scene: sceneFor(stage, scenes?.[stage], releasedScenes ?? {}, admin) }
+  }, [style, standing, released, admin, scenes, releasedScenes])
 }
