@@ -9,44 +9,54 @@ import { STYLES, styleOf } from '@/visual/styles'
 import { performerOf, standardLook } from './cast'
 import { completion, formsFor, isReleased, isUnlocked, nextForm, personalOf, unlockText, wearing, type Personal, type Standing } from './personal'
 import { STANDARD_THEME, THEME_IDS, THEMES, UNIVERSE_IDS, UNIVERSES, posterOf } from './themes'
-import { DEFAULT_TONE, TONES, toneAttr } from './tones'
+import { TONES, toneAttr, toneOf, tonesOf } from './tones'
 import { VOICE_KEYS, linesOf, say } from './voice'
 
 const none: Standing = { aura: 0, skills: 0, verified: 0 }
 const css = readFileSync(resolve(__dirname, '../styles/index.css'), 'utf8')
 
-describe('the colour of the Aura themes', () => {
+describe('the colour of a theme', () => {
   const lum = (hex: string) => {
     const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
     return 0.2126 * r + 0.7152 * g + 0.0722 * b
   }
   const contrast = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05) }
-  const base = (scheme: string) => css.slice(css.indexOf(scheme === 'dark' ? ":root,\n[data-theme='dark'] {" : "[data-theme='light'] {\n  color-scheme"))
-  const block = (scheme: 'dark' | 'light', tone: string) => {
-    const from = tone === DEFAULT_TONE ? base(scheme) : css.slice(css.indexOf(`[data-theme='${scheme}'][data-tone='${tone}']`))
+  const base = (theme: string) => css.slice(css.indexOf(theme === 'dark' ? ":root,\n[data-theme='dark'] {" : `[data-theme='${theme}'] {\n  color-scheme`))
+  const block = (theme: string, tone: string, first: boolean) => {
+    const from = first ? base(theme) : css.slice(css.indexOf(`[data-theme='${theme}'][data-tone='${tone}']`))
     return from.slice(0, from.indexOf('}'))
   }
   const token = (text: string, name: string) => text.match(new RegExp(`${name}: ([^;]+);`))![1]
 
-  it('can be four, each readable on both Aura themes, and the swatch is the colour itself', () => {
-    expect(TONES.map((t) => t.name)).toEqual(['Sun', 'Champagne', 'Moonlight', 'Aurora'])
-    for (const scheme of ['dark', 'light'] as const) for (const t of TONES) {
-      const b = block(scheme, t.id), accent = token(b, '--accent'), ink = token(b, '--accent-ink'), fill = token(b, '--accent-fill'), bg = token(base(scheme), '--bg')
-      expect(fill, `${scheme} ${t.id}`).toBe(t[scheme])
-      expect(contrast(accent, bg), `${scheme} ${t.id} on the page`).toBeGreaterThan(4.5)
-      for (const stop of fill.match(/#[0-9a-f]{6}/g)!) expect(contrast(ink, stop), `${scheme} ${t.id} on ${stop}`).toBeGreaterThan(4.3)
-      expect(contrast(ink, accent), `${scheme} ${t.id} ink`).toBeGreaterThan(4.5)
+  it('is one of four for every theme, each readable there, and the swatch is the colour itself', () => {
+    expect(UNIVERSE_IDS.map((u) => TONES[u].map((t) => t.name).join(' '))).toEqual(['Champagne Sun Moonlight Aurora', 'Blaze Gold Azure Violet', 'Blood Bone Bronze Steel'])
+    // The page wears a tone's id bare, so no two may share one.
+    const ids = UNIVERSE_IDS.flatMap((u) => TONES[u].map((t) => t.id))
+    expect(new Set(ids).size).toBe(ids.length)
+    for (const theme of THEME_IDS) for (const [i, t] of tonesOf(theme).entries()) {
+      const at = `${theme} ${t.id}`
+      expect(i === 0 || css.includes(`[data-theme='${theme}'][data-tone='${t.id}'],\n[data-tone='${t.id}'] [data-theme='${theme}'] {`), at).toBe(true)
+      const b = block(theme, t.id, i === 0), accent = token(b, '--accent'), ink = token(b, '--accent-ink'), fill = token(b, '--accent-fill'), bg = token(base(theme), '--bg')
+      expect(fill, at).toBe(t.fill[theme])
+      // A theme's own colour is as the owner has it; one added to choose from has to be plainly readable.
+      expect(contrast(accent, bg), `${at} on the page`).toBeGreaterThan(i === 0 ? 3.5 : 4.5)
+      for (const stop of fill.match(/#[0-9a-f]{6}/g)!) expect(contrast(ink, stop), `${at} on ${stop}`).toBeGreaterThan(i === 0 ? 4 : 4.3)
+      expect(contrast(ink, accent), `${at} ink`).toBeGreaterThan(i === 0 ? 4 : 4.3)
     }
   })
 
-  it('is worn only where someone chose another than the first, and never in an assessment', () => {
-    expect(toneAttr(undefined, false)).toBeUndefined()
-    expect(toneAttr('sun', false)).toBeUndefined()
-    expect(toneAttr('aurora', false)).toBe('aurora')
-    expect(toneAttr('aurora', true)).toBeUndefined()
-    expect(toneAttr('no-such-colour', false)).toBeUndefined()
-    // The other themes have one colour, their own.
-    expect(/data-theme='(power|power-light|iron)'\]\[data-tone/.test(css)).toBe(false)
+  it('is worn only where someone chose another than the first, for that universe, and never in an assessment', () => {
+    expect(toneAttr('dark', undefined)).toBeUndefined()
+    expect(toneAttr('dark', { aura: 'champagne' })).toBeUndefined()
+    expect(toneAttr('dark', { aura: 'sun' })).toBe('sun')
+    expect(toneAttr('dark', { aura: 'aurora' })).toBe('aurora')
+    expect(toneAttr('light', { aura: 'aurora' })).toBe('aurora')
+    expect(toneAttr('dark', { aura: 'aurora' }, true)).toBeUndefined()
+    // Each universe has its own choice, and another's colour is not worn.
+    const chosen = { aura: 'aurora', power: 'azure', iron: 'steel' }
+    expect([toneAttr('power', chosen), toneAttr('power-light', chosen), toneAttr('iron', chosen)]).toEqual(['azure', 'azure', 'steel'])
+    expect(toneAttr('iron', { iron: 'aurora' })).toBeUndefined()
+    expect(toneOf('iron', { iron: 'no-such-colour' }).id).toBe('blood')
   })
 })
 

@@ -43,11 +43,11 @@
   --text: #f3f0ea;
   --text-2: rgba(243, 240, 234, 0.66);
   --text-3: rgba(243, 240, 234, 0.42);
-  /* The sun going down (the owner, 2026-11-25: less yellow). Short of the orange that stands for pushing. */
-  --accent: #ffb35c;
-  --accent-fill: linear-gradient(180deg, #ffc67a, #ffa04e);
-  --accent-ink: #1f1004;
-  --dot: #ffb35c;
+  /* Champagne, a warm sand: the one of its four the owner made the default (2026-11-25). The others are further down. */
+  --accent: #e6c7a9;
+  --accent-fill: linear-gradient(180deg, #f1d9c0, #d8b190);
+  --accent-ink: #1c130a;
+  --dot: #e6c7a9;
   --good: #7fd6a4;
   --warn: #f0a76a;
 
@@ -113,10 +113,10 @@
   --text: #16140f;
   --text-2: rgba(22, 20, 15, 0.68);
   --text-3: rgba(22, 20, 15, 0.46);
-  --accent: #a3560b;
-  --accent-fill: linear-gradient(180deg, #b05d10, #9c520a);
-  --dot: #e08a2e;
-  --accent-ink: #fff9ef;
+  --accent: #7d5d40;
+  --accent-fill: linear-gradient(180deg, #8f6c4e, #745538);
+  --dot: #b98f6a;
+  --accent-ink: #fff9f2;
   --good: #1f8a55;
   --warn: #b5601a;
 
@@ -345,15 +345,16 @@
 }
 
 /*
- * The colour of the Aura themes, where someone chose another than the theme's own (src/theme/tones.ts). Worn by the
- * page (`data-tone`), so it reaches whatever is shown in an Aura theme, also a card of one inside another theme.
+ * The colour of a theme, where someone chose another than its own (src/theme/tones.ts). Worn beside `data-theme`, or by
+ * the page round something shown in that theme.
  */
-[data-theme='dark'][data-tone='champagne'],
-[data-tone='champagne'] [data-theme='dark'] {
-  --accent: #e6c7a9;
-  --accent-fill: linear-gradient(180deg, #f1d9c0, #d8b190);
-  --accent-ink: #1c130a;
-  --dot: #e6c7a9;
+/* The sun going down. Short of the orange that stands for pushing. */
+[data-theme='dark'][data-tone='sun'],
+[data-tone='sun'] [data-theme='dark'] {
+  --accent: #ffb35c;
+  --accent-fill: linear-gradient(180deg, #ffc67a, #ffa04e);
+  --accent-ink: #1f1004;
+  --dot: #ffb35c;
 }
 [data-theme='dark'][data-tone='moonlight'],
 [data-tone='moonlight'] [data-theme='dark'] {
@@ -369,12 +370,12 @@
   --accent-ink: #17132a;
   --dot: #d8d2f6;
 }
-[data-theme='light'][data-tone='champagne'],
-[data-tone='champagne'] [data-theme='light'] {
-  --accent: #7d5d40;
-  --accent-fill: linear-gradient(180deg, #8f6c4e, #745538);
-  --accent-ink: #fff9f2;
-  --dot: #b98f6a;
+[data-theme='light'][data-tone='sun'],
+[data-tone='sun'] [data-theme='light'] {
+  --accent: #a3560b;
+  --accent-fill: linear-gradient(180deg, #b05d10, #9c520a);
+  --accent-ink: #fff9ef;
+  --dot: #e08a2e;
 }
 [data-theme='light'][data-tone='moonlight'],
 [data-tone='moonlight'] [data-theme='light'] {
@@ -389,6 +390,60 @@
   --accent-fill: linear-gradient(115deg, #b54f38, #7a4fc0 52%, #3568c4);
   --accent-ink: #fffaff;
   --dot: #9a7fe0;
+}
+[data-theme='power'][data-tone='gold'],
+[data-tone='gold'] [data-theme='power'] {
+  --accent: #ffd23f;
+  --accent-fill: #ffd23f;
+  --accent-ink: #1a1300;
+}
+[data-theme='power'][data-tone='azure'],
+[data-tone='azure'] [data-theme='power'] {
+  --accent: #59b8ff;
+  --accent-fill: #59b8ff;
+  --accent-ink: #04101f;
+}
+[data-theme='power'][data-tone='violet'],
+[data-tone='violet'] [data-theme='power'] {
+  --accent: #b79bff;
+  --accent-fill: #b79bff;
+  --accent-ink: #120a2a;
+}
+[data-theme='power-light'][data-tone='gold'],
+[data-tone='gold'] [data-theme='power-light'] {
+  --accent: #8a5800;
+  --accent-fill: #8a5800;
+  --accent-ink: #fff9ea;
+}
+[data-theme='power-light'][data-tone='azure'],
+[data-tone='azure'] [data-theme='power-light'] {
+  --accent: #2a4585;
+  --accent-fill: #2a4585;
+  --accent-ink: #f3f6ff;
+}
+[data-theme='power-light'][data-tone='violet'],
+[data-tone='violet'] [data-theme='power-light'] {
+  --accent: #5b3fb0;
+  --accent-fill: #5b3fb0;
+  --accent-ink: #f8f4ff;
+}
+[data-theme='iron'][data-tone='bone'],
+[data-tone='bone'] [data-theme='iron'] {
+  --accent: #e6dccb;
+  --accent-fill: #e6dccb;
+  --accent-ink: #14110c;
+}
+[data-theme='iron'][data-tone='bronze'],
+[data-tone='bronze'] [data-theme='iron'] {
+  --accent: #cf8a4a;
+  --accent-fill: #cf8a4a;
+  --accent-ink: #170d04;
+}
+[data-theme='iron'][data-tone='steel'],
+[data-tone='steel'] [data-theme='iron'] {
+  --accent: #a9b8c6;
+  --accent-fill: #a9b8c6;
+  --accent-ink: #0d1217;
 }
 
 /* ── Base ───────────────────────────────────────────────────────────── */

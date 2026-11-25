@@ -15,8 +15,9 @@
           document.documentElement.dataset.theme = t;
           document.documentElement.dataset.scheme = t === 'light' || t === 'power-light' ? 'light' : 'dark';
         }
-        var c = s && s.state && s.state.settings && s.state.settings.tone;
-        if ((c === 'champagne' || c === 'moonlight' || c === 'aurora') && location.pathname.indexOf('/assess/') !== 0) document.documentElement.dataset.tone = c;
+        var u = t === 'power' || t === 'power-light' ? 'power' : t === 'iron' ? 'iron' : 'aura';
+        var c = s && s.state && s.state.settings && s.state.settings.tones && s.state.settings.tones[u];
+        if (typeof c === 'string' && /^[a-z]+$/.test(c) && location.pathname.indexOf('/assess/') !== 0) document.documentElement.dataset.tone = c;
         if (s && s.state && s.state.settings && s.state.settings.size === 'large') document.documentElement.dataset.size = 'large';
       } catch (e) {}
     </script>

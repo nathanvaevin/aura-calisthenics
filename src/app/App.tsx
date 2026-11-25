@@ -90,8 +90,8 @@ export function App() {
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEMES[theme].chrome)
   }, [theme])
 
-  // The colour chosen for the Aura themes. Never in an assessment: that is shown in the standard one.
-  const tone = toneAttr(useStore((s) => s.settings.tone), official)
+  // The colour chosen for this theme. Never in an assessment: that is shown in the standard one.
+  const tone = toneAttr(theme, useStore((s) => s.settings.tones), official)
   useEffect(() => {
     if (tone) document.documentElement.dataset.tone = tone
     else delete document.documentElement.dataset.tone

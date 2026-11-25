@@ -320,12 +320,10 @@ export function Profile() {
                 <span className="text-[14px]">Theme<span className="block text-[12px] text-ink-3">{THEMES[theme].name} · {THEMES[theme].tone.toLowerCase()}</span></span>
                 <span className="text-[12.5px] text-ink-3">Change</span>
               </button>
-              {THEMES[theme].universe === 'aura' && (
-                <div className="px-4 py-3.5">
-                  <span className="text-[14px]">Colour</span>
-                  <Tone className="mt-2.5" />
-                </div>
-              )}
+              <div className="px-4 py-3.5">
+                <span className="text-[14px]">Colour</span>
+                <Tone theme={theme} className="mt-2.5" />
+              </div>
               <button className="flex w-full items-center justify-between px-4 py-3.5 text-left hover:bg-surface-2" onClick={() => { setSettingsOpen(false); window.setTimeout(startTour, 350) }}>
                 <span className="text-[14px]">Introduction<span className="block text-[12px] text-ink-3">A one-minute look round Aura</span></span>
                 <span className="text-[12.5px] text-ink-3">Show me</span>

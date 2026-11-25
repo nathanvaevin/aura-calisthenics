@@ -19,6 +19,7 @@ import { cx } from '@/lib/format'
 import { CharacterStudio } from './CharacterStudio'
 import { TextSize } from './TextSize'
 import { Tone } from './Tone'
+import { toneAttr } from '@/theme/tones'
 
 const TITLES: Record<Step, { title: string; sub: string }> = {
   theme: { title: 'Choose your theme', sub: 'Every theme has a different style, design and language. Choose what fits best with your athletic style. Change it any time: your training and results stay the same.' },
@@ -48,17 +49,21 @@ export default function Personalize() {
   // A theme being looked at is shown everywhere on this screen before it is chosen.
   const [trying, setTrying] = useState<ThemeId>(own)
   const shown = step === 'theme' ? trying : own
+  const tones = useStore((s) => s.settings.tones)
   const mine = useRef(own)
   mine.current = own
   useEffect(() => {
     const paint = (theme: ThemeId) => {
+      const tone = toneAttr(theme, useStore.getState().settings.tones)
       document.documentElement.dataset.theme = theme
       document.documentElement.dataset.scheme = THEMES[theme].scheme
+      if (tone) document.documentElement.dataset.tone = tone
+      else delete document.documentElement.dataset.tone
     }
     paint(shown)
     // Leaving without choosing puts the athlete's own theme back.
     return () => paint(mine.current)
-  }, [shown])
+  }, [shown, tones])
 
   const next = () => {
     if (step === 'theme') { setStyle({ theme: trying }, 'theme'); go('character') }
@@ -126,6 +131,7 @@ export default function Personalize() {
 // ── Step one: the four themes ────────────────────────────────────────────
 
 function ThemeStep({ value, onChange, released, admin, character }: { value: ThemeId; onChange: (t: ThemeId) => void; released: Parameters<typeof isReleased>[1]; admin: boolean; character: 'male' | 'female' }) {
+  const tones = useStore((s) => s.settings.tones)
   return (
     <div className="grid gap-3.5 sm:grid-cols-2">
       {THEME_IDS.map((id, i) => {
@@ -136,7 +142,7 @@ function ThemeStep({ value, onChange, released, admin, character }: { value: The
         return (
           <div key={id}>
             <button
-              data-theme={id} data-scheme={t.scheme} aria-pressed={on} disabled={!open} onClick={() => onChange(id)}
+              data-theme={id} data-scheme={t.scheme} data-tone={toneAttr(id, tones)} aria-pressed={on} disabled={!open} onClick={() => onChange(id)}
               className={cx('rise group relative isolate flex items-center gap-4 overflow-hidden w-full rounded-card border bg-bg p-3 pr-4 text-left text-ink transition-[box-shadow,transform] duration-300', on ? 'border-transparent shadow-[0_0_0_2px_var(--accent),0_24px_60px_-28px_var(--accent)]' : 'border-line-strong', !open && 'opacity-60')}
               style={{ animationDelay: `${i * 0.06}s` }}
             >
@@ -158,8 +164,8 @@ function ThemeStep({ value, onChange, released, admin, character }: { value: The
               </span>
               <span className={cx('relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full', on ? 'bg-accent text-accent-ink' : 'border border-line-strong')}>{on && <Check size={14} strokeWidth={3} />}</span>
             </button>
-            {/* An Aura theme has a colour of its own to choose, once it is the one being looked at. */}
-            {on && open && t.universe === 'aura' && <div className="rise mt-3"><Eyebrow className="mb-2">Colour</Eyebrow><Tone /></div>}
+            {/* Its colour, to choose once it is the theme being looked at. */}
+            {on && open && <div className="rise mt-3" data-theme={id} data-scheme={t.scheme} data-tone={toneAttr(id, tones)}><Eyebrow className="mb-2">Colour</Eyebrow><Tone theme={id} /></div>}
           </div>
         )
       })}
