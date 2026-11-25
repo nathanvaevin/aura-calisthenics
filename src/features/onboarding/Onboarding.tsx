@@ -134,7 +134,7 @@ export function Onboarding() {
   const startDemo = useStore((s) => s.startDemo)
   const complete = useStore((s) => s.completeOnboarding)
 
-  // The sample world is no longer offered on the welcome screen. It is still there for testing, by address only: …/welcome?demo
+  // The sample world is not offered on the welcome screen of a public build. It is there for testing: by address (…/welcome?demo), and on a developer's machine by a button.
   const [params] = useSearchParams()
   const wantsDemo = params.has('demo')
   useEffect(() => {
@@ -283,6 +283,9 @@ export function Onboarding() {
                 {/* Only on a developer's machine (npm run dev): a public build never has this. */}
                 {configured && import.meta.env.DEV && (
                   <button className="btn btn-quiet btn-sm self-center" data-local-start onClick={() => void ignite(() => setStep(1))}>Without signing in · this computer only</button>
+                )}
+                {import.meta.env.DEV && (
+                  <button className="btn btn-quiet btn-sm self-center" data-demo-start onClick={() => void ignite(startDemo)}>Demo account, admin · this computer only</button>
                 )}
                 {configured && (
                   <p className="mt-1 text-[13.5px] text-ink-2">

@@ -63,7 +63,7 @@ Never present simulated or sample behaviour as real. If something cannot work wi
 - Folding is not removing: every feature stays reachable, and a coach's tools stay a coach's.
 - The end of a flow celebrates, saves and moves on (the assessment's last screen is the model). Results and breakdowns live on the profile and are linked, not repeated.
 - Moving on from a welcome lights the Aura first (`useIgnite`, `IgniteRing`, `nebula.ts`): "Get started", and joining an assessment from an invitation. One animation for both; do not make a second. It is golden light that fades at its edges (never a band with a border) and a burst with force in warm colours: no lightning, no literal electricity, nothing dreamy (the owner's words, 2026-11-24).
-- The welcome screen is one still screen: it does not scroll, and the sample world is not on it (`…/?demo` opens it, for testing). The questions end on the starting line and then on the profile; nothing after them starts a workout or an assessment.
+- The welcome screen is one still screen: it does not scroll, and in a public build the sample world is not on it (`…/?demo` opens it, for testing; on a developer's machine a button does, behind `import.meta.env.DEV`). The questions end on the starting line and then on the profile; nothing after them starts a workout or an assessment.
 - Sizes are written in px and shipped in rem (`vite.config.ts`); "Larger text" (`settings.size`, per device) raises the root size. Write sizes as classes or CSS, not inline pixel styles, wherever they should follow it. Text size is not part of a theme.
 
 ## Standing rule: a coach sees their students
