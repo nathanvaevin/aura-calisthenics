@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { standardLook, performerOf } from '@/theme/cast'
 import { DEFAULT_PERSONAL, wearing } from '@/theme/personal'
@@ -38,6 +40,22 @@ describe('the places a character can stand in', () => {
     const paper = styleOf({ universe: 'power', variant: 'light' }).stage
     expect(sceneLook(paper, sceneById('ink')).paint).toBe(true)
     expect(sceneLook(paper, sceneById('ink')).sun).toEqual(paper.sun)
+  })
+
+  it('every stage has its signature place, offered first; the Aura has two, one inside and one outside', () => {
+    for (const stage of STAGES) {
+      const list = scenesOn(stage)
+      const own = list.filter((s) => s.signature).map((s) => s.id)
+      expect(own, stage).toEqual({ aura: ['inside', 'outside'], power: ['ring'], 'power-light': ['ring-ink'], iron: ['pit'] }[stage])
+      expect(list.slice(0, own.length).map((s) => s.id), stage).toEqual(own)
+      // Made for that one character: not offered on another's stage.
+      for (const s of list) if (s.signature) expect(Object.keys(s.on)).toEqual([stage])
+    }
+  })
+
+  it('has a painting for every place it lists', () => {
+    const source = ['backdrop.ts', 'signature.ts'].map((f) => readFileSync(resolve(__dirname, f), 'utf8')).join('\n')
+    for (const s of SCENES) expect(new RegExp(`SCENE == ${s.paint}\\b`).test(source), s.id).toBe(true)
   })
 
   it('lends the stage its light, and takes away what burned behind the subject', () => {

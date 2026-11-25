@@ -27,6 +27,9 @@ export const ANGLE: Record<CameraAngle, number> = { front: 0, 'three-quarter': 3
 
 export const BACKDROP = 0x08090d
 
+/** Someone who asked their device for less movement sees the place standing still. */
+const STILL = typeof window !== 'undefined' ? window.matchMedia?.('(prefers-reduced-motion: reduce)') : undefined
+
 export class Stage {
   readonly renderer: WebGLRenderer
   readonly scene = new Scene()
@@ -148,6 +151,10 @@ export class Stage {
 
   add(...objects: Parameters<Scene['add']>) { this.scene.add(...objects) }
 
+  private facing = 0
+  /** Puts the place round the subject, and turns it so that what it is about lies behind it as seen now. */
+  face() { this.facing = this.view.azimuth; this.place.face(this.facing, this.view.target.x, this.view.target.z) }
+
   /**
    * Lights the stage the way a universe is lit, and puts it in a place if it is given one (`scenes.ts`): the place is
    * painted behind everything and lends the stage its light. `on` says which stage it is, for how bright the place is there.
@@ -241,8 +248,15 @@ export class Stage {
     this.camera.position.set(target.x + Math.sin(a) * Math.cos(e) * distance, target.y + Math.sin(e) * distance, target.z + Math.cos(a) * Math.cos(e) * distance)
     this.camera.lookAt(target)
     this.key.target.position.set(target.x, 0, target.z)
+    // In a place, the light comes with it: from the same side of the picture whichever angle an exercise is shown from.
+    const f = this.place.mesh.visible ? (this.facing * Math.PI) / 180 : 0, cf = Math.cos(f), sf = Math.sin(f)
+    const turned = (x: number, z: number): [number, number] => [x * cf + z * sf, -x * sf + z * cf]
     const [kx, ky, kz] = this.look.key.from
-    this.key.position.set(target.x + kx, ky, target.z + kz)
+    const [tx, tz] = turned(kx, kz)
+    this.key.position.set(target.x + tx, ky, target.z + tz)
+    const [lx, lz] = turned(-3, -3), [rx, rz] = turned(3, -2.6)
+    this.rims[0].position.set(lx, 2.4, lz)
+    this.rims[1].position.set(rx, 2, rz)
     if (this.look.sun) {
       this.sun.material.uniforms.uTime.value = performance.now() / 1000
       // Always behind the subject as the camera goes round it, and facing the camera.
@@ -250,7 +264,7 @@ export class Stage {
       this.sun.position.set(target.x + this.back.x * 2.6, target.y + this.look.sun.lift, target.z + this.back.z * 2.6)
       this.sun.lookAt(this.camera.position.x, this.sun.position.y, this.camera.position.z)
     }
-    this.place.update(this.camera, performance.now() / 1000, this.size.width / this.size.height)
+    this.place.update(this.renderer, this.camera, STILL?.matches ? 0 : performance.now() / 1000)
     this.renderer.render(this.scene, this.camera)
   }
 
@@ -261,6 +275,7 @@ export class Stage {
       m.geometry.dispose()
       ;(Array.isArray(m.material) ? m.material : [m.material]).forEach((x) => x.dispose())
     })
+    this.place.dispose()
     this.scene.environment?.dispose()
     this.renderer.dispose()
   }

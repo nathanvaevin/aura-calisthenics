@@ -224,6 +224,7 @@ export class Player {
     const a = (view.azimuth * Math.PI) / 180
     const wide = Math.abs(Math.cos(a)) * (hi.x - lo.x) + Math.abs(Math.sin(a)) * (hi.z - lo.z)
     view.target.set((lo.x + hi.x) / 2, (lo.y + hi.y) / 2, (lo.z + hi.z) / 2)
+    if (angle === undefined) this.stage.face()
     this.room = { height: hi.y - lo.y + 0.28, width: wide + 0.34 }
     view.distance = this.stage.fit(this.room.height, this.room.width, this.margin)
   }

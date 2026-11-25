@@ -5,10 +5,11 @@
  * The layers are uniforms on one material, so they change smoothly and
  * independently of each other and of the pose.
  */
-import { BackSide, CanvasTexture, Color, Group, MeshDepthMaterial, MeshStandardMaterial, RGBADepthPacking, ShaderMaterial, SkinnedMesh, SRGBColorSpace, Vector3, type Bone, type Mesh, type Object3D, type Texture } from 'three'
+import { BackSide, Color, Group, MeshDepthMaterial, MeshStandardMaterial, RGBADepthPacking, ShaderMaterial, SkinnedMesh, Vector3, type Bone, type Mesh, type Object3D } from 'three'
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import { BONES, type BoneName, type BuildId, type CharacterId } from './body/skeleton'
+import { logoTexture } from './logo'
 import { SLOTS } from './body/muscles'
 import { SKIN_BLEND, SKIN_DECL, SOFT_SLOT, SOFT_SWING, withSkin } from './body/skinning'
 import { Rig, type Pose } from './rig'
@@ -26,38 +27,6 @@ export function loadCharacter(id: CharacterId, build: BuildId = 'aura'): Promise
     assets.set(key, p)
   }
   return p
-}
-
-let wordmark: Texture | null = null
-
-/** The Aura wordmark as it is drawn in the app: the serif name and the dot. */
-function logoTexture(): Texture {
-  if (wordmark) return wordmark
-  const c = document.createElement('canvas')
-  c.width = 512
-  c.height = 174
-  const g = c.getContext('2d')!
-  const draw = () => {
-    g.clearRect(0, 0, c.width, c.height)
-    g.font = `400 150px 'Instrument Serif', Georgia, serif`
-    g.textBaseline = 'alphabetic'
-    g.fillStyle = '#f4f2ec'
-    const w = g.measureText('Aura').width
-    const x = (c.width - w - 40) / 2
-    g.fillText('Aura', x, 138)
-    g.fillStyle = '#ecc77f'
-    g.beginPath()
-    g.arc(x + w + 22, 138 - 13, 13.5, 0, Math.PI * 2)
-    g.fill()
-  }
-  draw()
-  const tex = new CanvasTexture(c)
-  tex.colorSpace = SRGBColorSpace
-  tex.anisotropy = 4
-  // The serif may still be on its way.
-  void document.fonts?.load(`150px 'Instrument Serif'`).then(() => { draw(); tex.needsUpdate = true })
-  wordmark = tex
-  return tex
 }
 
 export interface Look {

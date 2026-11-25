@@ -2,7 +2,7 @@
  * The places a character can stand in: what is behind it and how the place
  * lights it. Plain data, like the Aura themes: safe to import anywhere.
  *
- * A scene is painted live by one shader (`backdrop.ts`), from rules and
+ * A scene is painted live by a shader (`backdrop.ts`, `signature.ts`), from rules and
  * noise: no picture is loaded, and none of the pictures the owner gave as a
  * direction is in the app. Each belongs to the stages it suits. A stage is
  * what a theme shows its character on: the dark studio of the Aura themes,
@@ -33,6 +33,8 @@ export interface SceneDef {
   paint: number
   /** The stages it is offered on, and how bright it is painted on each (a dark stage wants its evening). */
   on: Partial<Record<StageKey, number>>
+  /** The place made for this character: offered first. */
+  signature?: boolean
   /** Two colours that stand for it on a button. */
   swatch: [string, string]
   /** What it changes about the stage's light. The stage's own look is kept for the rest. */
@@ -42,6 +44,55 @@ export interface SceneDef {
 }
 
 export const SCENES: SceneDef[] = [
+  {
+    id: 'inside', name: 'Aura inside', line: 'A quiet hall. Dawn through a round window, the rack standing in it.',
+    paint: 8, signature: true, on: { aura: 0.94 }, swatch: ['#f6b27a', '#1c1517'],
+    look: {
+      backdrop: '#120e0f',
+      key: { colour: '#fff0de', power: 1.8, from: [1.8, 4.0, 3.0] },
+      rims: [{ colour: '#ffb070', power: 2.6 }, { colour: '#ffcf9e', power: 2.0 }],
+      fill: { sky: '#ffdcc0', ground: '#2a1a16', power: 0.36 },
+      floor: { colour: '#ffb070', shadow: 0.5, wash: 0.8 },
+    },
+  },
+  {
+    id: 'outside', name: 'Aura outside', line: 'A stone terrace over the sea. The sun going down, the rack against it.',
+    paint: 9, signature: true, on: { aura: 0.9 }, swatch: ['#ff9d62', '#2b2c58'],
+    look: {
+      backdrop: '#20182a',
+      key: { colour: '#ffeadb', power: 1.8, from: [1.8, 4.0, 3.0] },
+      rims: [{ colour: '#ff9a56', power: 2.6 }, { colour: '#ffbf8c', power: 1.8 }],
+      fill: { sky: '#c9b4d8', ground: '#4a322c', power: 0.4 },
+      floor: { colour: '#ff9f62', shadow: 0.46, wash: 0.7 },
+    },
+  },
+  {
+    id: 'ring', name: 'World ring', line: 'A ring of stone between the worlds. Nebulae below, the rim alight.',
+    paint: 11, signature: true, on: { power: 1 }, swatch: ['#ff9436', '#34205a'],
+    look: {
+      backdrop: '#0a0716',
+      key: { colour: '#fff2e2', power: 2.1, from: [2.2, 3.8, 2.6] },
+      rims: [{ colour: '#ff8a2a', power: 2.4 }, { colour: '#9a7cff', power: 1.8 }],
+      fill: { sky: '#8f86d8', ground: '#2a1210', power: 0.4 },
+      floor: { colour: '#ff9436', shadow: 0.5, wash: 0.9 },
+    },
+  },
+  {
+    id: 'ring-ink', name: 'World ring', line: 'The ring between the worlds, in ink and one red.',
+    paint: 12, signature: true, on: { 'power-light': 1 }, swatch: ['#8c8c8e', '#e4502e'], keepSun: true,
+    look: {},
+  },
+  {
+    id: 'pit', name: 'The pit', line: 'Sand, planks, and a crowd on its feet.',
+    paint: 10, signature: true, on: { iron: 1 }, swatch: ['#b98a55', '#2a0f0c'],
+    look: {
+      backdrop: '#0c0807',
+      key: { colour: '#fff0dc', power: 2.9, from: [2.0, 5.0, 2.0] },
+      rims: [{ colour: '#ff6a44', power: 1.1 }, { colour: '#ffe2bc', power: 0.8 }],
+      fill: { sky: '#e6d3b6', ground: '#3a2616', power: 0.2 },
+      floor: { colour: '#e8c796', shadow: 0.6, wash: 0.6 },
+    },
+  },
   {
     id: 'dojo', name: 'Dojo', line: 'A wooden hall at the end of the day. Sun through the screens, dust in the light.',
     paint: 1, on: { aura: 0.82, iron: 0.8, power: 0.95 }, swatch: ['#f2b071', '#4a2416'],

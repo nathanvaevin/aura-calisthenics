@@ -293,12 +293,16 @@ A **form** is an Aura theme (§6) given a name, a place in a universe and a cond
 
 ## 14 · Places: what is behind the character
 
-`src/visual/scenes.ts` (which places exist, plain data), `src/visual/backdrop.ts` (how they are painted), 2026-11-25, at the owner's request: the stage of Goku had something epic behind it, and every theme should.
+`src/visual/scenes.ts` (which places exist, plain data), `src/visual/backdrop.ts` (how they are painted), `src/visual/signature.ts` (the signature places), 2026-11-25, at the owner's request: the stage of Goku had something epic behind it, and every theme should.
 
-**What a place is.** A background and the light that goes with it. Seven of them, each offered on the stages it suits (a *stage* is what a theme shows its character on: `aura` for both Aura themes, `power`, `power-light`, `iron`):
+**What a place is.** A background and the light that goes with it. Five **signature** places, made for one character and offered first on its stage, and seven more, each offered on the stages it suits (a *stage* is what a theme shows its character on: `aura` for both Aura themes, `power`, `power-light`, `iron`):
 
 | Place | What it is | What moves | Stages |
 | --- | --- | --- | --- |
+| **Aura inside** (signature) | A dark hall with a round window on the dawn, a rack before it with rings, the window mirrored in the floor. The wordmark on a plate hung from the bar | Cloud outside, the rings, dust, the light breathing | Aura |
+| **Aura outside** (signature) | A stone terrace over the sea, the sun going down, a rack against it. The wordmark in brass on a standing stone | Sea, the sun's road on it, gulls | Aura |
+| **World ring** (signature) | A disc of stone afloat among nebulae: the six circles of the Aura wheel inlaid in gold, standing stones in pairs, a ringed world | Nebula, light in the lines, stones floating, sparks | Goku; in ink and red on Goku Light |
+| **The pit** (signature) | Sand, a wall of planks with a ring brushed on it, a crowd on its feet, inked and dotted as in a printed page | The crowd and its boards, dust, cloths | Baki |
 | Dojo | A wooden hall at the end of the day, sun through paper screens | Dust in the light | Aura, Goku, Baki |
 | Hall at dusk | An empty sports hall, the last light across a polished floor | Dust in the light | Aura, Baki |
 | Mountain meadow | Grass, woods, a mountain, cloud | Cloud, wind in the grass, seeds | Goku, Aura (as evening) |
@@ -309,8 +313,11 @@ A **form** is an Aura theme (§6) given a name, a place in a universe and a cond
 
 Every stage also keeps its own plain look (Studio, Burning sun, Red sun, Black room): what anyone has until they choose otherwise.
 
-**How it is painted.** One rectangle that covers the picture and is drawn first. For each pixel the shader works out which way the camera looks there and paints what lies that way: a floor where the look meets the ground, walls where it meets a room (the two halls are real boxes), a horizon and sky beyond. So a place turns correctly as the camera goes round the subject, the floor is in true perspective under the feet, and the shadow falls on it. Nothing is loaded: it is rules and noise. **None of the pictures the owner gave as a direction is in the app.**
+**How it is painted.** One rectangle that covers the picture and is drawn first. For each pixel the shader works out which way the camera looks there and paints what lies that way: a floor where the look meets the ground, walls where it meets a room (the two halls are real boxes), a horizon and sky beyond. So a place turns correctly as the camera goes round the subject, the floor is in true perspective under the feet, and the shadow falls on it. Nothing is loaded: it is rules and noise. **None of the pictures the owner gave as a direction is in the app.** For the pit and the ring he gave frames of existing works; what was taken is the kind of place (a fighting pit with a crowd; a tournament floor afloat in space). Emblems, floor pattern, stones and crowd are ours; no character, no writing, no crest, and the names are our own.
 
+- **A place faces the camera an exercise is shown from** (`Stage.face`, set when the player frames a movement). Most exercises are shown from the side; without this the rack, the window and the name would be behind the camera in most of them. The place also stands round the middle of the movement, not the origin, and its light turns with it. Dragging still looks all round.
+- **It is painted on its own sheet first**, at 1.25 dots to a point of the screen, and laid behind everything: fewer dots on a phone, and a little softness that keeps the eye on the subject. Each place is a shader program of its own, so a device compiles only the one it shows. Measured on the owner's laptop at a phone's size and two dots a point: before, the ring took 18.6 ms a frame and the two Aura places 8 and 11; after, about 8, 6 and 6, against 3 to 4 for a stage with no place.
+- **Someone who asked their device for less movement** sees the place standing still.
 - **The camera looks a little down**, so only about ten degrees of sky are ever in the picture. Everything that makes a place (ridge, trees, cloud, windows) is composed inside that band; the first versions put it higher and showed a bare floor.
 - **It must not get in the way of the exercise.** A place is dimmer on a dark stage than on Goku's (`on` in `scenes.ts`: the meadow is an evening meadow under the Aura), what moves is small and slow, and the workout screen's own shading over the top and bottom of the stage keeps its words readable. Checked behind the workout screen in every theme.
 - **The light follows the place** (`look`): the main light, the two lights from behind, the fill and the floor take the place's colours, and what burned behind the subject (Goku's sun) is taken away, except on paper.
@@ -322,4 +329,4 @@ Every stage also keeps its own plain look (Studio, Burning sun, Red sun, Black r
 
 **Never in an assessment**: `standardLook()` carries no place, and a test checks it.
 
-**Honest limits.** Painted by rule, so stylised and simple next to a painted picture: the blossom is a line of heaps, the halls are boxes. No depth between layers (the far ridge does not slide against the near woods as you turn). Seen on a computer only: what it costs a phone's graphics chip has not been measured, and the blossom garden is the heaviest. Adding a place: an entry in `scenes.ts`, a branch in `backdrop.ts`, then look at it on each of its stages, from all round, and behind the workout screen.
+**Honest limits.** Painted by rule, so stylised and simple next to a painted picture: the blossom is a line of heaps, the halls are boxes; the seven earlier places are plainer than the signature ones. The crowd is one figure varied. No depth between layers (the far ridge does not slide against the near woods as you turn). Seen on a computer only: what it costs a phone's graphics chip has not been measured there; the World ring is the heaviest. Adding a place: an entry in `scenes.ts`, a branch in `backdrop.ts`, then look at it on each of its stages, from all round, and behind the workout screen.

@@ -48,7 +48,7 @@ export function CharacterStudio({ theme }: { theme?: ThemeId }) {
   const setSettings = useStore((s) => s.setSettings)
   const places = scenesOn(stage).filter((p) => admin || releasedPlaces[p.id])
   const place = sceneFor(stage, chosen?.[stage], releasedPlaces, admin)
-  const backgrounds = [{ id: '', ...PLAIN[stage] }, ...places]
+  const backgrounds = [{ id: '', signature: false, ...PLAIN[stage] }, ...places]
 
   const [preview, setPreview] = useState<Preview>('aura')
   /** A form being looked at. A locked one can be seen here, and is never saved. */
@@ -151,7 +151,10 @@ export function CharacterStudio({ theme }: { theme?: ThemeId }) {
                     className={cx('pressable flex items-center gap-2.5 rounded-card border p-2.5 text-left', on ? 'border-ink bg-surface-2' : 'border-line bg-surface hover:border-line-strong')}
                   >
                     <span className="h-8 w-8 shrink-0 rounded-full border border-line" style={{ background: `linear-gradient(160deg, ${b.swatch[0]} 35%, ${b.swatch[1]})` }} />
-                    <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{b.name}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-medium">{b.name}</span>
+                      {b.signature && <span className="block text-[11px] text-ink-3">Signature</span>}
+                    </span>
                     {on && <Check size={14} className="shrink-0" />}
                   </button>
                 )

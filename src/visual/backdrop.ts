@@ -12,7 +12,9 @@
  * coming down. Nothing in it is loaded; it is rules and noise (`scenes.ts`
  * says which places exist and where they are offered).
  */
-import { Matrix4, Mesh, PlaneGeometry, ShaderMaterial, Vector3, type PerspectiveCamera } from 'three'
+import { logoTexture } from './logo'
+import { SIGNATURE, SIGNATURE_MAIN } from './signature'
+import { Camera, LinearFilter, Matrix4, Mesh, PlaneGeometry, Scene, ShaderMaterial, Vector2, Vector3, WebGLRenderTarget, type PerspectiveCamera, type WebGLRenderer } from 'three'
 
 const VERT = /* glsl */ `
   varying vec2 vNdc;
@@ -23,8 +25,9 @@ const FRAG = /* glsl */ `
   precision highp float;
   uniform mat4 uInvProj, uCamWorld;
   uniform vec3 uCam;
-  uniform float uTime, uAspect, uDim;
-  uniform int uScene;
+  uniform float uTime, uAspect, uDim, uPix, uHigh, uFacing;
+  uniform sampler2D uLogo;
+  uniform vec2 uAt;
   varying vec2 vNdc;
 
   const float PI = 3.14159265;
@@ -46,6 +49,7 @@ const FRAG = /* glsl */ `
   // Cloud in a band above the horizon, without a seam round it. 'ring' is the direction read off a circle.
   float band(vec2 ring, float el, float scale, float t) { return fbm(vec2(ring.x * scale + el * 9.0 + t, ring.y * scale - el * 7.0)); }
 
+#if SCENE == 1 || SCENE == 2
   // ── A hall: a room with a floor, four walls and a roof ───────────────────
 
   // Light through a wall of windows, at a place along the wall (u) and a height (v). kind 1: paper screens in a lattice. kind 2: tall panes, high up.
@@ -140,11 +144,17 @@ const FRAG = /* glsl */ `
     col += warm * pow(into, 4.0) * (kind == 1 ? 0.2 : 0.12);
     return col;
   }
-
+#endif
+${SIGNATURE}
   void main() {
     vec4 far = uInvProj * vec4(vNdc, 1.0, 1.0);
     vec3 d = normalize((uCamWorld * vec4(normalize(far.xyz / far.w), 0.0)).xyz);
     vec3 o = uCam;
+    // The place stands round the subject, turned so that what it is about (its -z) lies behind it for the angle an exercise is shown from.
+    float cf = cos(uFacing), sf = sin(uFacing);
+    o.xz -= uAt;
+    d.xz = vec2(d.x * cf - d.z * sf, d.x * sf + d.z * cf);
+    o.xz = vec2(o.x * cf - o.z * sf, o.x * sf + o.z * cf);
     vec2 uv = vNdc * vec2(uAspect, 1.0);
     float az = atan(d.z, d.x), el = asin(clamp(d.y, -1.0, 1.0));
     // Round the horizon without a seam: what varies with direction is read off a circle.
@@ -156,12 +166,12 @@ const FRAG = /* glsl */ `
     // The camera looks a little down at the subject, so only a low band of sky is ever in the picture:
     // everything that makes a place (ridge, trees, cloud) is kept within about ten degrees of the horizon.
 
-    if (uScene == 1 || uScene == 2) {
-      col = hall(o, d, uScene);
+#if SCENE == 1 || SCENE == 2
+      col = hall(o, d, SCENE);
       // Dust, turning slowly in the light.
       float dust = specks(uv, 5.0, vec2(uTime * 0.02, uTime * 0.035), 0.06, 1.0) + specks(uv, 9.0, vec2(-uTime * 0.015, uTime * 0.03), 0.05, 5.0);
-      col += (uScene == 1 ? vec3(1.0, 0.82, 0.6) : vec3(1.0, 0.7, 0.5)) * dust * 0.2;
-    } else if (uScene == 3) {
+      col += (SCENE == 1 ? vec3(1.0, 0.82, 0.6) : vec3(1.0, 0.7, 0.5)) * dust * 0.2;
+#elif SCENE == 3
       // Mountain meadow.
       vec3 sky = mix(vec3(0.82, 0.91, 0.97), vec3(0.34, 0.58, 0.92), smoothstep(0.0, 0.3, el));
       float cloud = smoothstep(0.5, 0.72, band(ring, el, 2.4, uTime * 0.012)) * smoothstep(0.02, 0.1, el);
@@ -194,7 +204,7 @@ const FRAG = /* glsl */ `
       }
       float seeds = specks(uv, 4.0, vec2(uTime * 0.06, sin(uTime * 0.4) * 0.05), 0.04, 2.0) + specks(uv, 7.0, vec2(uTime * 0.045, -uTime * 0.012), 0.035, 7.0);
       col += vec3(1.0, 1.0, 0.92) * seeds * 0.55;
-    } else if (uScene == 4) {
+#elif SCENE == 4
       // Blossom garden at dusk.
       col = mix(vec3(1.0, 0.76, 0.56), vec3(0.3, 0.4, 0.52), smoothstep(-0.01, 0.2, el));
       float wood = 0.035 + 0.04 * noise(ring * 3.0 + 1.0) + 0.012 * noise(ring * 12.0);
@@ -233,7 +243,7 @@ const FRAG = /* glsl */ `
       }
       float petals = specks(uv + vec2(sin(uTime * 0.5 + uv.y * 3.0) * 0.03, 0.0), 4.5, vec2(uTime * 0.03, uTime * 0.1), 0.05, 3.0) + specks(uv, 8.0, vec2(-uTime * 0.02, uTime * 0.14), 0.045, 8.0);
       col = mix(col, vec3(1.0, 0.8, 0.86), min(1.0, petals) * 0.85);
-    } else if (uScene == 5) {
+#elif SCENE == 5
       // Ember sky: the sun has just gone, behind the subject.
       float toSun = max(0.0, dot(normalize(vec3(d.x, 0.0, d.z) + 1e-4), vec3(0.0, 0.0, -1.0)));
       vec3 low = mix(vec3(1.0, 0.44, 0.2), vec3(1.0, 0.9, 0.66), pow(toSun, 4.0));
@@ -253,7 +263,7 @@ const FRAG = /* glsl */ `
       }
       float sparks = specks(uv, 6.0, vec2(sin(uTime * 0.3) * 0.1, -uTime * 0.1), 0.035, 4.0) + specks(uv, 11.0, vec2(0.0, -uTime * 0.17), 0.03, 9.0);
       col += vec3(1.0, 0.58, 0.22) * sparks * 0.6;
-    } else if (uScene == 6) {
+#elif SCENE == 6
       // Storm night.
       col = mix(vec3(0.12, 0.2, 0.5), vec3(0.03, 0.05, 0.2), smoothstep(0.0, 0.32, el));
       col += vec3(0.46, 0.2, 0.4) * smoothstep(0.1, 0.0, el) * 0.3;
@@ -281,7 +291,7 @@ const FRAG = /* glsl */ `
         vec3 water = mix(vec3(0.03, 0.05, 0.13), vec3(0.09, 0.15, 0.36), smoothstep(4.0, 60.0, away) * (0.7 + 0.3 * ripple));
         col = water + vec3(0.3, 0.45, 0.8) * flash * nearby * 0.1;
       }
-    } else if (uScene == 7) {
+#elif SCENE == 7
       // Ink mountains, on paper.
       vec3 paper = vec3(0.914, 0.906, 0.886);
       col = paper;
@@ -298,20 +308,44 @@ const FRAG = /* glsl */ `
       if (down) col = mix(paper * (0.95 + 0.05 * noise(g.xz * 1.3)), paper, smoothstep(2.0, 14.0, away));
       float petals = specks(uv, 4.0, vec2(uTime * 0.02, uTime * 0.07), 0.035, 6.0);
       col = mix(col, vec3(0.89, 0.31, 0.18), petals * 0.85);
-    }
+${SIGNATURE_MAIN}#endif
     gl_FragColor = vec4(col * uDim, 1.0);
   }
 `
 
+/**
+ * How finely a place is painted: this many dots to a point of the screen. A phone's screen has two or three; painting
+ * fewer costs it a good deal less, and the little softness that comes with it keeps the eye on the subject.
+ */
+const FINE = 1.25
+
 export class Backdrop {
+  /** The finished picture of the place, laid over the whole stage before anything else. */
   readonly mesh: Mesh<PlaneGeometry, ShaderMaterial>
-  private readonly inv = new Matrix4()
+  private readonly paint: Mesh<PlaneGeometry, ShaderMaterial>
+  private readonly easel = new Scene()
+  private readonly lens = new Camera()
+  private readonly target = new WebGLRenderTarget(2, 2, { depthBuffer: false, minFilter: LinearFilter, magFilter: LinearFilter })
 
   constructor() {
+    this.paint = new Mesh(new PlaneGeometry(2, 2), new ShaderMaterial({
+      depthTest: false, depthWrite: false, toneMapped: false,
+      uniforms: {
+        uInvProj: { value: new Matrix4() }, uCamWorld: { value: new Matrix4() }, uCam: { value: new Vector3() }, uTime: { value: 0 }, uAspect: { value: 1 },
+        uDim: { value: 1 }, uPix: { value: 0.001 }, uHigh: { value: 800 }, uFacing: { value: 0 }, uAt: { value: new Vector2() }, uLogo: { value: null },
+      },
+      // Each place is a program of its own: a phone compiles only the one it shows.
+      defines: { SCENE: 0 },
+      vertexShader: VERT, fragmentShader: FRAG,
+    }))
+    this.paint.frustumCulled = false
+    this.easel.add(this.paint)
     this.mesh = new Mesh(new PlaneGeometry(2, 2), new ShaderMaterial({
       depthTest: false, depthWrite: false, toneMapped: false,
-      uniforms: { uInvProj: { value: new Matrix4() }, uCamWorld: { value: new Matrix4() }, uCam: { value: new Vector3() }, uTime: { value: 0 }, uAspect: { value: 1 }, uDim: { value: 1 }, uScene: { value: 0 } },
-      vertexShader: VERT, fragmentShader: FRAG,
+      uniforms: { uPicture: { value: this.target.texture } },
+      vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 1.0, 1.0); }',
+      // A grain too fine to see, so that a long soft gradient does not show steps.
+      fragmentShader: 'uniform sampler2D uPicture; varying vec2 vUv; void main() { float n = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453); gl_FragColor = vec4(texture2D(uPicture, vUv).rgb + (n - 0.5) / 255.0, 1.0); }',
     }))
     this.mesh.frustumCulled = false
     this.mesh.renderOrder = -100
@@ -321,19 +355,44 @@ export class Backdrop {
   /** Which place to paint (0: none, and nothing is drawn), and how bright. */
   set(paint: number, dim = 1) {
     this.mesh.visible = paint > 0
-    this.mesh.material.uniforms.uScene.value = paint
-    this.mesh.material.uniforms.uDim.value = dim
+    const m = this.paint.material
+    if (paint > 0 && m.defines.SCENE !== paint) { m.defines.SCENE = paint; m.needsUpdate = true }
+    // The name is on the two Aura places.
+    if ((paint === 8 || paint === 9) && !m.uniforms.uLogo.value) m.uniforms.uLogo.value = logoTexture()
+    m.uniforms.uDim.value = dim
+  }
+
+  /** Where the place stands and which way it faces: round this point, what it is about opposite this camera angle (degrees). */
+  face(degrees: number, x: number, z: number) {
+    this.paint.material.uniforms.uFacing.value = (degrees * Math.PI) / 180
+    ;(this.paint.material.uniforms.uAt.value as Vector2).set(x, z)
   }
 
   /** Call before each render: the camera has moved, and time has passed. */
-  update(camera: PerspectiveCamera, seconds: number, aspect: number) {
+  update(renderer: WebGLRenderer, camera: PerspectiveCamera, seconds: number) {
     if (!this.mesh.visible) return
-    const u = this.mesh.material.uniforms
+    const { width, height } = renderer.domElement
+    const share = Math.min(1, FINE / renderer.getPixelRatio())
+    const w = Math.max(2, Math.round(width * share)), h = Math.max(2, Math.round(height * share))
+    if (this.target.width !== w || this.target.height !== h) this.target.setSize(w, h)
+    const u = this.paint.material.uniforms
     camera.updateMatrixWorld()
-    ;(u.uInvProj.value as Matrix4).copy(this.inv.copy(camera.projectionMatrix).invert())
+    ;(u.uInvProj.value as Matrix4).copy(camera.projectionMatrix).invert()
     ;(u.uCamWorld.value as Matrix4).copy(camera.matrixWorld)
     ;(u.uCam.value as Vector3).setFromMatrixPosition(camera.matrixWorld)
     u.uTime.value = seconds
-    u.uAspect.value = aspect
+    u.uAspect.value = width / height
+    u.uHigh.value = h
+    // How much of the view one pixel takes, to soften edges by exactly that.
+    u.uPix.value = 2 / (h * camera.projectionMatrix.elements[5])
+    renderer.setRenderTarget(this.target)
+    renderer.render(this.easel, this.lens)
+    renderer.setRenderTarget(null)
+  }
+
+  dispose() {
+    this.target.dispose()
+    this.paint.geometry.dispose()
+    this.paint.material.dispose()
   }
 }

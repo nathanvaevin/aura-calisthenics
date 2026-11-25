@@ -100,8 +100,8 @@ export function Characters() {
         <p className="max-w-3xl text-[13px] leading-relaxed text-ink-2">Touch one to see it on the stages above. Switch it on and athletes can choose it for their character.</p>
         <div className="mt-3 divide-y divide-line">
           {STAGES[universe].flatMap((stage) => [
-            { id: '', stage, ...PLAIN[stage] },
-            ...scenesOn(stage).map((sc) => ({ id: sc.id, stage, name: sc.name, line: sc.line, swatch: sc.swatch })),
+            { id: '', stage, signature: false, ...PLAIN[stage] },
+            ...scenesOn(stage).map((sc) => ({ id: sc.id, stage, signature: !!sc.signature, name: sc.name, line: sc.line, swatch: sc.swatch })),
           ]).map((b) => {
             const looking = b.id ? place?.id === b.id && place.stage === b.stage : !place && b.stage === STAGES[universe][0]
             return (
@@ -109,7 +109,7 @@ export function Characters() {
                 <button className="pressable flex min-w-0 flex-1 items-center gap-3 text-left" aria-pressed={looking} data-place={b.id || 'plain'} onClick={() => setPlace(b.id || b.stage !== STAGES[universe][0] ? { id: b.id, stage: b.stage } : null)}>
                   <span className={cx('h-9 w-9 shrink-0 rounded-full border', looking ? 'border-ink' : 'border-line')} style={{ background: `linear-gradient(160deg, ${b.swatch[0]} 35%, ${b.swatch[1]})` }} />
                   <span className="min-w-0">
-                    <span className="block text-[14px] font-medium">{b.name}{STAGES[universe].length > 1 && <span className="ml-1.5 text-[11.5px] font-normal text-ink-3">{b.stage === 'power-light' ? 'Goku Light' : 'Goku'}</span>}</span>
+                    <span className="block text-[14px] font-medium">{b.name}{STAGES[universe].length > 1 && <span className="ml-1.5 text-[11.5px] font-normal text-ink-3">{b.stage === 'power-light' ? 'Goku Light' : 'Goku'}</span>}{b.signature && <span className="ml-1.5 text-[11.5px] font-normal text-ink-3">Signature</span>}</span>
                     <span className="block truncate text-[12px] text-ink-3">{b.line}</span>
                   </span>
                 </button>
