@@ -83,11 +83,11 @@ export function unlockProgress(u: Unlock, s: Standing): number {
 
 // ── What is actually worn ────────────────────────────────────────────────
 
-/** Universes other than the original are released to athletes by an administrator. */
+/** Every universe is with athletes unless an administrator switches it off (the owner's choice, 2026-11-25). */
 export type Released = Partial<Record<UniverseId, boolean>>
 
 export const isReleased = (theme: ThemeId, released: Released, admin: boolean) =>
-  THEMES[theme].universe === 'aura' || admin || !!released[THEMES[theme].universe]
+  THEMES[theme].universe === 'aura' || admin || released[THEMES[theme].universe] !== false
 
 export interface Wearing {
   theme: ThemeId
@@ -103,7 +103,7 @@ export interface Wearing {
 
 /**
  * The look an athlete has right now. A choice that is not available (a theme
- * not released yet, a form not earned) falls back to what is: the original
+ * switched off, a form not earned) falls back to what is: the original
  * theme, the universe's first form. The stored choice is left alone, so it
  * comes into effect by itself once it is available.
  */

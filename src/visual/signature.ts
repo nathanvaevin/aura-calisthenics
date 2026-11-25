@@ -372,16 +372,19 @@ export const SIGNATURE_MAIN = /* glsl */ `
     vec3 stone = vec3(0.3, 0.23, 0.23) * (0.8 + 0.4 * fbm(p.xy * 3.0 + p.z));
     col = stone * (nb.y > 0.5 ? 1.5 : 0.55) + vec3(1.0, 0.6, 0.36) * step(0.5, nb.y) * 0.25;
   }
-  // A standing stone, with the name set into it in brass.
-  float tm = box(o, d, vec3(-1.4, 0.98, -5.6), vec3(0.46, 1.0, 0.12), -0.14, nb);
+  // A standing stone, with the name set into it in brass: to one side of an athlete; taller and between them, its name
+  // over their shoulders, when two stand side by side.
+  vec2 foot = mix(vec2(-1.4, -5.6), vec2(0.0, -5.6), uPair);
+  float lean = mix(-0.14, 0.0, uPair), tall = mix(1.0, 1.34, uPair);
+  float tm = box(o, d, vec3(foot.x, tall - 0.02, foot.y), vec3(0.46, tall, 0.12), lean, nb);
   if (tm > 0.0 && tm < tb) {
     tb = tm;
     vec3 p = o + d * tm;
     vec3 stone = vec3(0.21, 0.165, 0.175) * (0.75 + 0.5 * fbm(p.xy * 2.6));
     col = stone * (0.75 + 0.25 * smoothstep(0.0, 2.0, p.y));
     if (abs(nb.z) > 0.5) {
-      float cs = cos(-0.14), sn = sin(-0.14);
-      vec2 at = vec2((mat2(cs, -sn, sn, cs) * (p.xz - vec2(-1.4, -5.6))).x, p.y - 1.5);
+      float cs = cos(lean), sn = sin(lean);
+      vec2 at = vec2((mat2(cs, -sn, sn, cs) * (p.xz - foot)).x, p.y - mix(1.5, 2.28, uPair));
       vec4 name = wordmark(at, 0.68);
       col += vec3(1.0, 0.62, 0.3) * 0.16 * exp(-dot(at, at) * 7.0);
       col = mix(col, vec3(1.0, 0.8, 0.5) * (0.92 + 0.08 * sin(uTime * 0.7)), name.a);

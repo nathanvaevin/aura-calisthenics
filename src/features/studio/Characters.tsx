@@ -36,8 +36,8 @@ function triptych(character: CharacterId, universe: UniverseId, theme: string, f
 
 /**
  * The characters of each universe, in the three states everything else is
- * built from. The universes beyond the original are released to athletes
- * here, one switch each.
+ * built from. The universes beyond the original are with athletes
+ * unless switched off here, one switch each.
  */
 export function Characters() {
   const [who, setWho] = useState<CharacterId | 'both'>('both')
@@ -57,7 +57,7 @@ export function Characters() {
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {UNIVERSE_IDS.map((id) => (
           <button key={id} className="chip" data-on={universe === id} onClick={() => { setUniverse(id); setFinish(0); setPlace(null) }}>
-            {UNIVERSES[id].name}{id !== 'aura' && <span className="ml-1 opacity-60">· {released[id] ? 'athletes have it' : 'only you'}</span>}
+            {UNIVERSES[id].name}{id !== 'aura' && <span className="ml-1 opacity-60">· {released[id] !== false ? 'athletes have it' : 'only you'}</span>}
           </button>
         ))}
       </div>
@@ -66,12 +66,12 @@ export function Characters() {
           <span className="text-[14px]">
             Show {u.name} to athletes
             <span className="mt-0.5 block max-w-xl text-[12.5px] leading-relaxed text-ink-3">
-              {released[universe]
+              {released[universe] !== false
                 ? 'Athletes can choose this theme. Its character performs their demonstrations and stands on their profile.'
-                : 'Only you can open this theme. Athletes see it listed as in preparation, and keep the original Aura until you switch this on.'}
+                : 'Only you can open this theme. Athletes see it listed as in preparation, and have the original Aura until you switch this on again.'}
             </span>
           </span>
-          <Toggle on={!!released[universe]} onChange={(on) => setAuraSettings({ universes: { ...released, [universe]: on } })} label={`Show ${u.name} to athletes`} />
+          <Toggle on={released[universe] !== false} onChange={(on) => setAuraSettings({ universes: { ...released, [universe]: on } })} label={`Show ${u.name} to athletes`} />
         </div>
       )}
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -94,10 +94,10 @@ export function Characters() {
         ))}
       </div>
 
-      {/* Places a character can stand in. Each reaches athletes only when it is switched on here. */}
+      {/* Places a character can stand in. Each is with athletes unless it is switched off here. */}
       <div className="card mt-7 p-5" data-places>
         <Eyebrow className="mb-1.5">Backgrounds</Eyebrow>
-        <p className="max-w-3xl text-[13px] leading-relaxed text-ink-2">Touch one to see it on the stages above. Switch it on and athletes can choose it. The default is what everyone starts with and what every assessment is shown in.</p>
+        <p className="max-w-3xl text-[13px] leading-relaxed text-ink-2">Touch one to see it on the stages above. Athletes can choose every one that is on. The default is what everyone starts with and what every assessment is shown in.</p>
         <div className="mt-3 divide-y divide-line">
           {STAGES[universe].flatMap((stage) => [
             { id: '', stage, signature: false, ...PLAIN[stage] },

@@ -42,11 +42,11 @@ describe('the places a character can stand in', () => {
     expect(sceneLook(paper, sceneById('ink')).sun).toEqual(paper.sun)
   })
 
-  it('every stage has its signature place, offered first; the Aura has two, one inside and one outside', () => {
+  it('every stage has its signature place, offered first; the Aura has two, one outside and one inside', () => {
     for (const stage of STAGES) {
       const list = scenesOn(stage)
       const own = list.filter((s) => s.signature).map((s) => s.id)
-      expect(own, stage).toEqual({ aura: ['inside', 'outside'], power: ['ring'], 'power-light': ['ring-ink'], iron: ['pit'] }[stage])
+      expect(own, stage).toEqual({ aura: ['outside', 'inside'], power: ['ring'], 'power-light': ['ring-ink'], iron: ['pit'] }[stage])
       expect(list.slice(0, own.length).map((s) => s.id), stage).toEqual(own)
       // Made for that one character: not offered on another's stage.
       for (const s of list) if (s.signature) expect(Object.keys(s.on)).toEqual([stage])
@@ -74,26 +74,24 @@ describe('the places a character can stand in', () => {
     expect(sceneLook(own, undefined)).toBe(own)
   })
 
-  it('reaches an athlete only once the owner has released it', () => {
-    expect(sceneFor('power', 'meadow', {}, false)).toBe('ring')
-    expect(sceneFor('power', 'meadow', { meadow: true }, false)).toBe('meadow')
+  it('is with athletes unless the owner has switched it off, and then only the owner sees it', () => {
+    for (const p of SCENES) expect(isSceneReleased(p.id, {}), p.id).toBe(true)
+    expect(sceneFor('power', 'meadow', {}, false)).toBe('meadow')
     expect(sceneFor('power', 'meadow', { meadow: false }, false)).toBe('ring')
-    // The owner sees every one, to look at it before releasing it.
-    expect(sceneFor('power', 'meadow', {}, true)).toBe('meadow')
-    for (const s of SCENES) expect(isSceneReleased(s.id, {}), s.id).toBe(['inside', 'ring', 'ring-ink', 'pit'].includes(s.id))
+    expect(sceneFor('power', 'meadow', { meadow: false }, true)).toBe('meadow')
   })
 
   it('is the signature place for everyone who has not chosen, until the owner switches that off', () => {
-    expect(DEFAULT_SCENE).toEqual({ aura: 'inside', power: 'ring', 'power-light': 'ring-ink', iron: 'pit' })
+    expect(DEFAULT_SCENE).toEqual({ aura: 'outside', power: 'ring', 'power-light': 'ring-ink', iron: 'pit' })
     for (const stage of STAGES) expect(sceneById(DEFAULT_SCENE[stage])?.on[stage], stage).toBeDefined()
-    expect(sceneFor('aura', undefined, {}, false)).toBe('inside')
-    expect(sceneFor('aura', null, {}, true)).toBe('inside')
+    expect(sceneFor('aura', undefined, {}, false)).toBe('outside')
+    expect(sceneFor('aura', null, {}, true)).toBe('outside')
     // A choice that cannot be shown falls back to the default, and is left alone.
-    expect(sceneFor('aura', 'dojo', {}, false)).toBe('inside')
+    expect(sceneFor('aura', 'dojo', { dojo: false }, false)).toBe('outside')
     expect(sceneFor('aura', 'dojo', { dojo: true }, false)).toBe('dojo')
     // Withdrawn by the owner: the plain look, for athletes and for the owner.
-    expect(sceneFor('aura', undefined, { inside: false }, false)).toBeUndefined()
-    expect(sceneFor('aura', undefined, { inside: false }, true)).toBeUndefined()
+    expect(sceneFor('aura', undefined, { outside: false }, false)).toBeUndefined()
+    expect(sceneFor('aura', undefined, { outside: false }, true)).toBeUndefined()
     // Every other stage has its own, and each can be withdrawn alone.
     for (const stage of STAGES) {
       const id = DEFAULT_SCENE[stage]!
@@ -114,10 +112,10 @@ describe('the places a character can stand in', () => {
   })
 
   it('is the same for everyone in an official assessment, whatever they chose for themselves', () => {
-    expect(officialScene({})).toBe('inside')
-    expect(officialScene({ dojo: true, storm: true })).toBe('inside')
-    expect(officialScene({ inside: false })).toBeUndefined()
-    expect(performerOf(standardLook('male', officialScene({}))).style?.scene).toBe('inside')
+    expect(officialScene({})).toBe('outside')
+    expect(officialScene({ dojo: true, storm: true })).toBe('outside')
+    expect(officialScene({ outside: false })).toBeUndefined()
+    expect(performerOf(standardLook('male', officialScene({}))).style?.scene).toBe('outside')
     expect(performerOf(standardLook('male')).style?.scene).toBeUndefined()
     // What is worn says nothing of a place by itself: it is added where the choice is known.
     expect(wearing(DEFAULT_PERSONAL, { aura: 0, skills: 0, verified: 0 }).scene).toBeUndefined()

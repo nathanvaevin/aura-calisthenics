@@ -20,7 +20,7 @@ import { CharacterStudio } from './CharacterStudio'
 import { TextSize } from './TextSize'
 
 const TITLES: Record<Step, { title: string; sub: string }> = {
-  theme: { title: 'Choose your theme', sub: 'Change it any time. Your training and results stay the same.' },
+  theme: { title: 'Choose your theme', sub: 'Every theme has a different style, design and language. Choose what fits best with your athletic style. Change it any time: your training and results stay the same.' },
   character: { title: 'Make the character yours', sub: 'This is who performs your exercises and stands on your profile.' },
   about: { title: 'A little about you', sub: 'All of it is optional. Skip it now and fill it in whenever you like.' },
   sharing: { title: 'What you share', sub: 'You decide what other athletes see, part by part. You can change any of it later.' },

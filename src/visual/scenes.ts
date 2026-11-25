@@ -46,17 +46,6 @@ export interface SceneDef {
 
 export const SCENES: SceneDef[] = [
   {
-    id: 'inside', name: 'Aura inside', line: 'A quiet hall. Dawn through a round window, the rack standing in it.',
-    paint: 8, signature: true, on: { aura: 0.94 }, swatch: ['#f6b27a', '#1c1517'],
-    look: {
-      backdrop: '#120e0f',
-      key: { colour: '#fff0de', power: 1.8, from: [1.8, 4.0, 3.0] },
-      rims: [{ colour: '#ffb070', power: 2.6 }, { colour: '#ffcf9e', power: 2.0 }],
-      fill: { sky: '#ffdcc0', ground: '#2a1a16', power: 0.36 },
-      floor: { colour: '#ffb070', shadow: 0.5, wash: 0.8 },
-    },
-  },
-  {
     id: 'outside', name: 'Aura outside', line: 'A stone terrace over the sea. The sun going down, the rack against it.',
     paint: 9, signature: true, on: { aura: 0.9 }, swatch: ['#ff9d62', '#2b2c58'],
     look: {
@@ -65,6 +54,17 @@ export const SCENES: SceneDef[] = [
       rims: [{ colour: '#ff9a56', power: 2.6 }, { colour: '#ffbf8c', power: 1.8 }],
       fill: { sky: '#c9b4d8', ground: '#4a322c', power: 0.4 },
       floor: { colour: '#ff9f62', shadow: 0.46, wash: 0.7 },
+    },
+  },
+  {
+    id: 'inside', name: 'Aura inside', line: 'A quiet hall. Dawn through a round window, the rack standing in it.',
+    paint: 8, signature: true, on: { aura: 0.94 }, swatch: ['#f6b27a', '#1c1517'],
+    look: {
+      backdrop: '#120e0f',
+      key: { colour: '#fff0de', power: 1.8, from: [1.8, 4.0, 3.0] },
+      rims: [{ colour: '#ffb070', power: 2.6 }, { colour: '#ffcf9e', power: 2.0 }],
+      fill: { sky: '#ffdcc0', ground: '#2a1a16', power: 0.36 },
+      floor: { colour: '#ffb070', shadow: 0.5, wash: 0.8 },
     },
   },
   {
@@ -191,10 +191,11 @@ export const PLAIN_CHOICE = 'plain'
  * What a stage shows until someone chooses otherwise (the owner's choice, 2026-11-25): the signature place of its
  * character. An assessment is always shown in the Aura stage's. A stage without one would show its plain look.
  */
-export const DEFAULT_SCENE: Partial<Record<StageKey, string>> = { aura: 'inside', power: 'ring', 'power-light': 'ring-ink', iron: 'pit' }
+export const DEFAULT_SCENE: Partial<Record<StageKey, string>> = { aura: 'outside', power: 'ring', 'power-light': 'ring-ink', iron: 'pit' }
 
 export const isDefaultScene = (id: string) => Object.values(DEFAULT_SCENE).includes(id)
-export const isSceneReleased = (id: string, released: ReleasedScenes) => (isDefaultScene(id) ? released[id] !== false : !!released[id])
+/** Every place is with athletes unless the owner switches it off (his choice, 2026-11-25). */
+export const isSceneReleased = (id: string, released: ReleasedScenes) => released[id] !== false
 
 /** The stage's default, unless the owner has switched it off. */
 export function defaultSceneOn(stage: StageKey, released: ReleasedScenes): string | undefined {

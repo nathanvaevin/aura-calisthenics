@@ -98,13 +98,17 @@ describe('unlocking forms', () => {
 describe('what an athlete wears', () => {
   const chosen: Personal = { theme: 'power', character: 'female', forms: { power: 'overdrive', aura: 'solar' }, finishes: { power: 'dusk' }, intensity: 80, muscles: true, steps: {} }
 
-  it('falls back to the original theme until an administrator releases the universe', () => {
+  it('is whichever theme was chosen; the original one while an administrator has its universe switched off', () => {
     expect(isReleased('light', {}, false)).toBe(true)
-    expect(isReleased('power', {}, false)).toBe(false)
-    expect(wearing(chosen, none, {}).theme).toBe('dark')
-    expect(wearing(chosen, none, {}).universe).toBe('aura')
-    expect(wearing(chosen, none, { power: true }).theme).toBe('power')
-    expect(wearing(chosen, none, {}, true).theme).toBe('power')
+    for (const id of THEME_IDS) expect(isReleased(id, {}, false), id).toBe(true)
+    expect(wearing(chosen, none, {}).theme).toBe('power')
+    const off = { power: false }
+    expect(isReleased('power', off, false)).toBe(false)
+    expect(isReleased('power-light', off, false)).toBe(false)
+    expect(isReleased('iron', off, false)).toBe(true)
+    expect(wearing(chosen, none, off).theme).toBe('dark')
+    expect(wearing(chosen, none, off).universe).toBe('aura')
+    expect(wearing(chosen, none, off, true).theme).toBe('power')
   })
 
   it('wears the first form until the chosen one is earned, and keeps the choice', () => {

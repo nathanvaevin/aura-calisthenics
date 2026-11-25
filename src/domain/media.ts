@@ -79,14 +79,13 @@ export interface AuraSettings {
   themes: Record<string, ThemeSetting>
   /**
    * The visual universes beyond the original that athletes may choose
-   * (src/theme/themes.ts). Each is released by an administrator once its
-   * characters and forms have been looked at; until then only they can open it.
+   * (src/theme/themes.ts). With athletes unless switched off here (`false`);
+   * then only an administrator can open it.
    */
   universes: Partial<Record<'power' | 'iron', boolean>>
   /**
-   * The places a character can stand in (src/visual/scenes.ts) that athletes may choose, by scene id. Each is
-   * released by an administrator once it has been looked at; until then only they see it. The default place is on
-   * unless switched off here (`false`). Absent on settings saved before scenes existed.
+   * The places a character can stand in (src/visual/scenes.ts) that athletes may choose, by scene id. With
+   * athletes unless switched off here (`false`); then only an administrator sees it. Absent on settings saved before scenes existed.
    */
   scenes?: Partial<Record<string, boolean>>
   updatedAt: string | null
