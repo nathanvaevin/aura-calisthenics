@@ -323,6 +323,13 @@ export type StationState = 'todo' | 'active' | 'done' | 'skipped'
 export type AssessmentMode = 'guided' | 'stations'
 
 /**
+ * How an assessment is taken. Every one is taken by levels now, whenever it was made and whatever it was set to (the
+ * owner's decision, 2026-11-25): each area is a list of levels the athlete chooses from, with the guided path one tap
+ * away. What a session has stored as its mode is kept as it is and no longer read.
+ */
+export const modeOf = (_session?: { mode?: AssessmentMode } | null): AssessmentMode => 'stations'
+
+/**
  * How far an athlete is with a station. Guided: through every benchmark the
  * path showed them. Stations: anything recorded counts as done, since the
  * athlete chose what to test; they can come back and add more.

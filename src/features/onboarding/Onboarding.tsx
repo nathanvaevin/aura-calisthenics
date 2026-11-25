@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router'
 import { AnimatePresence, motion } from 'motion/react'
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react'
 import type { DisciplineId, EquipmentId, Evidence } from '@/domain/types'
-import { DISCIPLINE_IDS, EQUIPMENT, disciplineById, skillById } from '@/domain/catalog'
+import { estimateMinutes } from '@/domain/assessment'
+import { DISCIPLINE_IDS, EQUIPMENT } from '@/domain/catalog'
 import { computeAura } from '@/domain/scoring/aura'
 import { allRatings } from '@/domain/scoring/mastery'
 import { skillStatuses } from '@/domain/scoring/skills'
@@ -17,7 +18,8 @@ import { CountUp } from '@/ui/CountUp'
 import { DisciplineDot, Eyebrow, StatusTag, Stepper, Toggle } from '@/ui/primitives'
 import { Wordmark } from '@/app/Shell'
 import { landing } from '@/app/landing'
-import { cx, dvar } from '@/lib/format'
+import { cx } from '@/lib/format'
+import { GoalCards } from '@/features/journey/GoalCards'
 import { ScoreDeck } from './ScoreDeck'
 
 type Level = 0 | 1 | 2
@@ -26,11 +28,6 @@ const EXPERIENCE: { level: Level; title: string }[] = [
   { level: 0, title: 'New to this' },
   { level: 1, title: 'Training for a while' },
   { level: 2, title: 'Years in' },
-]
-
-const GOALS = [
-  'push-first', 'pull-first', 'pull-10', 'hs-free-10', 'hs-free-30', 'pull-mu-1', 'core-lsit-30',
-  'legs-pistol-1', 'push-wallhspu-1', 'pull-fl-full-5', 'push-pl-full-5', 'mob-pancake', 'mob-front-split',
 ]
 
 interface Question {
@@ -163,6 +160,9 @@ export function Onboarding() {
   const [equipment, setEquipment] = useState<EquipmentId[]>(['floor', 'wall', 'bar', 'box'])
   const [goals, setGoals] = useState<string[]>([])
   const [answers, setAnswers] = useState<Record<string, number>>({})
+  // Someone a coach invited to a course is in it from the moment they signed in, and chooses how to find their starting point.
+  const joined = useStore((s) => (s.cloudUid ? s.courses.find((c) => s.enrollments.some((e) => e.courseId === c.id && e.athleteId === s.cloudUid)) : undefined))
+  const [test, setTest] = useState(false)
 
   const questions = QUESTIONS.filter((q) => q.from <= level)
   const estimates = useMemo(() => {
@@ -196,6 +196,14 @@ export function Onboarding() {
     navigate('/profile', { replace: true })
   }
 
+  // Their choice, before anything else: the whole assessment instead of the two minutes of questions.
+  const assess = () => {
+    complete({ ...result(), estimates: {} })
+    const to = `/assess/${useStore.getState().startSoloAssessment()}`
+    landing.to = to
+    navigate(to, { replace: true })
+  }
+
   const chosen = handle ?? slug(name)
   const canContinue = step === 1 ? name.trim().length > 0 && !checking : true
   const last = 5
@@ -225,7 +233,7 @@ export function Onboarding() {
       {step > 0 && (
         <header className="safe-top relative z-10 flex h-16 shrink-0 items-center justify-between">
           {step > first
-            ? <button onClick={() => setStep(step - 1)} aria-label="Back" className="pressable -ml-2 flex h-10 w-10 items-center justify-center rounded-full text-ink-2 hover:text-ink"><ArrowLeft size={19} /></button>
+            ? <button onClick={() => (step === 4 && joined && test ? setTest(false) : setStep(step - 1))} aria-label="Back" className="pressable -ml-2 flex h-10 w-10 items-center justify-center rounded-full text-ink-2 hover:text-ink"><ArrowLeft size={19} /></button>
             : <button onClick={() => void signOut()} className="pressable -ml-1 h-10 rounded-full px-1 text-[12.5px] text-ink-3 hover:text-ink">Sign out</button>}
           <div className="flex gap-1.5">
             {Array.from({ length: last }, (_, i) => <span key={i} className={cx('h-1 rounded-full transition-all duration-500', i + 1 === step ? 'w-6 bg-ink' : i + 1 < step ? 'w-2.5 bg-ink-2' : 'w-2.5 bg-surface-3')} />)}
@@ -305,7 +313,8 @@ export function Onboarding() {
 
           {/* 1 · Identity */}
           {step === 1 && (
-            <Step eyebrow="Athlete identity" title="Who is training?">
+            <Step eyebrow={joined ? `Joining ${joined.title}` : 'Athlete identity'} title="Who is training?">
+              <Notice />
               <label className="block"><Eyebrow className="mb-2">Name</Eyebrow><input autoFocus className="field !h-14 text-[17px]" placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} /></label>
               <label className="mt-4 block">
                 <Eyebrow className="mb-2">Handle</Eyebrow>
@@ -315,10 +324,10 @@ export function Onboarding() {
                 </div>
                 {handleNote && <p className="mt-2 text-[12.5px] text-warn">{handleNote}</p>}
               </label>
-              <div className="card mt-5 flex items-center justify-between gap-4 p-4">
+              {!joined && <div className="card mt-5 flex items-center justify-between gap-4 p-4">
                 <span className="text-[14.5px] font-medium">I also coach<span className="mt-0.5 block text-[12.5px] font-normal text-ink-3">{account ? 'Asks for coach access: Coach Studio, for building courses and running assessments, opens once it is approved.' : 'Adds Coach Studio for building courses and reviewing students.'}</span></span>
                 <Toggle on={coach} onChange={setCoach} label="I also coach" />
-              </div>
+              </div>}
             </Step>
           )}
 
@@ -348,34 +357,28 @@ export function Onboarding() {
 
           {/* 3 · Goals */}
           {step === 3 && (
-            <Step eyebrow="Goals" title="What do you want to be able to do?" sub="Pick up to three.">
-              <div className="grid grid-cols-2 gap-3">
-                {GOALS.map((g) => {
-                  const s = skillById[g]
-                  const on = goals.includes(g)
-                  return (
-                    <button
-                      key={g}
-                      disabled={!on && goals.length >= 3}
-                      onClick={() => setGoals(on ? goals.filter((x) => x !== g) : [...goals, g])}
-                      data-goal={g} aria-pressed={on}
-                      className={cx('pressable flex min-h-[128px] flex-col justify-between rounded-[22px] border p-4 text-left disabled:opacity-40', on ? 'border-transparent' : 'border-line-strong bg-surface')}
-                      style={on ? { background: `color-mix(in oklab, ${dvar(s.discipline)} 18%, var(--surface))`, boxShadow: `inset 0 0 0 1.5px ${dvar(s.discipline)}` } : undefined}
-                    >
-                      <span className="flex items-center justify-between text-[13px] text-ink-2">
-                        <span className="flex items-center gap-2"><DisciplineDot id={s.discipline} size={8} />{disciplineById[s.discipline].short}</span>
-                        {on && <Check size={18} strokeWidth={2.6} style={{ color: dvar(s.discipline) }} />}
-                      </span>
-                      <span className="display mt-3 text-[25px] leading-[1.04]">{s.name}</span>
-                    </button>
-                  )
-                })}
-              </div>
+            <Step eyebrow="Goals" title="What do you want to be able to do?" sub="Turn a card to see it. Choose up to three.">
+              <GoalCards value={goals} onChange={setGoals} official />
             </Step>
           )}
 
           {/* 4 · Assessment */}
-          {step === 4 && (
+          {step === 4 && joined && !test && (
+            <Step eyebrow="Starting point" title="How do you want to find yours?">
+              <div className="space-y-3" data-starting-point>
+                {([
+                  ['test', 'Two-minute self test', 'A few questions about what you can do. An estimate, replaced by every real set you record.', () => setTest(true)],
+                  ['assess', 'The assessment', `About ${estimateMinutes([...DISCIPLINE_IDS])} minutes, in any order. Every exercise is shown, and what you record is your starting point.`, assess],
+                ] as const).map(([id, title, body, go]) => (
+                  <button key={id} data-start-by={id} onClick={go} className="pressable flex w-full items-center gap-4 rounded-[22px] border border-line-strong bg-surface p-5 text-left">
+                    <span className="min-w-0 flex-1"><span className="display block text-[25px] leading-tight">{title}</span><span className="mt-1.5 block text-[13.5px] leading-snug text-ink-2">{body}</span></span>
+                    <ArrowRight size={18} className="shrink-0 text-ink-3" />
+                  </button>
+                ))}
+              </div>
+            </Step>
+          )}
+          {step === 4 && (!joined || test) && (
             <Step eyebrow="Starting point" title="What can you do today?" sub="A quick estimate. Skip anything you have not tried.">
               <div className="space-y-6">
                 {questions.map((q) => (
@@ -404,6 +407,7 @@ export function Onboarding() {
                 <div className="mt-1.5"><StatusTag status={preview.aura.aura ? 'estimated' : 'unrated'} /></div>
               </AuraField>
               <h1 className="display -mt-1 text-[32px] leading-[1.05]">{firstName}, this is your starting line.</h1>
+              {joined && <p className="mt-2.5 text-[14px] font-medium" data-in-course>You are in {joined.title}.</p>}
               <p className="mt-2.5 max-w-sm text-[15px] leading-snug text-ink-2">
                 {preview.aura.aura ? 'Here is your estimate. Every real set you record replaces it.' : 'Nothing to estimate yet. Your first recorded set starts it.'}
               </p>
@@ -419,7 +423,7 @@ export function Onboarding() {
         </motion.div>
       </AnimatePresence>
 
-      {step > 0 && step < last && (
+      {step > 0 && step < last && !(step === 4 && joined && !test) && (
         <footer className="safe-bottom sticky bottom-0 z-10 shrink-0 bg-gradient-to-t from-bg via-bg to-transparent pt-6 pb-5">
           <button className="btn btn-primary btn-lg w-full" disabled={!canContinue} onClick={() => void next()}>
             {step === 4 ? 'See my starting line' : 'Continue'} <ArrowRight size={17} />

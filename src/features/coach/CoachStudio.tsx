@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router'
-import { ArrowRight, BadgeCheck, Plus, QrCode as QrIcon } from 'lucide-react'
+import { ArrowRight, BadgeCheck, Plus, QrCode as QrIcon, UserPlus } from 'lucide-react'
 import type { DisciplineId } from '@/domain/types'
 import { STATIONS, estimateMinutes, overallProgress } from '@/domain/assessment'
 import type { Course, Evidence, WorkoutLog } from '@/domain/types'
@@ -15,6 +15,7 @@ import { AuraDot } from '@/ui/AuraField'
 import { Bar, DisciplineDot, Empty, Eyebrow, PageHeader, SectionTitle, Segmented, Sheet, Stepper } from '@/ui/primitives'
 import { LogRow, LogSheet, levelShifts } from '@/features/shared/LogView'
 import { cx, dvar, initials, num, relativeDay, shortDate } from '@/lib/format'
+import { CourseInvite } from './CourseInvite'
 
 type Tab = 'review' | 'courses' | 'students' | 'assess'
 
@@ -66,6 +67,7 @@ export function CoachStudio() {
   const [logOpen, setLogOpen] = useState<string | null>(null)
   const [studentOpen, setStudentOpen] = useState<string | null>(null)
   const [newOpen, setNewOpen] = useState(false)
+  const [inviteOpen, setInviteOpen] = useState(false)
 
   const mine = useMemo(() => courses.filter((c) => c.coachId === meId), [courses, meId])
   const myIds = useMemo(() => new Set(mine.map((c) => c.id)), [mine])
@@ -228,8 +230,9 @@ export function CoachStudio() {
 
       {tab === 'students' && (
         <div className="mt-6 max-w-3xl">
+          {mine.length > 0 && <div className="mb-3 flex justify-end"><button className="btn btn-quiet btn-sm" data-invite-student onClick={() => setInviteOpen(true)}><UserPlus size={14} /> Invite a student</button></div>}
           {studentIds.length === 0 ? (
-            <Empty title="No students yet">Enrol athletes from a course’s Students tab.</Empty>
+            <Empty title="No students yet">Copy a course’s invite link and send it to them.</Empty>
           ) : (
             <div className="card divide-y divide-line">
               {studentIds.map((id) => {
@@ -272,6 +275,12 @@ export function CoachStudio() {
       <NewAssessmentSheet open={assessOpen} onClose={() => setAssessOpen(false)} />
       <LogSheet logId={logOpen} onClose={() => setLogOpen(null)} coach />
       <StudentSheet athleteId={studentOpen} onClose={() => setStudentOpen(null)} courses={mine} onOpenLog={(id) => { setStudentOpen(null); setLogOpen(id) }} />
+
+      <Sheet open={inviteOpen} onClose={() => setInviteOpen(false)} title="Invite a student">
+        <div className="space-y-5">
+          {mine.filter((c) => c.status !== 'archived').map((c) => <div key={c.id}><Eyebrow className="mb-2">{c.title}</Eyebrow><CourseInvite course={c} /></div>)}
+        </div>
+      </Sheet>
 
       <Sheet open={newOpen} onClose={() => setNewOpen(false)} eyebrow="Course builder" title="New course">
         <div className="space-y-2.5">
@@ -442,7 +451,6 @@ function NewAssessmentSheet({ open, onClose }: { open: boolean; onClose: () => v
   const [group, setGroup] = useState('')
   const [baselineId, setBaselineId] = useState('')
   const [stations, setStations] = useState<DisciplineId[]>(STATIONS.map((s) => s.id))
-  const [mode, setMode] = useState<'stations' | 'guided'>('stations')
   const [groups, setGroups] = useState(3)
 
   const course = mine.find((c) => c.id === courseId)
@@ -497,14 +505,6 @@ function NewAssessmentSheet({ open, onClose }: { open: boolean; onClose: () => v
           </div>
         </div>
 
-        <div>
-          <Eyebrow className="mb-2">Format</Eyebrow>
-          <Segmented<'stations' | 'guided'> value={mode} onChange={setMode} options={[{ value: 'stations', label: 'By stations' }, { value: 'guided', label: 'Guided' }]} />
-          <span className="mt-1.5 block text-[12px] leading-snug text-ink-3">
-            {mode === 'stations' ? 'Everyone chooses the variations that fit their level at each station. Groups rotate between stations, so equipment is shared.' : 'Each station leads people through its benchmarks in a fixed order, adapting to every result.'}
-          </span>
-        </div>
-
         <div className="flex items-center justify-between gap-3">
           <span><Eyebrow>Groups</Eyebrow><span className="mt-1 block text-[12px] text-ink-3">Each starts at a different station. Changeable later.</span></span>
           <Stepper value={Math.min(groups, Math.max(1, ordered.length))} min={1} max={Math.min(6, Math.max(1, ordered.length))} onChange={setGroups} />
@@ -512,7 +512,7 @@ function NewAssessmentSheet({ open, onClose }: { open: boolean; onClose: () => v
 
         <button
           className="btn btn-primary btn-lg w-full" disabled={ordered.length === 0 || !groupName}
-          onClick={() => navigate(`/coach/assessment/${create({ title: baseline ? 'Re-test' : 'Baseline', groupName, courseId: courseId || undefined, stations: ordered, kind: baseline ? 'retest' : 'baseline', baselineId: baselineId || undefined, mode, groups: Math.min(groups, ordered.length) })}?tab=invite`)}
+          onClick={() => navigate(`/coach/assessment/${create({ title: baseline ? 'Re-test' : 'Baseline', groupName, courseId: courseId || undefined, stations: ordered, kind: baseline ? 'retest' : 'baseline', baselineId: baselineId || undefined, mode: 'stations', groups: Math.min(groups, ordered.length) })}?tab=invite`)}
         >
           Create and show the code
         </button>

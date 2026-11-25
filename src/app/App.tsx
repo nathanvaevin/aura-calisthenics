@@ -20,6 +20,7 @@ import { Reveal } from '@/features/assess/Reveal'
 import AssessmentDone from '@/features/journey/AssessmentDone'
 import { GroupPage } from '@/features/assess/Group'
 import { CloudJoin, HandInImport, JoinInvite } from '@/features/assess/Join'
+import { CourseJoin } from '@/features/assess/CourseJoin'
 import { Splash } from '@/features/account/Account'
 import { arrived, useCloud } from '@/data/cloud'
 import { readLink } from '@/features/assess/links'
@@ -131,7 +132,7 @@ export function App() {
   if (link) {
     return (
       <ThemeContext value={STANDARD_THEME}>
-        {link.kind === 'spot' ? <SpotLanding data={link.data} /> : link.kind === 'j' ? <CloudJoin token={link.data} /> : link.kind === 'join' ? <JoinInvite data={link.data} /> : <HandInImport data={link.data} />}
+        {link.kind === 'course' ? <CourseJoin data={link.data} /> : link.kind === 'spot' ? <SpotLanding data={link.data} /> : link.kind === 'j' ? <CloudJoin token={link.data} /> : link.kind === 'join' ? <JoinInvite data={link.data} /> : <HandInImport data={link.data} />}
       </ThemeContext>
     )
   }
@@ -140,7 +141,7 @@ export function App() {
   // their data. A device that already holds it opens straight away, online or not.
   if (auth === 'loading' && !cloudUid) return <Splash />
   if (auth === 'in' && user && meId !== user.id) return <Splash>{waiting ? 'Can’t reach Aura right now. Check your connection. Trying again…' : 'Loading your profile…'}</Splash>
-  if (auth === 'in' && joining) return <Splash>Joining the assessment…</Splash>
+  if (auth === 'in' && joining) return <Splash>Joining…</Splash>
 
   return (
     <ThemeContext value={theme}>

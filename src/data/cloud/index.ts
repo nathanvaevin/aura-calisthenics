@@ -45,6 +45,7 @@ interface CloudState {
 const IDLE: EngineStatus = { phase: 'idle', loaded: false, pending: 0, refused: 0 }
 const USER_KEY = 'aura:cloud-user'
 const JOIN_KEY = 'aura:pending-join'
+const COURSE_KEY = 'aura:pending-course'
 const BACKUP_KEY = 'aura:before-sign-in'
 const CLAIM_KEY = 'aura:hand-over'
 
@@ -159,7 +160,7 @@ async function enter(session: Session) {
         if (!now.athletes[user.id]) useStore.setState({ athletes: { ...now.athletes, [user.id]: starter(user) } })
         if (useStore.getState().meId !== user.id) useStore.setState({ meId: user.id })
         announce()
-        void resumeMove().then(resumeJoin)
+        void resumeMove().then(resumeJoin).then(resumeCourse)
       }, 0)
     },
   )
@@ -284,7 +285,7 @@ let started = false
 export function startCloud() {
   if (!supabase || started) return
   started = true
-  useCloud.setState({ joining: read(JOIN_KEY) !== null })
+  useCloud.setState({ joining: read(JOIN_KEY) !== null || read(COURSE_KEY) !== null })
   if (authReturn) useCloud.setState({ notice: explain(authReturn.code, authReturn.description.replace(/\+/g, ' ') || 'Sign-in did not complete.'), canMove: authReturn.code === 'identity_already_exists' })
   // Demonstrations and themes are everyone's: fetched whoever is or is not signed in.
   startContent()
@@ -335,6 +336,7 @@ export async function keepWithGoogle() {
 export async function signOut() {
   if (!supabase) return
   write(JOIN_KEY, null)
+  write(COURSE_KEY, null)
   const { error } = await supabase.auth.signOut({ scope: 'local' })
   // Signing out on this device must always work, even when the server cannot be told.
   if (error) leave()
@@ -434,6 +436,53 @@ async function resumeJoin() {
     useCloud.setState({ goto: `/assess/${await joinAssessment(pending.token, pending)}`, joining: false })
   } catch (e) {
     useCloud.setState({ joining: false, notice: e instanceof Error ? e.message : 'Could not join the assessment.' })
+  }
+}
+
+// ── Joining a course from a coach's link ─────────────────────────────────
+
+/**
+ * Put the signed-in athlete in a course. Answers with where to go next. The
+ * server decides: an athlete may join a course that is active, and no other.
+ */
+export async function joinCourseByLink(courseId: string): Promise<string> {
+  const to = `/train/course/${courseId}`
+  if (!useStore.getState().cloudUid) {
+    useStore.getState().joinCourse(courseId)
+    return to
+  }
+  await ready()
+  await flush('all')
+  const id = engineUid!
+  const course = useStore.getState().courses.find((c) => c.id === courseId)
+  if (!course || (course.status !== 'active' && course.coachId !== id)) throw new Error('This course isn’t open to join. Ask your coach.')
+  if (course.coachId === id) return `/coach/course/${courseId}`
+  useStore.getState().joinCourse(courseId)
+  await flush('all')
+  if (!useStore.getState().cloudShadow[`course_enrollments/${courseId}|${id}`]) {
+    // It could not be saved: say so rather than show a course the coach does not see them in.
+    useStore.getState().leaveCourse(courseId)
+    throw new Error('Could not join the course. Check your connection and try again.')
+  }
+  return to
+}
+
+/** Remember a course across the trip to Google and back. */
+export const rememberCourse = (courseId: string) => write(COURSE_KEY, { courseId, at: Date.now() })
+
+async function resumeCourse() {
+  const pending = read<{ courseId: string; at: number }>(COURSE_KEY)
+  write(COURSE_KEY, null)
+  if (!pending) return
+  if (Date.now() - pending.at > 20 * 60000) return useCloud.setState({ joining: false })
+  try {
+    useCloud.setState({ joining: true })
+    const to = await joinCourseByLink(pending.courseId)
+    // Someone new still has the welcome questions before them; they end on their own profile, in the course.
+    const me = useStore.getState().athletes[engineUid!]
+    useCloud.setState({ joining: false, ...(me?.handle ? { goto: to } : {}) })
+  } catch (e) {
+    useCloud.setState({ joining: false, notice: e instanceof Error ? e.message : 'Could not join the course.' })
   }
 }
 

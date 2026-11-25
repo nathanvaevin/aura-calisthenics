@@ -161,7 +161,7 @@ export function StationMenu({ station, results, chosen, onChoose, onStart, onEdi
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h1 className="display truncate text-[28px] leading-tight [text-shadow:0_2px_18px_rgba(0,0,0,0.6)]">{ex.name}</h1>
-                <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-ink-2"><span className="font-medium text-ink" data-level={level}>Level {level}</span><LevelChip t={focus} /><span className="num">{targetLabel(focus)}</span></div>
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-ink-2"><span className="num font-semibold text-ink" data-level={level}>Lv.{level}</span><LevelChip t={focus} /><span className="num">{targetLabel(focus)}</span></div>
               </div>
               {act(focus, true)}
             </div>
@@ -184,8 +184,8 @@ export function StationMenu({ station, results, chosen, onChoose, onStart, onEdi
               return (
                 <div key={t.id} data-test={t.id} className={cx('flex items-center gap-2 rounded-2xl pr-2 transition-colors', on ? 'bg-surface-2/80 ring-1 ring-line-strong backdrop-blur-md' : 'bg-bg/35 backdrop-blur-[2px]')}>
                   <button className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-2.5 text-left" onClick={() => show(t.id)} aria-current={on}>
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full" style={r ? { background: color, color: 'var(--bg)' } : { background: `color-mix(in oklab, ${color} 16%, transparent)`, color }}>
-                      {r ? <Check size={13} strokeWidth={3} /> : <span className="num text-[12px] font-semibold" aria-label={`Level ${i + 1}`}>{i + 1}</span>}
+                    <span className="flex h-7 w-[42px] shrink-0 items-center justify-center rounded-full" style={r ? { background: color, color: 'var(--bg)' } : { background: `color-mix(in oklab, ${color} 16%, transparent)`, color }}>
+                      {r ? <Check size={13} strokeWidth={3} /> : <span className="num text-[11.5px] font-semibold" data-lv aria-label={`Level ${i + 1}`}>Lv.{i + 1}</span>}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2"><span className="truncate text-[14.5px] font-medium">{exerciseById[t.exerciseId].name}</span>{t.id === entry.id && !r && <span className="shrink-0 rounded-full bg-ink px-1.5 py-px font-mono text-[8.5px] tracking-[0.1em] text-bg uppercase">Most start here</span>}</span>
@@ -212,7 +212,7 @@ export function StationMenu({ station, results, chosen, onChoose, onStart, onEdi
             </button>
           ) : (
             <button className="btn btn-primary btn-lg w-full" data-from-level={level} disabled={run.length === 0} onClick={() => onStart(run, true)}>
-              {run.length === 0 ? 'Tap a level to start from' : <><Play size={15} fill="currentColor" /> Start from level {level}</>}
+              {run.length === 0 ? 'Tap a level to start from' : <><Play size={15} fill="currentColor" /> Start from Lv.{level}</>}
             </button>
           )}
           <p className="mt-1.5 text-center text-[11.5px] text-ink-3" data-start-note>

@@ -6,7 +6,10 @@ import { useStore } from '@/data/store'
 import { isCurrentRevision } from '@/visual/revisions'
 import { cx } from '@/lib/format'
 
-const ExerciseDemos = lazy(() => import('./Demos'))
+const load = () => import('./Demos')
+const ExerciseDemos = lazy(load)
+/** Fetch the 3D engine ahead of a demonstration that is about to be asked for. */
+export const preloadDemos = () => { void load().catch(() => undefined) }
 
 /** Whether an exercise has an approved animation that still shows the movement as it is now. */
 export function useHasDemo(exerciseId: string | null | undefined) {

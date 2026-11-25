@@ -54,8 +54,6 @@ export interface Settings {
   tour?: 'done' | 'skipped'
   /** Personalize was opened after the introduction: its button stops calling for attention. */
   personalizeOpened?: boolean
-  /** Activate was pressed on the screen that ends Personalize: its button stops calling for attention. */
-  activated?: boolean
   /** Larger text and controls on this device. Unset: the standard size. It is about the screen and the eyes in front of it, so it is not part of a theme and does not follow the account. */
   size?: 'large'
 }
@@ -64,7 +62,7 @@ export interface Settings {
  * What a device remembers about the introduction belongs to whoever saw it. A profile just made through the welcome
  * questions is someone new, also on a device that has shown it before: it is offered again, and Personalize calls again.
  */
-const NEWCOMER: Partial<Settings> = { tour: undefined, personalizeOpened: undefined, activated: undefined }
+const NEWCOMER: Partial<Settings> = { tour: undefined, personalizeOpened: undefined }
 
 export interface NewPlace {
   name: string

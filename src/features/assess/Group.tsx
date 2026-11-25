@@ -6,7 +6,8 @@ import { groupInsights, suggestPairs, toMember, type Member } from '@/domain/ass
 import { disciplineById } from '@/domain/catalog'
 import { BANDS } from '@/domain/scoring/config'
 import { DnaSigil } from '@/ui/DnaSigil'
-import { DisciplineDot, Eyebrow } from '@/ui/primitives'
+import { DisciplineDot, Eyebrow, Toggle } from '@/ui/primitives'
+import { useStore } from '@/data/store'
 import { useAssessment } from './Assess'
 import { dvar, num } from '@/lib/format'
 
@@ -167,7 +168,8 @@ function Strip({ discipline, members, scale, viewerId, min, max, median }: { dis
 export function GroupPage() {
   const { sessionId } = useParams()
   const navigate = useNavigate()
-  const { session, participants, mine } = useAssessment(sessionId)
+  const { session, participants, mine, closed } = useAssessment(sessionId)
+  const patchParticipant = useStore((s) => s.patchParticipant)
   if (!session || !mine) return <Navigate to="/train" replace />
   // On a phone that joined by link, the only results here are the owner's own.
   const alone = session.origin === 'invite'
@@ -191,7 +193,16 @@ export function GroupPage() {
             </p>
           </div>
         ) : (
-          <GroupProfile session={session} participants={participants} viewerId={mine.id} />
+          <>
+            <GroupProfile session={session} participants={participants} viewerId={mine.id} />
+            {/* Who else sees a name is chosen here, where it shows; it starts at nobody. The coach always sees everyone. */}
+            {!closed && (
+              <div className="card mt-7 flex items-center justify-between gap-4 p-4" data-share-shape>
+                <span className="text-[14px]">Show my name to the group<span className="mt-0.5 block text-[12px] leading-snug text-ink-3">Beside your six-dimension shape. Never your individual numbers.</span></span>
+                <Toggle on={mine.sharing === 'group'} onChange={(on) => patchParticipant(mine.id, { sharing: on ? 'group' : 'coach' })} label="Show my name to the group" />
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

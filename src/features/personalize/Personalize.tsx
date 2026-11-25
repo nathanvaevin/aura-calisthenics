@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { ArrowLeft, ArrowRight, Check, Lock, X } from 'lucide-react'
 import type { DisciplineId, TrainingEnvironment } from '@/domain/types'
-import { DISCIPLINE_IDS, disciplineById } from '@/domain/catalog'
+import { DISCIPLINE_IDS, disciplineById, skillById } from '@/domain/catalog'
 import { ENVIRONMENTS } from '@/domain/places'
 import { useIsAdmin, useMe } from '@/data/hooks'
 import { useStore } from '@/data/store'
@@ -19,9 +19,15 @@ import { cx } from '@/lib/format'
 import { CharacterStudio } from './CharacterStudio'
 import { TextSize } from './TextSize'
 import { Tone } from './Tone'
+import { GoalCards } from '@/features/journey/GoalCards'
+import { GOALS } from '@/domain/goals'
 import { toneAttr } from '@/theme/tones'
 
-const TITLES: Record<Step, { title: string; sub: string }> = {
+/** The steps on screen. Goals come only for someone who has none yet (a student who began with an assessment was never asked); they are kept on the athlete, not among the steps of a look. */
+type Page = Step | 'goals'
+
+const TITLES: Record<Page, { title: string; sub: string }> = {
+  goals: { title: 'What do you want to be able to do?', sub: 'Turn a card to see it. Choose up to three.' },
   theme: { title: 'Choose your theme', sub: 'Every theme has a different style, design and language. Choose what fits best with your athletic style. Change it any time: your training and results stay the same.' },
   character: { title: 'Make the character yours', sub: 'This is who performs your exercises and stands on your profile.' },
   about: { title: 'A little about you', sub: 'All of it is optional. Skip it now and fill it in whenever you like.' },
@@ -39,12 +45,17 @@ export default function Personalize() {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const setStyle = useStore((s) => s.setStyle)
+  const updateMe = useStore((s) => s.updateMe)
   const released = useStore((s) => s.auraSettings.universes)
   const own = usePersonalTheme()
   const requested = params.get('step')
-  const step: Step | 'done' = requested === 'done' ? 'done' : (STEPS as readonly string[]).includes(requested ?? '') ? (requested as Step) : 'theme'
-  const at = step === 'done' ? STEPS.length : STEPS.indexOf(step)
-  const go = (s: Step | 'done') => { setParams({ step: s }, { replace: true }); window.scrollTo(0, 0) }
+  // Decided once, on opening: choosing a goal must not take the question away under the finger.
+  const [asksGoals] = useState(() => me.athlete.goals.length === 0 || requested === 'goals')
+  const pages: Page[] = asksGoals ? ['theme', 'character', 'goals', 'about', 'sharing'] : [...STEPS]
+  const step: Page | 'done' = requested === 'done' ? 'done' : (pages as string[]).includes(requested ?? '') ? (requested as Page) : 'theme'
+  const at = step === 'done' ? pages.length : pages.indexOf(step)
+  const go = (s: Page | 'done') => { setParams({ step: s }, { replace: true }); window.scrollTo(0, 0) }
+  const onward = () => go(pages[at + 1] ?? 'done')
 
   // A theme being looked at is shown everywhere on this screen before it is chosen.
   const [trying, setTrying] = useState<ThemeId>(own)
@@ -66,12 +77,14 @@ export default function Personalize() {
   }, [shown, tones])
 
   const next = () => {
-    if (step === 'theme') { setStyle({ theme: trying }, 'theme'); go('character') }
-    else if (step === 'character') { setStyle({ character: personalOf(me.athlete).character ?? 'male' }, 'character'); go('about') }
-    else if (step === 'about') { setStyle({}, 'about'); go('sharing') }
-    else if (step === 'sharing') { setStyle({}, 'sharing'); go('done') }
+    if (step === 'theme') setStyle({ theme: trying }, 'theme')
+    else if (step === 'character') setStyle({ character: personalOf(me.athlete).character ?? 'male' }, 'character')
+    else if (step === 'about' || step === 'sharing') setStyle({}, step)
+    onward()
   }
   const optional = step === 'about' || step === 'sharing'
+  // What someone has already shown they can do is not offered as a goal.
+  const goals = GOALS.filter((g) => me.statuses[g]?.state !== 'mastered')
 
   return (
     <ThemeContext value={shown}>
@@ -79,18 +92,18 @@ export default function Personalize() {
         <div className="page-glow" />
         <div className="relative mx-auto flex min-h-dvh w-full max-w-[1080px] flex-col px-5 lg:px-10">
           <header className="safe-top flex items-center justify-between gap-3 pt-4">
-            <button aria-label={at > 0 && step !== 'done' ? 'Back' : 'Close'} onClick={() => (at > 0 && step !== 'done' ? go(STEPS[at - 1]) : navigate('/profile'))} className="pressable flex h-10 w-10 items-center justify-center rounded-full border border-line bg-surface text-ink-2">
+            <button aria-label={at > 0 && step !== 'done' ? 'Back' : 'Close'} onClick={() => (at > 0 && step !== 'done' ? go(pages[at - 1]) : navigate('/profile'))} className="pressable flex h-10 w-10 items-center justify-center rounded-full border border-line bg-surface text-ink-2">
               {at > 0 && step !== 'done' ? <ArrowLeft size={17} /> : <X size={17} />}
             </button>
-            <div className="flex items-center gap-1.5" aria-label={`Step ${Math.min(at + 1, STEPS.length)} of ${STEPS.length}`}>
-              {STEPS.map((s, i) => <span key={s} className={cx('h-1 rounded-full transition-all', i === at ? 'w-8 bg-ink' : i < at ? 'w-4 bg-ink-2' : 'w-4 bg-surface-3')} />)}
+            <div className="flex items-center gap-1.5" aria-label={`Step ${Math.min(at + 1, pages.length)} of ${pages.length}`}>
+              {pages.map((s, i) => <span key={s} className={cx('h-1 rounded-full transition-all', i === at ? 'w-8 bg-ink' : i < at ? 'w-4 bg-ink-2' : 'w-4 bg-surface-3')} />)}
             </div>
             {step !== 'done' ? <button className="h-10 px-1 text-[13px] text-ink-3 hover:text-ink" onClick={() => navigate('/profile')}>Later</button> : <span className="w-10" />}
           </header>
 
           {step !== 'done' && (
             <div className="rise pt-7 pb-5">
-              <Eyebrow>Personalize · {at + 1} of {STEPS.length}{optional ? ' · optional' : ''}</Eyebrow>
+              <Eyebrow>Personalize · {at + 1} of {pages.length}{optional ? ' · optional' : ''}</Eyebrow>
               <h1 className="display mt-2 text-[38px] leading-[1.02] sm:text-[48px]">{TITLES[step].title}</h1>
               <p className="mt-3 max-w-xl text-[14.5px] leading-relaxed text-ink-2">{TITLES[step].sub}</p>
             </div>
@@ -107,6 +120,7 @@ export default function Personalize() {
               </>
             )}
             {step === 'character' && <CharacterStudio />}
+            {step === 'goals' && <div className="max-w-xl"><GoalCards options={goals} value={me.athlete.goals} onChange={(g) => updateMe({ goals: g })} /></div>}
             {step === 'about' && <AboutStep />}
             {step === 'sharing' && <SharingStep />}
             {step === 'done' && <Done onClose={() => navigate('/profile')} onStudio={() => navigate('/character')} />}
@@ -115,9 +129,9 @@ export default function Personalize() {
           {step !== 'done' && (
             <div className="glass safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-line">
               <div className="mx-auto flex w-full max-w-[1080px] items-center gap-3 px-5 py-3.5 lg:px-10">
-                {optional && <button className="btn btn-quiet" onClick={() => go(step === 'about' ? 'sharing' : 'done')}>Skip</button>}
+                {optional && <button className="btn btn-quiet" onClick={onward}>Skip</button>}
                 <button className="btn btn-primary flex-1" disabled={step === 'theme' && !isReleased(trying, released, admin)} onClick={next}>
-                  {step === 'theme' ? `Enter ${THEMES[trying].name}` : step === 'sharing' ? 'Finish' : 'Continue'} <ArrowRight size={16} />
+                  {step === 'theme' ? `Enter ${THEMES[trying].name}` : step === 'sharing' ? 'Finish' : step === 'goals' && me.athlete.goals.length === 0 ? 'Choose later' : 'Continue'} <ArrowRight size={16} />
                 </button>
               </div>
             </div>
@@ -266,18 +280,18 @@ function Done({ onClose, onStudio }: { onClose: () => void; onStudio: () => void
   const look = useWearing()
   const v = useVoice()
   const done = completion(me.athlete)
-  // Seeing one's Aura burst for the first time is what this screen is for: the button glows until it has been pressed here.
-  const activated = useStore((s) => !!s.settings.activated)
-  const setSettings = useStore((s) => s.setSettings)
+  // What was just personalised is there to be seen bursting: the button glows until it is pressed, every time this screen is reached.
+  const [activated, setActivated] = useState(false)
   const rows: [string, boolean, string][] = [
     ['Theme', done.theme, THEMES[look.theme].name],
     ['Character', done.character, `${look.character === 'female' ? 'Female' : 'Male'} · ${look.form.name}`],
     ['About you', done.about, done.about ? 'Added' : 'Skipped for now'],
+    ['Goals', me.athlete.goals.length > 0, me.athlete.goals.length ? me.athlete.goals.map((g) => skillById[g]?.name).filter(Boolean).join(', ') : 'None yet'],
     ['Sharing', done.sharing, done.sharing ? 'Reviewed' : 'Left as it was'],
   ]
   return (
     <div className="grid items-center gap-8 pt-6 lg:grid-cols-2 lg:pt-10">
-      <Stage3D cast={[performerOf(look, { aura: 'full' })]} ratio={0.82} controls="none" activate="large" calling={!activated} onActivate={() => setSettings({ activated: true })} margin={1.42} className="mx-auto max-h-[52dvh] max-w-[440px]" label="Your character" />
+      <Stage3D cast={[performerOf(look, { aura: 'full' })]} ratio={0.82} controls="none" activate="large" calling={!activated} onActivate={() => setActivated(true)} margin={1.42} className="mx-auto max-h-[52dvh] max-w-[440px]" label="Your character" />
       <div className="rise">
         <Eyebrow>{done.all ? 'Personalization complete' : 'Your identity is set'}</Eyebrow>
         <h1 className="display mt-2 text-[40px] leading-[1.02] sm:text-[52px]">{me.athlete.name.split(' ')[0]}, {done.all ? 'this is you.' : 'this is a start.'}</h1>

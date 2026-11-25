@@ -4,8 +4,7 @@ import { AlertTriangle, ArrowLeft, BadgeCheck, Check, Copy, Eye, Hand, Lock, Pen
 import type { AssessmentParticipant, AssessmentSession as Session, DisciplineId, ResultTier } from '@/domain/types'
 import {
   compareProfiles, compareResults, decodeHandIn, estimateMinutes, groupCount, groupInsights, groupOf, ladderAdvice, needsAttention, overallProgress, profileOf,
-  rotationOf, stationById, stationProgress, toMember, visibleTests,
-} from '@/domain/assessment'
+  rotationOf, stationById, stationProgress, toMember, visibleTests, modeOf } from '@/domain/assessment'
 import { disciplineById, exerciseById } from '@/domain/catalog'
 import { TIER_LABEL } from '@/domain/scoring/config'
 import { useIsCoach, useNow } from '@/data/hooks'
@@ -77,7 +76,7 @@ export function AssessmentSession() {
         <input aria-label="Assessment title" className="display w-full bg-transparent text-[36px] outline-none lg:text-[48px]" value={session.title} onChange={(e) => patch(session.id, { title: e.target.value })} />
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
           <span className={cx('rounded-full px-2 py-0.5 font-mono text-[9.5px] tracking-[0.1em] uppercase', open ? 'bg-good/15 text-good' : 'border border-line text-ink-3')}>{open ? 'Open' : `Finalised ${shortDate(session.finalisedAt!)}`}</span>
-          <span className="num text-[12.5px] text-ink-3">{participants.length} joined · {done} finished · {session.stations.length} stations · about {estimateMinutes(session.stations)} min · {session.mode === 'stations' ? 'by stations' : 'guided'}</span>
+          <span className="num text-[12.5px] text-ink-3">{participants.length} joined · {done} finished · {session.stations.length} stations · about {estimateMinutes(session.stations)} min</span>
           {session.sample && <span className="rounded-full border border-dashed border-line-strong px-2 py-0.5 font-mono text-[9.5px] tracking-[0.1em] text-ink-3 uppercase">Sample data</span>}
         </div>
       </header>
@@ -238,23 +237,6 @@ function Invite({ session, participants }: { session: Session; participants: Ass
           </div>
         </section>
 
-        <section>
-          <SectionTitle>Format</SectionTitle>
-          <div className="card p-4">
-            <Segmented<'stations' | 'guided'>
-              value={session.mode ?? 'guided'}
-              onChange={(mode) => patch(session.id, { mode })}
-              options={[{ value: 'stations', label: 'By stations' }, { value: 'guided', label: 'Guided' }]}
-            />
-            <p className="mt-3 text-[12.5px] leading-relaxed text-ink-2">
-              {(session.mode ?? 'guided') === 'stations'
-                ? 'Each person opens a station and chooses the variations that match their level, easiest to hardest, with a suggested range for each. Best for a class sharing equipment in groups.'
-                : 'Each station walks the person through its benchmarks in a fixed order, choosing the next one from their last result. Best for someone testing on their own.'}
-            </p>
-            {participants.some((p) => Object.keys(p.results).length) && <p className="mt-2 text-[12px] text-ink-3">Results already recorded stay as they are when you switch.</p>}
-          </div>
-        </section>
-
         <Groups session={session} participants={participants} />
       </div>
 
@@ -340,7 +322,7 @@ function Board({ session, participants }: { session: Session; participants: Asse
   const [cell, setCell] = useState<{ pid: string; station: DisciplineId } | null>(null)
   const [person, setPerson] = useState<string | null>(null)
 
-  const mode = session.mode ?? 'guided'
+  const mode = modeOf(session)
   const attention = useMemo(() => needsAttention(participants, session.stations, mode), [participants, session.stations, mode])
   const students = session.courseId
     ? enrollments.filter((e) => e.courseId === session.courseId && athletes[e.athleteId] && !participants.some((p) => p.athleteId === e.athleteId))
@@ -477,7 +459,7 @@ function CellSheet({ session, participant: p, station, onClose }: { session: Ses
   const toggleFlag = useStore((s) => s.toggleFlag)
   if (!p || !station) return <Sheet open={false} onClose={onClose}>{null}</Sheet>
   const st = stationById[station]
-  const recorded = [...st.tests, ...st.extra].filter((t) => p.results[t.id] && ((session.mode ?? 'guided') === 'stations' || !st.tests.includes(t) || visibleTests(st, p.results).includes(t)))
+  const recorded = [...st.tests, ...st.extra].filter((t) => p.results[t.id] && (modeOf(session) === 'stations' || !st.tests.includes(t) || visibleTests(st, p.results).includes(t)))
   const tier = stationTier(p, station)
   const own = p.athleteId === meId
 

@@ -5,7 +5,7 @@ import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router'
 import { ArrowLeft, ArrowRight, Check, Hand, Minus, Pause, Play, Plus } from 'lucide-react'
 import type { DisciplineId } from '@/domain/types'
 import {
-  beyondTarget, demonstrated, groupCount, harderThan, levelAbove, nextTest, overallProgress, rotationOf, startingStation, stationById, stationOfTest, stationProgress,
+  beyondTarget, demonstrated, groupCount, harderThan, levelAbove, modeOf, nextTest, overallProgress, rotationOf, startingStation, stationById, stationOfTest, stationProgress,
   testById, visibleTests, type AssessmentMode, type AssessmentTest,
 } from '@/domain/assessment'
 import { disciplineById, exerciseById } from '@/domain/catalog'
@@ -32,8 +32,8 @@ export function useAssessment(sessionId: string | undefined, participantId?: str
   const coaching = !!session && session.origin === 'local' && session.coachId === meId
   // A coach's session that has been finalised: a participant can read their results, not change them.
   const closed = !!session && session.origin === 'invite' && session.status === 'finalised'
-  // On their own, an athlete chooses what to attempt (and can still ask to be guided). A coach's session is run the way the coach set it.
-  const mode: AssessmentMode = !session ? 'guided' : session.origin === 'solo' ? 'stations' : (session.mode ?? 'guided')
+  // The athlete chooses what to attempt (and can still ask to be guided), in every assessment.
+  const mode: AssessmentMode = modeOf(session)
   return { session, participants, mine, target, coaching, closed, meId, mode }
 }
 

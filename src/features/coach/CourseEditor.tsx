@@ -8,6 +8,7 @@ import { auraFor } from '@/domain/scoring/aura'
 import { adaptTarget, makeBlock } from '@/domain/scoring/skills'
 import { estimateMinutes } from '@/domain/training'
 import { blankSession, blankWeek, moveWeek, uid } from '@/data/courseTemplates'
+import { CourseInvite } from './CourseInvite'
 import { WeekStrip } from './WeekStrip'
 import { courseClock, logForSession, useIsCoach } from '@/data/hooks'
 import { isoDay, sessionDate } from '@/data/seed'
@@ -487,7 +488,7 @@ function Students({ course }: { course: Course }) {
         <button className="btn btn-quiet btn-sm" onClick={() => setAddOpen(true)}><UserPlus size={14} /> Add student</button>
       </div>
       {enrolled.length === 0 ? (
-        <Empty title="No students yet">Add athletes here. Once the course is Active they can also join it themselves from their Train tab.</Empty>
+        <Empty title="No students yet">Send them the link, under Add student.</Empty>
       ) : (
         <div className="card divide-y divide-line">
           {enrolled.map((e) => {
@@ -512,12 +513,12 @@ function Students({ course }: { course: Course }) {
           })}
         </div>
       )}
-      <p className="mt-3 text-[12px] leading-relaxed text-ink-3">The quickest way to fill a course is an assessment: create one for this course in Coach Studio, show its code, and everyone who joins is enrolled. Athletes can also join an Active course themselves from their Train tab.</p>
+      <p className="mt-3 text-[12px] leading-relaxed text-ink-3">Send the invite link to one person or to a whole group. An assessment does it too: create one for this course in Coach Studio, show its code, and everyone who joins is enrolled. Athletes can also join an Active course themselves from their Train tab.</p>
 
       <Sheet open={addOpen} onClose={() => setAddOpen(false)} eyebrow={course.title} title="Add a student">
-        {others.length === 0 ? (
-          <p className="text-[14px] text-ink-2">Everyone is already enrolled.</p>
-        ) : (
+        <CourseInvite course={course} code />
+        {others.length > 0 && <Eyebrow className="mt-6 mb-2">Or add someone already here</Eyebrow>}
+        {others.length > 0 && (
           <div className="card divide-y divide-line">
             {others.map((a) => (
               <button key={a.id} className="flex w-full items-center gap-3 px-4 py-3 text-left first:rounded-t-card last:rounded-b-card hover:bg-surface-2" onClick={() => enroll(course.id, a.id)}>

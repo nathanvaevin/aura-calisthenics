@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { ArrowRight, Check, Eye, Lock, Users } from 'lucide-react'
+import { ArrowRight, Check, Users } from 'lucide-react'
 import type { DisciplineId } from '@/domain/types'
 import { decodeHandIn, decodeInvite, estimateMinutes, overallProgress, protocolKnown } from '@/domain/assessment'
 import { disciplineById } from '@/domain/catalog'
@@ -11,14 +11,13 @@ import { AuraField } from '@/ui/AuraField'
 import { useIgnite } from '@/ui/useIgnite'
 import { DisciplineDot, Eyebrow } from '@/ui/primitives'
 import { Wordmark } from '@/app/Shell'
-import { cx } from '@/lib/format'
 
-const EVEN = { handstand: 1 / 6, pull: 1 / 6, push: 1 / 6, core: 1 / 6, legs: 1 / 6, mobility: 1 / 6 }
+export const EVEN = { handstand: 1 / 6, pull: 1 / 6, push: 1 / 6, core: 1 / 6, legs: 1 / 6, mobility: 1 / 6 }
 
 /** The Aura is at the top of the page and the button at the bottom: bring the page up, so the light is seen. */
-const toTop = () => window.scrollTo({ top: 0, behavior: 'smooth' })
+export const toTop = () => window.scrollTo({ top: 0, behavior: 'smooth' })
 
-function Frame({ children }: { children: React.ReactNode }) {
+export function Frame({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative mx-auto flex min-h-dvh w-full max-w-[520px] flex-col px-6">
       <div className="page-glow" />
@@ -28,7 +27,7 @@ function Frame({ children }: { children: React.ReactNode }) {
   )
 }
 
-function Problem({ title, children }: { title: string; children: React.ReactNode }) {
+export function Problem({ title, children }: { title: string; children: React.ReactNode }) {
   const navigate = useNavigate()
   return (
     <Frame>
@@ -49,7 +48,7 @@ export function JoinInvite({ data }: { data: string }) {
   const mine = useStore((s) => !!invite && s.assessments.some((a) => a.id === invite.id && a.origin === 'local' && a.coachId === s.meId))
   const acceptInvite = useStore((s) => s.acceptInvite)
   const [name, setName] = useState('')
-  const [sharing, setSharing] = useState<'coach' | 'group'>('coach')
+  const sharing = 'coach' as const
   const { igniting, ignite } = useIgnite()
 
   if (!invite) return <Problem title="This invitation can’t be read.">The link looks incomplete. Ask your coach to show the QR code again and scan it from the start.</Problem>
@@ -72,7 +71,7 @@ export function JoinInvite({ data }: { data: string }) {
         <p className="rise rise-3 mt-5 text-[13.5px] text-ink-2">Joining as <span className="font-medium text-ink">{me.name}</span>.{mine && ' This is your own session, so you will see it the way a participant does.'}</p>
       )}
 
-      <SharingChoice coachName={invite.coachName} value={sharing} onChange={setSharing} />
+      <CoachSees coachName={invite.coachName} />
 
       <div className="mt-auto pt-7">
         <button className="btn btn-primary btn-lg w-full" disabled={igniting || (!me && !name.trim())} onClick={join}>Join and begin <ArrowRight size={17} /></button>
@@ -97,7 +96,7 @@ function InviteIntro({ coachName, groupName, title, kind, stations, course, igni
 
       <div className="rise rise-2 card mt-5 p-4">
         <div className="flex items-center justify-between">
-          <Eyebrow>{title} · {stations.length} stations</Eyebrow>
+          <Eyebrow>{title} · {stations.length} areas</Eyebrow>
           <span className="num text-[12px] text-ink-3">about {estimateMinutes(stations)} min</span>
         </div>
         <div className="mt-3 flex flex-wrap gap-1.5">
@@ -105,38 +104,16 @@ function InviteIntro({ coachName, groupName, title, kind, stations, course, igni
             <span key={s} className="inline-flex h-7 items-center gap-1.5 rounded-full bg-surface-2 px-2.5 text-[12.5px]"><DisciplineDot id={s} size={6} />{disciplineById[s].short}</span>
           ))}
         </div>
-        <ul className="mt-4 space-y-1.5 text-[13px] leading-snug text-ink-2">
-          <li>Move between stations in any order, alone or with a partner.</li>
-          <li>Each station adapts: it only asks for what makes sense after your last result.</li>
-          <li>You record on this phone and can stop and return at any point.</li>
-          {course && <li>Joining also puts you in <span className="font-medium text-ink">{course}</span>, the course this assessment opens.</li>}
-        </ul>
+        <p className="mt-4 text-[13px] leading-snug text-ink-2">In each area you pick the level you think is your hardest, and start from there.</p>
+        {course && <p className="mt-1.5 text-[13px] leading-snug text-ink-2">Joining also puts you in <span className="font-medium text-ink">{course}</span>.</p>}
       </div>
     </>
   )
 }
 
-function SharingChoice({ coachName, value, onChange }: { coachName: string; value: 'coach' | 'group'; onChange: (v: 'coach' | 'group') => void }) {
-  return (
-    <div className="rise rise-3 mt-5">
-      <Eyebrow className="mb-1.5">Who else sees your results</Eyebrow>
-      <p className="mb-2.5 text-[12.5px] leading-snug text-ink-2">{coachName.split(' ')[0]} always sees your results, and your training while you are in their course. The choice is about the rest of the group.</p>
-      <div className="space-y-2">
-        {([
-          ['coach', Lock, 'Nobody else', 'The group sees anonymous totals, never your name.'],
-          ['group', Eye, 'My coach, and my shape to the group', 'Others in the group can also see your name beside your six-dimension shape. Never your individual numbers.'],
-        ] as const).map(([option, Icon, title, body]) => (
-          <button key={option} onClick={() => onChange(option)} className={cx('pressable flex w-full items-start gap-3 rounded-[20px] border p-3.5 text-left', value === option ? 'border-ink bg-surface' : 'border-line')}>
-            <span className={cx('mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border', value === option ? 'border-ink bg-ink text-bg' : 'border-line-strong text-ink-3')}>
-              {value === option ? <Check size={13} strokeWidth={3} /> : <Icon size={12} />}
-            </span>
-            <span><span className="block text-[14.5px] font-medium">{title}</span><span className="block text-[12.5px] leading-snug text-ink-2">{body}</span></span>
-          </button>
-        ))}
-      </div>
-      <p className="mt-2 text-[12px] text-ink-3">You can change this later. Nothing is shared outside this group.</p>
-    </div>
-  )
+/** A coach always sees their students: said wherever someone joins. Who else sees a name is chosen later, on the group's page; it starts at nobody. */
+function CoachSees({ coachName }: { coachName: string }) {
+  return <p className="rise rise-3 mt-4 text-[12.5px] leading-snug text-ink-3" data-coach-sees>{coachName.split(' ')[0]} sees your results, and your training while you are in their course. Nobody else sees your name.</p>
 }
 
 /**
@@ -154,7 +131,7 @@ export function CloudJoin({ token }: { token: string }) {
   const own = useStore((s) => typeof invite === 'object' && s.assessments.some((a) => a.id === invite.sessionId && a.origin === 'local'))
   const [attempt, setAttempt] = useState(0)
   const [name, setName] = useState('')
-  const [sharing, setSharing] = useState<'coach' | 'group'>('coach')
+  const sharing = 'coach' as const
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { igniting, ignite } = useIgnite()
@@ -216,7 +193,7 @@ export function CloudJoin({ token }: { token: string }) {
             {signedIn && shown && <span className="mt-1.5 block text-[12px] text-ink-3">Leave empty to join as {shown}.</span>}
           </label>
 
-          <SharingChoice coachName={invite.coachName} value={sharing} onChange={setSharing} />
+          <CoachSees coachName={invite.coachName} />
 
           <div className="mt-auto space-y-2.5 pt-7">
             {signedIn ? (
