@@ -15,7 +15,8 @@
  */
 import type { BuildId } from '@/visual/body/skeleton'
 
-export const THEME_IDS = ['dark', 'light', 'power', 'power-light', 'iron'] as const
+/** In the order they are offered (the owner's, with the names below, 2026-11-25). The id of a theme never changes: it is what an athlete's choice is stored as. */
+export const THEME_IDS = ['dark', 'power', 'iron', 'light', 'power-light'] as const
 export type ThemeId = (typeof THEME_IDS)[number]
 
 export const UNIVERSE_IDS = ['aura', 'power', 'iron'] as const
@@ -43,34 +44,34 @@ export interface AppTheme {
 
 export const THEMES: Record<ThemeId, AppTheme> = {
   dark: {
-    id: 'dark', name: 'Aura Dark', line: 'Discover what your body is truly capable of.',
+    id: 'dark', name: 'Aura Dark Mode', line: 'Discover what your body is truly capable of.',
     blurb: 'The original. Night, warm light and a serif that takes its time.',
     scheme: 'dark', universe: 'aura', voice: 'aura', chrome: '#08090b',
     type: 'Instrument Serif', tone: 'Thoughtful, human',
   },
-  light: {
-    id: 'light', name: 'Aura Light', line: 'Your next level starts here.',
-    blurb: 'The same Aura by daylight: warm paper, ink, and quieter colour.',
-    scheme: 'light', universe: 'aura', voice: 'aura', chrome: '#f3f0e9',
-    type: 'Instrument Serif', tone: 'Thoughtful, human',
-  },
   power: {
-    id: 'power', name: 'Goku', line: 'Unlock your next form.',
+    id: 'power', name: 'Goku Dark Mode', line: 'Unlock your next form.',
     blurb: 'Storm dark, fire and embers. Every level is a new form.',
     scheme: 'dark', universe: 'power', voice: 'power', chrome: '#06080c',
     type: 'Barlow Condensed, italic', tone: 'Energetic, ambitious',
   },
-  'power-light': {
-    id: 'power-light', name: 'Goku Light', line: 'Unlock your next form.',
-    blurb: 'The same fighter as ink on paper, under a red sun.',
-    scheme: 'light', universe: 'power', variant: 'light', voice: 'power', chrome: '#e9e7e2',
-    type: 'Barlow Condensed, italic', tone: 'Energetic, ambitious',
-  },
   iron: {
-    id: 'iron', name: 'Baki', line: 'Strength is earned.',
+    id: 'iron', name: 'Baki Mode', line: 'Strength is earned.',
     blurb: 'Ink, bone and red. Anatomy in hard light, and nothing given.',
     scheme: 'dark', universe: 'iron', voice: 'iron', chrome: '#0b0a09',
     type: 'Anton, capitals', tone: 'Direct, disciplined',
+  },
+  light: {
+    id: 'light', name: 'Aura Light Mode', line: 'Your next level starts here.',
+    blurb: 'The same Aura by daylight: warm paper, ink, and quieter colour.',
+    scheme: 'light', universe: 'aura', voice: 'aura', chrome: '#f3f0e9',
+    type: 'Instrument Serif', tone: 'Thoughtful, human',
+  },
+  'power-light': {
+    id: 'power-light', name: 'Goku Light Mode', line: 'Unlock your next form.',
+    blurb: 'The same fighter as ink on paper, under a red sun.',
+    scheme: 'light', universe: 'power', variant: 'light', voice: 'power', chrome: '#e9e7e2',
+    type: 'Barlow Condensed, italic', tone: 'Energetic, ambitious',
   },
 }
 
@@ -144,8 +145,9 @@ export const UNIVERSES: Record<UniverseId, Universe> = {
       { id: 'electric', name: 'Electric', line: 'Arcs, sparks and fast pulses.', aura: 'electric', unlock: { kind: 'class', index: 4 }, colour: '#49c6ff' },
     ],
     finishes: [
-      { id: 'pearl', name: 'Pearl', skin: '#c6c6ce', hair: '#b9b9c2', accent: '#ecc77f' },
+      // The first is what everyone has until they choose another, and what an assessment shows (the owner's choice, 2026-11-25).
       { id: 'graphite', name: 'Graphite', skin: '#5b5d66', hair: '#3b3c44', accent: '#ecc77f' },
+      { id: 'pearl', name: 'Pearl', skin: '#c6c6ce', hair: '#b9b9c2', accent: '#ecc77f' },
       { id: 'sand', name: 'Sand', skin: '#cdbfae', hair: '#b3a593', accent: '#ecc77f' },
     ],
   },

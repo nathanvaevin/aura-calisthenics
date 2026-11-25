@@ -17,7 +17,7 @@ export interface DemoHandle { /** The Aura let go at once: everyone on stage, or
  *
  * This file brings in the 3D engine: load it lazily.
  */
-export default function Demo({ cast, ratio = 1, controls = 'simple', margin, angle: opening, className, handle, label, fill, safe, activate }: {
+export default function Demo({ cast, ratio = 1, controls = 'simple', margin, angle: opening, className, handle, label, fill, safe, activate, calling, onActivate }: {
   cast: PerformerSpec[]
   /** Width over height of the stage. */
   ratio?: number
@@ -35,6 +35,10 @@ export default function Demo({ cast, ratio = 1, controls = 'simple', margin, ang
   safe?: { top: number; bottom: number }
   /** An Activate button on the stage: at rest an Aura is a glow, and this charges it and lets it burst. Shown only while someone on stage wears an Aura. */
   activate?: 'small' | 'large'
+  /** The Activate button glows, asking to be pressed. */
+  calling?: boolean
+  /** It has been pressed. */
+  onActivate?: () => void
 }) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const box = useRef<HTMLDivElement>(null)
@@ -133,6 +137,7 @@ export default function Demo({ cast, ratio = 1, controls = 'simple', margin, ang
     if (!p || charging) return
     p.charge()
     setCharging(true)
+    onActivate?.()
     const wait = () => { if (player.current && player.current.charging) window.setTimeout(wait, 150); else setCharging(false) }
     window.setTimeout(wait, 400)
   }
@@ -161,18 +166,24 @@ export default function Demo({ cast, ratio = 1, controls = 'simple', margin, ang
       {!ready && !failed && <div className="absolute inset-0 flex items-center justify-center font-mono text-[10.5px] tracking-[0.14em] text-(--stage-ink) uppercase">Loading</div>}
       {failed && <div className="absolute inset-0 flex items-center justify-center px-8 text-center text-[13px] text-(--stage-ink)">This device could not start the 3D view.</div>}
 
+      {/* Calling, its glow lies behind the button and over the stage: the wrapper holds the two together (`isolate`). */}
       {activate && wearsAura && ready && (
+        <span
+          data-calling={(calling && !charging) || undefined}
+          className={cx('absolute isolate rounded-full', calling && !charging && 'aura-call', activate === 'large' ? (calling ? 'bottom-5 left-5' : 'bottom-3 left-3') : 'bottom-2 left-1/2 -translate-x-1/2')}
+        >
         <button
           onClick={activateNow} aria-label="Activate the Aura" data-activate={charging ? 'charging' : 'ready'}
           className={cx(
-            'absolute flex items-center rounded-full font-semibold tracking-[0.04em] text-black transition-[transform,box-shadow,background-color] duration-300 active:scale-95',
-            activate === 'large' ? 'bottom-3 left-3 h-11 gap-2 px-4 text-[13px]' : 'bottom-2 left-1/2 h-7 -translate-x-1/2 gap-1 px-2.5 text-[10.5px]',
+            'flex items-center rounded-full font-semibold tracking-[0.04em] text-black transition-[transform,box-shadow,background-color] duration-300 active:scale-95',
+            activate === 'large' ? 'h-11 gap-2 px-4 text-[13px]' : 'h-7 gap-1 px-2.5 text-[10.5px]',
             charging ? 'scale-105 bg-white shadow-[0_0_26px_6px_rgba(255,255,255,0.55)]' : 'bg-white/90 shadow-[0_0_14px_1px_rgba(255,255,255,0.25)] hover:bg-white',
           )}
         >
           <Zap size={activate === 'large' ? 16 : 11} fill="currentColor" className={cx(charging && 'animate-pulse')} />
           {charging ? 'Charging' : 'Activate'}
         </button>
+        </span>
       )}
       {/* With part of the stage covered, the button stays in the part that is free. */}
       {controls === 'spin' && ready && <div className="absolute right-3 transition-[bottom] duration-300 ease-out" style={{ bottom: (fill && safe ? safe.bottom : 0) + 12 }}>{spinButton('h-11 bg-black/45 hover:bg-black/60')}</div>}

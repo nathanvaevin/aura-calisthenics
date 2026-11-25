@@ -78,6 +78,11 @@ export function setLength(m: Motion | null): number {
   return 9
 }
 
+/** How much has been taken off a place because this device was not keeping up: 0 nothing, 1 painted coarsely, 2 left out. For the visit. */
+let relief = 0
+/** Slower than this, second after second, is not keeping up. A phone saving its battery runs at 30. */
+const SLOW_FPS = 22
+
 export class Player {
   readonly stage: Stage
   onState?: (s: PlayerState) => void
@@ -130,6 +135,8 @@ export class Player {
       return p
     })
     const look = styleOf(specs[0]?.style).stage
+    this.pace.wait = 2
+    this.stage.pair = specs.length > 1
     this.place(specs[0]?.style)
     for (const p of this.cast) p.field.setPaint(!!look.paint)
     this.tint()
@@ -151,11 +158,34 @@ export class Player {
   }
 
   private scene: string | undefined
+  private readonly pace = { time: 0, frames: 0, slow: 0, wait: 2 }
+
+  /**
+   * A place is the first thing to go on a device that cannot keep up: painted more coarsely, and if that is not
+   * enough, left out for the rest of the visit. `ms` is how long the last frame really took.
+   */
+  private keepPace(ms: number) {
+    const p = this.pace
+    if (!this.scene || relief >= 2 || ms > 500) return
+    p.time += ms; p.frames++
+    if (p.time < 1000) return
+    const slow = p.frames / (p.time / 1000) < SLOW_FPS
+    p.time = 0; p.frames = 0
+    // The first seconds go on loading and say nothing.
+    if (p.wait > 0) { p.wait--; return }
+    p.slow = slow ? p.slow + 1 : 0
+    if (p.slow < 3) return
+    relief++
+    p.slow = 0; p.wait = 1
+    this.place(this.cast[0]?.spec.style)
+    this.tint()
+  }
 
   /** Lights the stage for the first performer's universe, in the place it stands in. */
   private place(style: PerformerStyle | undefined) {
     this.scene = style?.scene
-    this.stage.setLook(styleOf(style).stage, sceneById(style?.scene), stageKeyOf(style?.universe ?? 'aura', style?.variant))
+    this.stage.coarse = relief >= 1
+    this.stage.setLook(styleOf(style).stage, relief >= 2 ? undefined : sceneById(style?.scene), stageKeyOf(style?.universe ?? 'aura', style?.variant))
   }
 
   private apply(p: Performer, spec: PerformerSpec) {
@@ -339,6 +369,7 @@ export class Player {
     this.raf = requestAnimationFrame(this.frame)
     if (!this.active || !this.cast.length) { this.last = 0; return }
     const dt = this.last ? Math.min(0.05, (now - this.last) / 1000) : 0
+    if (this.last) this.keepPace(now - this.last)
     this.last = now
     const step = this.playing ? dt * this.speed : 0
     if (this.settle >= 0) {

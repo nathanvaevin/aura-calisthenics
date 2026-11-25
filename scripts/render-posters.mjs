@@ -1,35 +1,28 @@
 // The pictures on the theme cards (public/themes/*.jpg), rendered from the live 3D characters.
 // Needs the dev server: `npm run dev`, then `npm run posters` (all) or `npm run posters -- aura` (one universe).
-// Each poster is the universe's poster form, three-quarter view: at rest (`rest`) or in its activation, its sign behind it.
-// Only the Aura pictures have been rendered this way so far (2026-11-19); the others are still the earlier ones.
+// Each picture is what someone has when they choose the theme: the universe's poster form as it is worn (not its activation),
+// in the theme's default place and first finish. For the Aura themes that is the Cosmic Aura on the silver character in Aura inside.
 import { chromium } from 'playwright-core'
 import { mkdirSync } from 'node:fs'
 
 const BASE = process.env.BASE || 'http://localhost:5173/'
 const OUT = process.env.OUT || 'public/themes'
 const ONLY = process.argv.slice(2)
-/** Which form each picture shows, and when in the burst it is taken (seconds after Activate). */
 const POSTERS = [
-  // The Aura cards show the Aura as it is worn, not its activation (owner's choice, 2026-11-19).
-  { file: 'aura', uni: 'aura', form: 'electric', rest: true, level: 0.65, margin: 1.02, zoom: 0.92 },
-  { file: 'power', uni: 'power', form: 'ignition', at: 1.3 },
-  { file: 'power-light', uni: 'power', variant: 'light', form: 'ignition', at: 1.3 },
-  { file: 'iron', uni: 'iron', form: 'pressure', at: 1.3 },
+  { file: 'aura', uni: 'aura', form: 'cosmic', scene: 'inside' },
+  { file: 'power', uni: 'power', form: 'ignition', scene: 'ring' },
+  { file: 'power-light', uni: 'power', variant: 'light', form: 'ignition', scene: 'ring-ink' },
+  { file: 'iron', uni: 'iron', form: 'pressure', scene: 'pit' },
 ].filter((p) => !ONLY.length || ONLY.includes(p.file) || ONLY.includes(p.uni))
 
 mkdirSync(OUT, { recursive: true })
 const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] })
 const page = await browser.newPage({ viewport: { width: 600, height: 810 } })
 for (const p of POSTERS) for (const who of ['male', 'female']) {
-  const q = new URLSearchParams({ uni: p.uni, theme: p.form, who, level: String(p.level ?? 0.7), margin: String(p.margin ?? 1.1), az: '24', zoom: String(p.zoom ?? 0.7), at: '2.5' })
+  const q = new URLSearchParams({ uni: p.uni, theme: p.form, who, scene: p.scene, level: '0.5', margin: '1.02', az: '0', zoom: '0.92', at: '2.5' })
   if (p.variant) q.set('var', p.variant)
   await page.goto(`${BASE}scripts/stage.html?${q}`)
   await page.waitForFunction(() => window.__ready, null, { timeout: 30000 })
-  // `at` is counted from the burst itself, so the same moment is caught every time.
-  if (!p.rest) {
-    await page.evaluate(() => window.__player.release())
-    await page.waitForTimeout(p.at * 1000)
-  }
   await page.screenshot({ path: `${OUT}/${p.file}-${who}.jpg`, type: 'jpeg', quality: 86 })
   console.log(`${OUT}/${p.file}-${who}.jpg`)
 }

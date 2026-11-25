@@ -4,10 +4,10 @@ import type { CharacterId } from '@/domain/media'
 import { useStore } from '@/data/store'
 import { Eyebrow, Segmented } from '@/ui/primitives'
 import { performerOf, type Look } from '@/theme/cast'
-import { UNIVERSES, UNIVERSE_IDS, type ThemeId, type UniverseId } from '@/theme/themes'
+import { THEMES, UNIVERSES, UNIVERSE_IDS, type ThemeId, type UniverseId } from '@/theme/themes'
 import type { PerformerSpec } from '@/visual/player'
 import { STYLES } from '@/visual/styles'
-import { PLAIN, scenesOn, type StageKey } from '@/visual/scenes'
+import { PLAIN, isDefaultScene, isSceneReleased, scenesOn, type StageKey } from '@/visual/scenes'
 import { Toggle } from '@/ui/primitives'
 import { cx } from '@/lib/format'
 import { Stage } from './shared'
@@ -97,7 +97,7 @@ export function Characters() {
       {/* Places a character can stand in. Each reaches athletes only when it is switched on here. */}
       <div className="card mt-7 p-5" data-places>
         <Eyebrow className="mb-1.5">Backgrounds</Eyebrow>
-        <p className="max-w-3xl text-[13px] leading-relaxed text-ink-2">Touch one to see it on the stages above. Switch it on and athletes can choose it for their character.</p>
+        <p className="max-w-3xl text-[13px] leading-relaxed text-ink-2">Touch one to see it on the stages above. Switch it on and athletes can choose it. The default is what everyone starts with and what every assessment is shown in.</p>
         <div className="mt-3 divide-y divide-line">
           {STAGES[universe].flatMap((stage) => [
             { id: '', stage, signature: false, ...PLAIN[stage] },
@@ -109,12 +109,12 @@ export function Characters() {
                 <button className="pressable flex min-w-0 flex-1 items-center gap-3 text-left" aria-pressed={looking} data-place={b.id || 'plain'} onClick={() => setPlace(b.id || b.stage !== STAGES[universe][0] ? { id: b.id, stage: b.stage } : null)}>
                   <span className={cx('h-9 w-9 shrink-0 rounded-full border', looking ? 'border-ink' : 'border-line')} style={{ background: `linear-gradient(160deg, ${b.swatch[0]} 35%, ${b.swatch[1]})` }} />
                   <span className="min-w-0">
-                    <span className="block text-[14px] font-medium">{b.name}{STAGES[universe].length > 1 && <span className="ml-1.5 text-[11.5px] font-normal text-ink-3">{b.stage === 'power-light' ? 'Goku Light' : 'Goku'}</span>}{b.signature && <span className="ml-1.5 text-[11.5px] font-normal text-ink-3">Signature</span>}</span>
+                    <span className="block text-[14px] font-medium">{b.name}{STAGES[universe].length > 1 && <span className="ml-1.5 text-[11.5px] font-normal text-ink-3">{THEMES[b.stage === 'power-light' ? 'power-light' : 'power'].name}</span>}{b.signature && <span className="ml-1.5 text-[11.5px] font-normal text-ink-3">{isDefaultScene(b.id) ? 'Signature, the default' : 'Signature'}</span>}</span>
                     <span className="block truncate text-[12px] text-ink-3">{b.line}</span>
                   </span>
                 </button>
                 {b.id
-                  ? <Toggle on={!!places[b.id]} onChange={(on) => setAuraSettings({ scenes: { ...places, [b.id]: on } })} label={`Show ${b.name} to athletes`} />
+                  ? <Toggle on={isSceneReleased(b.id, places)} onChange={(on) => setAuraSettings({ scenes: { ...places, [b.id]: on } })} label={`Show ${b.name} to athletes`} />
                   : <span className="shrink-0 text-[11.5px] text-ink-3">always</span>}
               </div>
             )

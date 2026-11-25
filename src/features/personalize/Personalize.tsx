@@ -146,7 +146,7 @@ function ThemeStep({ value, onChange, released, admin, character }: { value: The
                 : <span className="flex h-full flex-col items-center justify-center gap-1.5 px-2 text-center text-[10.5px] leading-tight text-ink-3"><Lock size={14} />In preparation</span>}
             </span>
             <span className="relative z-10 min-w-0 flex-1">
-              <span className="display block text-[28px] leading-none sm:text-[30px]">{t.name}</span>
+              <span className="display block text-[24px] leading-none sm:text-[30px]">{t.name}</span>
               <span className="mt-2 block text-[13.5px] leading-snug text-ink-2">{t.line}</span>
               {/* Its Auras (or forms, or states), each in its own colour, and how many there are. */}
               <span className="mt-3 flex items-center gap-2.5" data-forms>
@@ -255,6 +255,9 @@ function Done({ onClose, onStudio }: { onClose: () => void; onStudio: () => void
   const look = useWearing()
   const v = useVoice()
   const done = completion(me.athlete)
+  // Seeing one's Aura burst for the first time is what this screen is for: the button glows until it has been pressed here.
+  const activated = useStore((s) => !!s.settings.activated)
+  const setSettings = useStore((s) => s.setSettings)
   const rows: [string, boolean, string][] = [
     ['Theme', done.theme, THEMES[look.theme].name],
     ['Character', done.character, `${look.character === 'female' ? 'Female' : 'Male'} · ${look.form.name}`],
@@ -263,7 +266,7 @@ function Done({ onClose, onStudio }: { onClose: () => void; onStudio: () => void
   ]
   return (
     <div className="grid items-center gap-8 pt-6 lg:grid-cols-2 lg:pt-10">
-      <Stage3D cast={[performerOf(look, { aura: 'full' })]} ratio={0.82} controls="none" activate="large" margin={1.42} className="mx-auto max-h-[52dvh] max-w-[440px]" label="Your character" />
+      <Stage3D cast={[performerOf(look, { aura: 'full' })]} ratio={0.82} controls="none" activate="large" calling={!activated} onActivate={() => setSettings({ activated: true })} margin={1.42} className="mx-auto max-h-[52dvh] max-w-[440px]" label="Your character" />
       <div className="rise">
         <Eyebrow>{done.all ? 'Personalization complete' : 'Your identity is set'}</Eyebrow>
         <h1 className="display mt-2 text-[40px] leading-[1.02] sm:text-[52px]">{me.athlete.name.split(' ')[0]}, {done.all ? 'this is you.' : 'this is a start.'}</h1>

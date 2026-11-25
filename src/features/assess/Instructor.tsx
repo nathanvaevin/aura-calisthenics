@@ -5,6 +5,8 @@ import { Eyebrow } from '@/ui/primitives'
 import { Stage3D } from '@/ui/Stage3D'
 import type { DemoHandle } from '@/visual/Demo'
 import type { PerformerSpec } from '@/visual/player'
+import { performerOf, standardLook } from '@/theme/cast'
+import { useOfficialScene } from '@/theme/useTheme'
 import { chime } from '@/lib/sound'
 import { cx } from '@/lib/format'
 
@@ -24,11 +26,12 @@ export function InstructorChoice({ initial, onDone }: { initial?: CharacterId; o
   const sound = useStore((s) => s.settings.sound)
   const [chosen, setChosen] = useState<CharacterId | null>(null)
   const stage = useRef<DemoHandle>(null)
+  const scene = useOfficialScene()
 
   const cast = useMemo<PerformerSpec[]>(() => (['male', 'female'] as const).map((character, i) => ({
-    character, motion: null, muscles: null, x: i ? 0.4 : -0.4,
+    character, motion: null, muscles: null, x: i ? 0.4 : -0.4, style: performerOf(standardLook(character, scene)).style,
     aura: chosen === character ? { theme: 'electric', mode: 'full' as const, level: 1 } : { theme: 'electric', mode: 'off' as const },
-  })), [chosen])
+  })), [chosen, scene])
 
   useEffect(() => {
     if (!chosen) return
@@ -41,6 +44,12 @@ export function InstructorChoice({ initial, onDone }: { initial?: CharacterId; o
 
   return (
     <div className="relative mx-auto flex h-dvh w-full max-w-[560px] flex-col bg-(--stage)" data-instructor-choice>
+      {/* The stage fills the screen; the words lie over it, on a shade that lets the place through. */}
+      <div className="absolute inset-0 overflow-hidden">
+        <Stage3D cast={cast} fill safe={{ top: 150, bottom: 96 }} controls="none" margin={1.06} handle={stage} label="The two instructors, side by side" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[220px] bg-linear-to-b from-(--stage) via-(--stage)/70 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[130px] bg-linear-to-t from-(--stage) via-(--stage)/60 to-transparent" />
+      </div>
       <div className="safe-top relative z-10 shrink-0 px-6 pt-8 text-center">
         <Eyebrow>Before you start</Eyebrow>
         <h1 className="display mt-2 text-[38px] leading-[1.04]">Choose your instructor</h1>
@@ -48,7 +57,6 @@ export function InstructorChoice({ initial, onDone }: { initial?: CharacterId; o
       </div>
 
       <div className="relative min-h-0 flex-1">
-        <Stage3D cast={cast} fill controls="none" margin={1.06} handle={stage} label="The two instructors, side by side" />
         {/* Each half of the stage is its character. */}
         <div className="absolute inset-0 z-10 grid grid-cols-2">
           {(['male', 'female'] as const).map((c) => (

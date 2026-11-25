@@ -85,8 +85,8 @@ export interface AuraSettings {
   universes: Partial<Record<'power' | 'iron', boolean>>
   /**
    * The places a character can stand in (src/visual/scenes.ts) that athletes may choose, by scene id. Each is
-   * released by an administrator once it has been looked at; until then only they see it. Absent on settings
-   * saved before scenes existed.
+   * released by an administrator once it has been looked at; until then only they see it. The default place is on
+   * unless switched off here (`false`). Absent on settings saved before scenes existed.
    */
   scenes?: Partial<Record<string, boolean>>
   updatedAt: string | null

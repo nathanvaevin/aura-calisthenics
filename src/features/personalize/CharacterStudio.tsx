@@ -10,7 +10,7 @@ import { useStanding, useWearing } from '@/theme/useTheme'
 import { Eyebrow, Segmented, Toggle } from '@/ui/primitives'
 import { Stage3D } from '@/ui/Stage3D'
 import { isCurrentRevision } from '@/visual/revisions'
-import { PLAIN, sceneFor, scenesOn, stageKeyOf } from '@/visual/scenes'
+import { PLAIN, PLAIN_CHOICE, isSceneReleased, sceneFor, scenesOn, stageKeyOf } from '@/visual/scenes'
 import { cx } from '@/lib/format'
 
 type Preview = 'base' | 'muscles' | 'aura'
@@ -46,7 +46,7 @@ export function CharacterStudio({ theme }: { theme?: ThemeId }) {
   const chosen = useStore((s) => s.settings.scenes)
   const releasedPlaces = useStore((s) => s.auraSettings.scenes) ?? {}
   const setSettings = useStore((s) => s.setSettings)
-  const places = scenesOn(stage).filter((p) => admin || releasedPlaces[p.id])
+  const places = scenesOn(stage).filter((p) => admin || isSceneReleased(p.id, releasedPlaces))
   const place = sceneFor(stage, chosen?.[stage], releasedPlaces, admin)
   const backgrounds = [{ id: '', signature: false, ...PLAIN[stage] }, ...places]
 
@@ -147,7 +147,7 @@ export function CharacterStudio({ theme }: { theme?: ThemeId }) {
                 return (
                   <button
                     key={b.id || 'plain'} aria-pressed={on} data-place={b.id || 'plain'}
-                    onClick={() => setSettings({ scenes: { ...chosen, [stage]: b.id || undefined } })}
+                    onClick={() => setSettings({ scenes: { ...chosen, [stage]: b.id || PLAIN_CHOICE } })}
                     className={cx('pressable flex items-center gap-2.5 rounded-card border p-2.5 text-left', on ? 'border-ink bg-surface-2' : 'border-line bg-surface hover:border-line-strong')}
                   >
                     <span className="h-8 w-8 shrink-0 rounded-full border border-line" style={{ background: `linear-gradient(160deg, ${b.swatch[0]} 35%, ${b.swatch[1]})` }} />

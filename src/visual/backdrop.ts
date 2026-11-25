@@ -25,7 +25,7 @@ const FRAG = /* glsl */ `
   precision highp float;
   uniform mat4 uInvProj, uCamWorld;
   uniform vec3 uCam;
-  uniform float uTime, uAspect, uDim, uPix, uHigh, uFacing;
+  uniform float uTime, uAspect, uDim, uPix, uHigh, uFacing, uPair;
   uniform sampler2D uLogo;
   uniform vec2 uAt;
   varying vec2 vNdc;
@@ -318,10 +318,14 @@ ${SIGNATURE_MAIN}#endif
  * fewer costs it a good deal less, and the little softness that comes with it keeps the eye on the subject.
  */
 const FINE = 1.25
+/** And on a device that was not keeping up. */
+const COARSE = 0.75
 
 export class Backdrop {
   /** The finished picture of the place, laid over the whole stage before anything else. */
   readonly mesh: Mesh<PlaneGeometry, ShaderMaterial>
+  /** Painted more coarsely, for a device that was not keeping up. */
+  coarse = false
   private readonly paint: Mesh<PlaneGeometry, ShaderMaterial>
   private readonly easel = new Scene()
   private readonly lens = new Camera()
@@ -332,7 +336,7 @@ export class Backdrop {
       depthTest: false, depthWrite: false, toneMapped: false,
       uniforms: {
         uInvProj: { value: new Matrix4() }, uCamWorld: { value: new Matrix4() }, uCam: { value: new Vector3() }, uTime: { value: 0 }, uAspect: { value: 1 },
-        uDim: { value: 1 }, uPix: { value: 0.001 }, uHigh: { value: 800 }, uFacing: { value: 0 }, uAt: { value: new Vector2() }, uLogo: { value: null },
+        uDim: { value: 1 }, uPix: { value: 0.001 }, uHigh: { value: 800 }, uFacing: { value: 0 }, uPair: { value: 0 }, uAt: { value: new Vector2() }, uLogo: { value: null },
       },
       // Each place is a program of its own: a phone compiles only the one it shows.
       defines: { SCENE: 0 },
@@ -362,6 +366,9 @@ export class Backdrop {
     m.uniforms.uDim.value = dim
   }
 
+  /** Two or more stand in it, side by side. */
+  set pair(on: boolean) { this.paint.material.uniforms.uPair.value = on ? 1 : 0 }
+
   /** Where the place stands and which way it faces: round this point, what it is about opposite this camera angle (degrees). */
   face(degrees: number, x: number, z: number) {
     this.paint.material.uniforms.uFacing.value = (degrees * Math.PI) / 180
@@ -372,7 +379,7 @@ export class Backdrop {
   update(renderer: WebGLRenderer, camera: PerspectiveCamera, seconds: number) {
     if (!this.mesh.visible) return
     const { width, height } = renderer.domElement
-    const share = Math.min(1, FINE / renderer.getPixelRatio())
+    const share = Math.min(1, (this.coarse ? COARSE : FINE) / renderer.getPixelRatio())
     const w = Math.max(2, Math.round(width * share)), h = Math.max(2, Math.round(height * share))
     if (this.target.width !== w || this.target.height !== h) this.target.setSize(w, h)
     const u = this.paint.material.uniforms

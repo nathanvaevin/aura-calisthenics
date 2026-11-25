@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { standardLook, performerOf } from '@/theme/cast'
 import { DEFAULT_PERSONAL, wearing } from '@/theme/personal'
 import { THEMES, THEME_IDS, UNIVERSES } from '@/theme/themes'
-import { PLAIN, SCENES, sceneById, sceneFor, sceneLook, scenesOn, stageKeyOf, type StageKey } from './scenes'
+import { DEFAULT_SCENE, PLAIN, PLAIN_CHOICE, SCENES, isSceneReleased, officialScene, sceneById, sceneFor, sceneLook, scenesOn, stageKeyOf, type StageKey } from './scenes'
 import { STYLES, styleOf } from './styles'
 
 const STAGES: StageKey[] = ['aura', 'power', 'power-light', 'iron']
@@ -58,6 +58,14 @@ describe('the places a character can stand in', () => {
     for (const s of SCENES) expect(new RegExp(`SCENE == ${s.paint}\\b`).test(source), s.id).toBe(true)
   })
 
+  it('names no function of its own after one the language has: that painting would not compile, and stay black', () => {
+    const source = ['backdrop.ts', 'signature.ts'].map((f) => readFileSync(resolve(__dirname, f), 'utf8')).join('\n')
+    const own = [...source.matchAll(/^\s*(?:float|vec[234]|mat[234]|bool|int|void)\s+(\w+)\s*\(/gm)].map((m) => m[1])
+    expect(own.length).toBeGreaterThan(10)
+    const taken = 'sign abs floor ceil fract mod min max clamp mix step smoothstep length distance dot cross normalize reflect refract sin cos tan asin acos atan pow exp log exp2 log2 sqrt inversesqrt round trunc transpose inverse texture any all not equal dFdx dFdy fwidth radians degrees'.split(' ')
+    expect(own.filter((n) => taken.includes(n))).toEqual([])
+  })
+
   it('lends the stage its light, and takes away what burned behind the subject', () => {
     const own = STYLES.power.stage
     const lit = sceneLook(own, sceneById('storm'))
@@ -67,23 +75,51 @@ describe('the places a character can stand in', () => {
   })
 
   it('reaches an athlete only once the owner has released it', () => {
-    expect(sceneFor('aura', 'dojo', {}, false)).toBeUndefined()
-    expect(sceneFor('aura', 'dojo', { dojo: true }, false)).toBe('dojo')
-    expect(sceneFor('aura', 'dojo', { dojo: false }, false)).toBeUndefined()
+    expect(sceneFor('power', 'meadow', {}, false)).toBe('ring')
+    expect(sceneFor('power', 'meadow', { meadow: true }, false)).toBe('meadow')
+    expect(sceneFor('power', 'meadow', { meadow: false }, false)).toBe('ring')
     // The owner sees every one, to look at it before releasing it.
-    expect(sceneFor('aura', 'dojo', {}, true)).toBe('dojo')
+    expect(sceneFor('power', 'meadow', {}, true)).toBe('meadow')
+    for (const s of SCENES) expect(isSceneReleased(s.id, {}), s.id).toBe(['inside', 'ring', 'ring-ink', 'pit'].includes(s.id))
   })
 
-  it('is not shown on a stage it was not made for, or when nothing is chosen', () => {
-    expect(sceneFor('power-light', 'storm', { storm: true }, true)).toBeUndefined()
-    expect(sceneFor('aura', 'ink', { ink: true }, true)).toBeUndefined()
-    expect(sceneFor('aura', undefined, { dojo: true }, true)).toBeUndefined()
-    expect(sceneFor('aura', 'no-such-place', {}, true)).toBeUndefined()
+  it('is the signature place for everyone who has not chosen, until the owner switches that off', () => {
+    expect(DEFAULT_SCENE).toEqual({ aura: 'inside', power: 'ring', 'power-light': 'ring-ink', iron: 'pit' })
+    for (const stage of STAGES) expect(sceneById(DEFAULT_SCENE[stage])?.on[stage], stage).toBeDefined()
+    expect(sceneFor('aura', undefined, {}, false)).toBe('inside')
+    expect(sceneFor('aura', null, {}, true)).toBe('inside')
+    // A choice that cannot be shown falls back to the default, and is left alone.
+    expect(sceneFor('aura', 'dojo', {}, false)).toBe('inside')
+    expect(sceneFor('aura', 'dojo', { dojo: true }, false)).toBe('dojo')
+    // Withdrawn by the owner: the plain look, for athletes and for the owner.
+    expect(sceneFor('aura', undefined, { inside: false }, false)).toBeUndefined()
+    expect(sceneFor('aura', undefined, { inside: false }, true)).toBeUndefined()
+    // Every other stage has its own, and each can be withdrawn alone.
+    for (const stage of STAGES) {
+      const id = DEFAULT_SCENE[stage]!
+      expect(sceneFor(stage, undefined, {}, false), stage).toBe(id)
+      expect(sceneFor(stage, undefined, { [id]: false }, false), stage).toBeUndefined()
+    }
   })
 
-  it('is never part of an official assessment, nor of a look nobody chose it for', () => {
-    expect(standardLook('female').scene).toBeUndefined()
+  it('can be the plain look, chosen on purpose', () => {
+    expect(sceneFor('aura', PLAIN_CHOICE, {}, false)).toBeUndefined()
+    expect(SCENES.some((s) => s.id === PLAIN_CHOICE)).toBe(false)
+  })
+
+  it('is not shown on a stage it was not made for', () => {
+    expect(sceneFor('power-light', 'storm', { storm: true }, true)).toBe('ring-ink')
+    expect(sceneFor('iron', 'inside', {}, true)).toBe('pit')
+    expect(sceneFor('iron', 'no-such-place', {}, true)).toBe('pit')
+  })
+
+  it('is the same for everyone in an official assessment, whatever they chose for themselves', () => {
+    expect(officialScene({})).toBe('inside')
+    expect(officialScene({ dojo: true, storm: true })).toBe('inside')
+    expect(officialScene({ inside: false })).toBeUndefined()
+    expect(performerOf(standardLook('male', officialScene({}))).style?.scene).toBe('inside')
     expect(performerOf(standardLook('male')).style?.scene).toBeUndefined()
+    // What is worn says nothing of a place by itself: it is added where the choice is known.
     expect(wearing(DEFAULT_PERSONAL, { aura: 0, skills: 0, verified: 0 }).scene).toBeUndefined()
     const look = { universe: 'aura' as const, character: 'male' as const, form: UNIVERSES.aura.list[0], finish: UNIVERSES.aura.finishes[0], intensity: 0.5, scene: 'dojo' }
     expect(performerOf(look).style?.scene).toBe('dojo')

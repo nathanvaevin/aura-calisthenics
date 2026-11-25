@@ -84,6 +84,9 @@ export const SIGNATURE = /* glsl */ `
     return c;
   }
 
+  // Where the name hangs: beside one athlete; between the two bars, over their heads, when two stand side by side.
+  vec2 nameAt() { return mix(vec2(1.08, 1.89), vec2(0.0, 2.615), uPair); }
+
   // Walls and roof, and what stands before them. The floor is drawn by the caller, which also looks at this in its polish.
   vec3 inside(vec3 o, vec3 d, float breath) {
     d += vec3(1e-5);
@@ -148,7 +151,7 @@ export const SIGNATURE = /* glsl */ `
         rod(o, d, vec3(x, 0.0, -5.2), vec3(x, 2.95, -5.2), 0.05, L, steel, hot, col, zb);
         float rx = i == 0 ? -1.32 : -0.72;
         rod(o, d, vec3(rx, 2.95, -5.9), vec3(rx + 0.02 * sin(uTime * 0.9 + rx), 1.95, -5.9), 0.012, L, vec3(0.2, 0.17, 0.14), hot * 0.4, col, zb);
-        rod(o, d, vec3(i == 0 ? 0.68 : 1.48, 2.28, -5.2), vec3(i == 0 ? 0.68 : 1.48, 2.06, -5.2), 0.009, L, steel, hot, col, zb);
+        if (uPair < 0.5) rod(o, d, vec3(i == 0 ? 0.68 : 1.48, 2.28, -5.2), vec3(i == 0 ? 0.68 : 1.48, 2.06, -5.2), 0.009, L, steel, hot, col, zb);
       }
       rod(o, d, vec3(-1.75, 2.95, -5.2), vec3(1.75, 2.95, -5.2), 0.045, L, steel, hot, col, zb);
       rod(o, d, vec3(-1.75, 2.28, -5.2), vec3(1.75, 2.28, -5.2), 0.03, L, vec3(0.14, 0.13, 0.13), hot, col, zb);
@@ -171,7 +174,7 @@ export const SIGNATURE = /* glsl */ `
       // The name, on a plate hung from the bar.
       float tp = (-5.16 - o.z) / d.z;
       if (tp > 0.0 && tp < zb + 0.2) {
-        vec2 at = (o + d * tp).xy - vec2(1.08, 1.89);
+        vec2 at = (o + d * tp).xy - nameAt();
         float plate = (1.0 - smoothstep(0.52 - uPix * tp, 0.52 + uPix * tp, abs(at.x))) * (1.0 - smoothstep(0.185 - uPix * tp, 0.185 + uPix * tp, abs(at.y)));
         vec4 name = wordmark(at + vec2(0.0, 0.008), 0.8);
         vec3 face = vec3(0.055, 0.048, 0.05) + warm * 0.03 * breath;
@@ -303,7 +306,7 @@ export const SIGNATURE_MAIN = /* glsl */ `
     // The bars of the rack lie in it as shadow.
     vec3 s = pf + toSun * ((-5.2 - pf.z) / toSun.z);
     float bars = pf.z > -5.2 ? smoothstep(0.02, 0.09, min(abs(abs(s.x) - 1.75), min(abs(s.y - 2.28), abs(s.y - 2.95)))) : 1.0;
-    if (pf.z > -5.2) bars *= 1.0 - 0.9 * step(abs(s.x - 1.08), 0.52) * step(abs(s.y - 1.89), 0.185);
+    if (pf.z > -5.2) bars *= 1.0 - 0.9 * step(abs(s.x - nameAt().x), 0.52) * step(abs(s.y - nameAt().y), 0.185);
     stone += vec3(1.0, 0.64, 0.38) * patchy * (0.1 + 0.9 * bars) * 0.34 * (0.85 + 0.3 * fbm(pf.xz * 1.7));
     float graze = pow(1.0 - clamp(-d.y, 0.0, 1.0), 3.0);
     vec3 seen = inside(pf + vec3(0.0, 0.002, 0.0), vec3(d.x, -d.y, d.z), breath);

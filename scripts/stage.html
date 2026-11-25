@@ -14,7 +14,7 @@ player.resize(innerWidth, innerHeight)
 await player.setCast([{
   character: q.get('who') ?? 'male', motion: null, muscles: null,
   aura: { theme: q.get('theme') ?? 'cosmic', mode: 'full', level: Number(q.get('level') ?? 0.7) },
-  style: { universe: u.id, variant: q.get('var') ?? undefined, skin: f.skin, hair: f.hair, accent: f.accent },
+  style: { universe: u.id, variant: q.get('var') ?? undefined, scene: q.get('scene') ?? undefined, skin: f.skin, hair: f.hair, accent: f.accent },
 }])
 if (q.has('az')) player.reframe(Number(q.get('az')))
 if (q.has('zoom')) player.zoom(Number(q.get('zoom')))

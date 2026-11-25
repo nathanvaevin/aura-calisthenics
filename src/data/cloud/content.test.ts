@@ -15,6 +15,28 @@ beforeEach(() => {
   s().startDemo()
 })
 
+describe('a device that changes hands without an account', () => {
+  const published = { id: 'p1', exerciseId: 'pushup', kind: 'animation', slot: 'male', status: 'published', version: 1 } as unknown as DemoAsset
+  const invite = { id: 'sess-x', protocol: 'baseline-2', title: 'Baseline', kind: 'baseline', groupName: 'Group', coachName: 'Coach', courseId: null, stations: [], stationMinutes: 6 } as unknown as Parameters<ReturnType<typeof s>['acceptInvite']>[0]
+  const open = () => { s().reset(); useStore.setState({ demo: false, demos: [published, { ...published, id: 'p2', status: 'pending' }] }) }
+
+  it('still shows the published demonstrations after joining by link, and after starting on its own', () => {
+    open()
+    s().acceptInvite(invite, { name: 'New Athlete', sharing: 'coach' })
+    expect(s().meId).toBeTruthy()
+    expect(s().demos.map((d) => d.id)).toEqual(['p1'])
+    open()
+    s().completeOnboarding({ name: 'New Athlete', handle: 'new', goals: [], estimates: {}, equipment: ['floor'], weeklyTarget: 3, coach: false } as unknown as Parameters<ReturnType<typeof s>['completeOnboarding']>[0])
+    expect(s().demos.map((d) => d.id)).toEqual(['p1'])
+  })
+
+  it('keeps nothing of the sample world', () => {
+    s().createDemo(male)
+    s().reset()
+    expect(s().demos).toEqual([])
+  })
+})
+
 describe('demonstrations in the store', () => {
   it('makes the sample athlete an admin, also in a sample world saved before', () => {
     expect(s().athletes[ME].roles).toContain('admin')

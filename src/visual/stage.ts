@@ -151,6 +151,10 @@ export class Stage {
 
   add(...objects: Parameters<Scene['add']>) { this.scene.add(...objects) }
 
+  /** Paints the place more coarsely (a device that was not keeping up). */
+  set coarse(on: boolean) { this.place.coarse = on }
+  /** Two or more performers stand side by side. */
+  set pair(on: boolean) { this.place.pair = on }
   private facing = 0
   /** Puts the place round the subject, and turns it so that what it is about lies behind it as seen now. */
   face() { this.facing = this.view.azimuth; this.place.face(this.facing, this.view.target.x, this.view.target.z) }

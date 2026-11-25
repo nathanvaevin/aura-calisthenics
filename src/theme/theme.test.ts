@@ -16,7 +16,8 @@ const css = readFileSync(resolve(__dirname, '../styles/index.css'), 'utf8')
 
 describe('the five themes', () => {
   it('are five, on three universes, and the original is the standard for assessments', () => {
-    expect(THEME_IDS).toEqual(['dark', 'light', 'power', 'power-light', 'iron'])
+    expect(THEME_IDS).toEqual(['dark', 'power', 'iron', 'light', 'power-light'])
+    expect(THEME_IDS.map((id) => THEMES[id].name)).toEqual(['Aura Dark Mode', 'Goku Dark Mode', 'Baki Mode', 'Aura Light Mode', 'Goku Light Mode'])
     expect(THEMES['power-light'].universe).toBe('power')
     expect(THEMES.dark.universe).toBe('aura')
     expect(THEMES.light.universe).toBe('aura')
@@ -118,7 +119,7 @@ describe('what an athlete wears', () => {
 
   it('defaults sensibly for an athlete who has chosen nothing', () => {
     const w = wearing(personalOf({}), none)
-    expect([w.theme, w.universe, w.character, w.form.id, w.finish.id]).toEqual(['dark', 'aura', 'male', 'cosmic', 'pearl'])
+    expect([w.theme, w.universe, w.character, w.form.id, w.finish.id]).toEqual(['dark', 'aura', 'male', 'cosmic', 'graphite'])
   })
 
   it('an official assessment always shows the Aura master character under the Cosmic Aura', () => {

@@ -287,8 +287,8 @@ A **form** is an Aura theme (§6) given a name, a place in a universe and a cond
 
 `src/theme/cast.ts` is the one place that turns an athlete's look (`wearing()`: universe, character, form, finish, intensity) into what the player is given, so the profile, the Character Studio and a demonstration show the same character.
 
-- **Demonstrations outside assessments**: the approved movement, performed by the athlete's own character in their universe, with the working muscles as they prefer. The movement and its camera are the approved ones; only who performs it differs.
-- **Official assessments**: always `standardLook()`: the Aura master character, pearl finish, Cosmic Aura, and the whole athlete-side assessment in the Aura Dark theme with its plain wording. Exercise requirements, technique and scoring cannot differ, because they never depended on a theme.
+- **Demonstrations outside assessments**: the approved movement, performed by the athlete's own character in their universe, with the working muscles as they prefer. Which of the two characters that is, is chosen in the Character Studio and nowhere else (the owner, 2026-11-25): there is no Male / Female switch in the library or during an exercise. If only the other one's animation is with athletes, that one is shown. The movement and its camera are the approved ones; only who performs it differs.
+- **Official assessments**: always `standardLook()`: the Aura master character, silver (the Graphite finish, the first of its universe and so everyone's default since 2026-11-25), Cosmic Aura, in Aura inside, and the whole athlete-side assessment in the Aura Dark theme with its plain wording. Exercise requirements, technique and scoring cannot differ, because they never depended on a theme.
 - **The athlete's Character Studio** (`src/features/personalize/`) previews and saves preferences. The only movements it can play are published ones. It has no way to create, change or publish an asset.
 
 ## 14 · Places: what is behind the character
@@ -311,7 +311,9 @@ A **form** is an Aura theme (§6) given a name, a place in a universe and a cond
 | Storm night | Stars over still water, cloud | Stars, cloud, lightning far off every few seconds | Goku, Aura, Baki |
 | Ink mountains | Grey wash ranges on paper, mist, the red sun kept | Mist, a few red petals | Goku Light |
 
-Every stage also keeps its own plain look (Studio, Burning sun, Red sun, Black room): what anyone has until they choose otherwise.
+Every stage also keeps its own plain look (Studio, Burning sun, Red sun, Black room), **first in the list**.
+
+**The default** (the owner's choice, 2026-11-25; `DEFAULT_SCENE`): until someone chooses, a stage shows its signature place: Aura inside, World ring (in ink on Goku Light), The pit. These four are released unless the owner switches one off, and then that stage shows its plain look. Choosing the plain look is a choice like any other (`PLAIN_CHOICE`) and stays.
 
 **How it is painted.** One rectangle that covers the picture and is drawn first. For each pixel the shader works out which way the camera looks there and paints what lies that way: a floor where the look meets the ground, walls where it meets a room (the two halls are real boxes), a horizon and sky beyond. So a place turns correctly as the camera goes round the subject, the floor is in true perspective under the feet, and the shadow falls on it. Nothing is loaded: it is rules and noise. **None of the pictures the owner gave as a direction is in the app.** For the pit and the ring he gave frames of existing works; what was taken is the kind of place (a fighting pit with a crowd; a tournament floor afloat in space). Emblems, floor pattern, stones and crowd are ours; no character, no writing, no crest, and the names are our own.
 
@@ -323,10 +325,14 @@ Every stage also keeps its own plain look (Studio, Burning sun, Red sun, Black r
 - **The light follows the place** (`look`): the main light, the two lights from behind, the fill and the floor take the place's colours, and what burned behind the subject (Goku's sun) is taken away, except on paper.
 - Things adrift (dust, petals, sparks, seeds) are drawn between the camera and the place, so they do not turn with the camera.
 
-**Who has it.** Nothing here reaches athletes until the owner switches it on: Studio → Characters → Backgrounds, one switch a place (`auraSettings.scenes`, kept with the other Aura settings, so it needs no database step). An athlete then chooses in the Character Studio, under *Background*; the section is not there at all while nothing is released. The owner sees every place, to look at it first. A place withdrawn again falls back to the plain look and leaves the athlete's choice as it was.
+**Who has it.** The four defaults reach everyone; the other places reach nobody until the owner switches them on: Studio → Characters → Backgrounds, one switch a place (`auraSettings.scenes`, kept with the other Aura settings, so it needs no database step). An athlete chooses in the Character Studio, under *Background*. The owner sees every place, to look at it first. A place withdrawn again falls back to the default and leaves the athlete's choice as it was.
 
-**Where the choice lives.** On the device (`settings.scenes`, one choice a stage), not on the account: signing in elsewhere starts from the plain look. Putting it on the account is three columns and a database step, and was left out so this could be released without one.
+**Where the choice lives.** On the device (`settings.scenes`, one choice a stage), not on the account: signing in elsewhere starts from the default. Putting it on the account is three columns and a database step, and was left out so this could be released without one.
 
-**Never in an assessment**: `standardLook()` carries no place, and a test checks it.
+**In an assessment it is the same for everyone**: Aura inside (`officialScene`), whatever someone's theme or own choice, from the choice of instructor to the last test. An athlete's own place is never part of one; a test checks it. Where two stand side by side (the choice of instructor, which fills the screen), the name hangs over their heads between the bars instead of beside one of them (`Stage.pair`).
+
+**On a device that cannot keep up** the place gives way, not the exercise: under 22 frames a second for three seconds running, it is painted more coarsely (0.75 dots to a point); if that is not enough, it is left out until the app is opened again (`Player.keepPace`). Tried with frames made slow on purpose: coarse after 4 seconds, gone after 8; at normal speed nothing changes.
+
+**Theme pictures** (`npm run posters`) show each theme as it is first worn: its default place, first finish and poster form, at rest. Rendered again whenever one of those changes.
 
 **Honest limits.** Painted by rule, so stylised and simple next to a painted picture: the blossom is a line of heaps, the halls are boxes; the seven earlier places are plainer than the signature ones. The crowd is one figure varied. No depth between layers (the far ridge does not slide against the near woods as you turn). Seen on a computer only: what it costs a phone's graphics chip has not been measured there; the World ring is the heaviest. Adding a place: an entry in `scenes.ts`, a branch in `backdrop.ts`, then look at it on each of its stages, from all round, and behind the workout screen.

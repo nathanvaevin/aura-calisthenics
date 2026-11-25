@@ -8,9 +8,10 @@
  * what a theme shows its character on: the dark studio of the Aura themes,
  * the storm of Goku, the paper of Goku Light, the black room of Baki.
  *
- * Every stage also has its own plain look (no scene), and that is what
- * anyone has until they choose otherwise, and what an official assessment
- * always shows.
+ * Every stage also has its own plain look (no scene), offered first. Until
+ * someone chooses, a stage shows its default, where it has one
+ * (`DEFAULT_SCENE`), and otherwise its plain look. An official assessment
+ * always shows the Aura stage's default, for everyone.
  */
 import type { StageLook } from './styles'
 
@@ -177,15 +178,40 @@ export function sceneLook(base: StageLook, scene: SceneDef | undefined): StageLo
   return { ...base, ...scene.look, sun: scene.keepSun ? base.sun : undefined }
 }
 
-/** Which scenes the owner has released to athletes (Studio → Characters). Nothing is, until switched on. */
+/**
+ * Which scenes athletes may choose (Studio → Characters). Nothing is, until the owner switches it on; except a
+ * stage's default, which the owner made everyone's from the start and can switch off.
+ */
 export type ReleasedScenes = Partial<Record<string, boolean>>
 
+/** Having no scene, chosen on purpose: what a stage with a default is set to when someone wants its plain look. */
+export const PLAIN_CHOICE = 'plain'
+
 /**
- * The scene a stage shows for someone: the one they chose, if the stage has
- * it and it has been released to them. Anything else is the stage's plain look.
+ * What a stage shows until someone chooses otherwise (the owner's choice, 2026-11-25): the signature place of its
+ * character. An assessment is always shown in the Aura stage's. A stage without one would show its plain look.
+ */
+export const DEFAULT_SCENE: Partial<Record<StageKey, string>> = { aura: 'inside', power: 'ring', 'power-light': 'ring-ink', iron: 'pit' }
+
+export const isDefaultScene = (id: string) => Object.values(DEFAULT_SCENE).includes(id)
+export const isSceneReleased = (id: string, released: ReleasedScenes) => (isDefaultScene(id) ? released[id] !== false : !!released[id])
+
+/** The stage's default, unless the owner has switched it off. */
+export function defaultSceneOn(stage: StageKey, released: ReleasedScenes): string | undefined {
+  const id = DEFAULT_SCENE[stage]
+  return id && isSceneReleased(id, released) ? id : undefined
+}
+
+/** The scene of every official assessment: the same for everyone, whatever they chose for themselves. */
+export const officialScene = (released: ReleasedScenes) => defaultSceneOn('aura', released)
+
+/**
+ * The scene a stage shows for someone: the one they chose, if the stage has it and it has been released to them;
+ * the plain look if they chose that; otherwise the stage's default.
  */
 export function sceneFor(stage: StageKey, chosen: string | null | undefined, released: ReleasedScenes, admin: boolean): string | undefined {
+  if (chosen === PLAIN_CHOICE) return undefined
   const scene = sceneById(chosen)
-  if (!scene || scene.on[stage] === undefined) return undefined
-  return admin || released[scene.id] ? scene.id : undefined
+  if (scene && scene.on[stage] !== undefined && (admin || isSceneReleased(scene.id, released))) return scene.id
+  return defaultSceneOn(stage, released)
 }

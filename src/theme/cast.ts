@@ -29,9 +29,9 @@ export function stageTheme(theme: ThemeId): ThemeId {
   return THEME_IDS.find((id) => THEMES[id].universe === t.universe && (THEMES[id].scheme === 'light') === paper) ?? theme
 }
 
-/** The official presentation: the Aura master character under the Cosmic Aura. Used for every assessment. */
-export const standardLook = (character: Wearing['character']): Look => ({
-  universe: 'aura', character, form: UNIVERSES.aura.list[0], finish: UNIVERSES.aura.finishes[0], intensity: 0.6,
+/** The official presentation: the Aura master character under the Cosmic Aura, in the place every assessment is shown in (`officialScene`). */
+export const standardLook = (character: Wearing['character'], scene?: string): Look => ({
+  scene, universe: 'aura', character, form: UNIVERSES.aura.list[0], finish: UNIVERSES.aura.finishes[0], intensity: 0.6,
 })
 
 /**

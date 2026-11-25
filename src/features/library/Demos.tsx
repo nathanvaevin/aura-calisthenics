@@ -3,8 +3,8 @@ import type { CharacterId, DemoAsset } from '@/domain/media'
 import { useStore } from '@/data/store'
 import { performerOf, standardLook } from '@/theme/cast'
 import { personalOf } from '@/theme/personal'
-import { useWearing } from '@/theme/useTheme'
-import { Segmented, Toggle } from '@/ui/primitives'
+import { useOfficialScene, useWearing } from '@/theme/useTheme'
+import { Toggle } from '@/ui/primitives'
 import Demo, { type DemoHandle } from '@/visual/Demo'
 import { MOTIONS } from '@/visual/motions'
 import { STAGE_RATIO } from '@/visual/motions/types'
@@ -32,20 +32,22 @@ export default function ExerciseDemos({ animations, official, stage, handle, pre
   safe?: { top: number; bottom: number }
 }) {
   const worn = useWearing()
+  const officialPlace = useOfficialScene()
   const prefersMuscles = useStore((s) => personalOf(s.meId ? s.athletes[s.meId] : null).muscles)
   const current = (['male', 'female'] as const).filter((c) => {
     const a = animations[c]?.animation
     return !!a && MOTIONS[a.motion]?.revision === (a.revision ?? 1)
   })
-  // In an assessment, the instructor the athlete chose at its start performs. Elsewhere, their own character.
+  // In an assessment, the instructor the athlete chose at its start performs. Elsewhere, their own character: which of the
+  // two that is, is chosen in the Character Studio and nowhere else (the owner's choice, 2026-11-25).
   const instructor = useStore((s) => s.settings.instructor?.character)
-  const [who, setWho] = useState<CharacterId>(official ? instructor ?? worn.character : worn.character)
+  const who: CharacterId = official ? instructor ?? worn.character : worn.character
   const [muscles, setMuscles] = useState(official ? true : prefersMuscles)
   const asset = animations[current.includes(who) ? who : current[0]]
   if (!asset?.animation) return null
   const recipe = asset.animation
   const motion = MOTIONS[recipe.motion]
-  const look = official ? standardLook(recipe.character) : { ...worn, character: recipe.character }
+  const look = official ? standardLook(recipe.character, officialPlace) : { ...worn, character: recipe.character }
 
   if (stage) {
     return (
@@ -74,9 +76,7 @@ export default function ExerciseDemos({ animations, official, stage, handle, pre
         ratio={STAGE_RATIO[motion.stage]} angle={recipe.camera !== motion.camera ? recipe.camera : undefined} label="Animated demonstration"
       />
       <div className="mt-2.5 flex items-center justify-between gap-3">
-        {current.length > 1
-          ? <Segmented<CharacterId> value={recipe.character} onChange={setWho} options={[{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }]} />
-          : <span className="text-[12px] text-ink-3">{official ? 'Official demonstration' : 'Animated demonstration'}</span>}
+        <span className="text-[12px] text-ink-3">{official ? 'Official demonstration' : 'Animated demonstration'}</span>
         <span className="flex items-center gap-2.5 text-[12.5px] text-ink-2">Working muscles <Toggle on={muscles} onChange={setMuscles} label="Show the working muscles" /></span>
       </div>
     </div>

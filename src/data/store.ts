@@ -51,6 +51,8 @@ export interface Settings {
   tour?: 'done' | 'skipped'
   /** Personalize was opened after the introduction: its button stops calling for attention. */
   personalizeOpened?: boolean
+  /** Activate was pressed on the screen that ends Personalize: its button stops calling for attention. */
+  activated?: boolean
   /** Larger text and controls on this device. Unset: the standard size. It is about the screen and the eyes in front of it, so it is not part of a theme and does not follow the account. */
   size?: 'large'
 }
@@ -59,7 +61,7 @@ export interface Settings {
  * What a device remembers about the introduction belongs to whoever saw it. A profile just made through the welcome
  * questions is someone new, also on a device that has shown it before: it is offered again, and Personalize calls again.
  */
-const NEWCOMER: Partial<Settings> = { tour: undefined, personalizeOpened: undefined }
+const NEWCOMER: Partial<Settings> = { tour: undefined, personalizeOpened: undefined, activated: undefined }
 
 export interface NewPlace {
   name: string
@@ -309,6 +311,13 @@ const empty = {
   cloudShadow: {} as Record<string, string>,
 }
 
+/**
+ * What everyone sees, whoever the device belongs to: the published animations and videos, and the owner's releases.
+ * A device that changes hands without an account keeps it; nothing would fetch it again until the app is reopened.
+ * The sample world's own is not kept: leaving that world fetches what is real.
+ */
+const everyones = (s: State) => (s.demo ? {} : { demos: s.demos.filter((d) => d.status === 'published'), workoutVideos: s.workoutVideos.filter((w) => w.status === 'published'), auraSettings: s.auraSettings })
+
 /** A fresh, empty world. Used when an account signs in or out. */
 export const emptyWorld = () => structuredClone(empty)
 
@@ -434,6 +443,7 @@ export const useStore = create<State>()(
           }))
         set({
           ...empty,
+          ...everyones(get()),
           ...world,
           athletes: { ...world.athletes, [ME]: me },
           evidence: [...world.evidence, ...estimates],
@@ -442,7 +452,7 @@ export const useStore = create<State>()(
         })
       },
 
-      reset: () => set({ ...empty }),
+      reset: () => set((s) => ({ ...empty, ...everyones(s) })),
 
       updateMe: (patch) =>
         set((s) => (s.meId ? { athletes: { ...s.athletes, [s.meId]: { ...s.athletes[s.meId], ...patch } } } : s)),
@@ -852,7 +862,7 @@ export const useStore = create<State>()(
           // Someone who scanned a code in class: enough of a profile to start, nothing more.
           const name = who.name.trim() || 'Athlete'
           const me: Athlete = { id: ME, name, handle: slug(name), bio: '', roles: ['athlete'], goals: [], joinedAt: now, weeklyTarget: 3, equipment: ['floor', 'wall', 'bar', 'box'] }
-          set({ ...empty, meId: ME, athletes: { [ME]: me }, settings: { ...s.settings, coachMode: false } })
+          set({ ...empty, ...everyones(s), meId: ME, athletes: { [ME]: me }, settings: { ...s.settings, coachMode: false } })
           s = get()
         }
         const meId = s.meId!
