@@ -688,6 +688,18 @@
     opacity: 0.85;
     animation: aura-call-turn 2.4s linear infinite, aura-call-glow 1.8s ease-in-out infinite;
   }
+  /* Loose, as on a phone's home screen: each a little out of step with the next. `rotate` is its own property, so a week being carried keeps its place. */
+  .week-loose {
+    animation: week-loose 0.26s ease-in-out infinite alternate;
+  }
+  @keyframes week-loose {
+    from { rotate: -1.4deg; }
+    to { rotate: 1.4deg; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .week-loose { animation: none; outline: 1px dashed var(--line-strong); outline-offset: 2px; }
+  }
+
   @keyframes aura-call-turn {
     to { --call-angle: 360deg; }
   }

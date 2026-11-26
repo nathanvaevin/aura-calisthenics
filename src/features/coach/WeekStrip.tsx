@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Plus } from 'lucide-react'
+import { Check, GripVertical, Plus } from 'lucide-react'
 import type { CourseWeek } from '@/domain/types'
 import { cx } from '@/lib/format'
 
 /** How long a finger rests on a week before it comes loose, and how far it may wander meanwhile (it is a scroll if further). */
-const HOLD = 380
+const HOLD = 420
 const SLOP = 8
 
 interface Drag {
@@ -33,9 +33,14 @@ function lay(d: Pick<Drag, 'from' | 'starts' | 'sizes' | 'gap'>, over: number) {
 }
 
 /**
- * The weeks of a course, to choose from and to put in another order: hold one and carry it to its place (a mouse just
- * drags; Alt and an arrow key does the same). The others make room as it passes, and each shows the number it would
- * have. Nothing is moved in the page until it is let go, so a touch is never lost half-way.
+ * The weeks of a course, to choose from and to put in another order, the way a phone's home screen does it: hold one
+ * and they all come loose (they wiggle, and say so), carry any of them to its place, as often as needed, and touch
+ * anywhere else, or Done, to settle them. A mouse just drags; Alt and an arrow key does the same. The others make room
+ * as one passes, and each shows the number it would have. Nothing is moved in the page until it is let go.
+ *
+ * Loose, the weeks take the finger for themselves (`touch-action: none`), so the phone cannot start scrolling the row
+ * under it and cancel the drag: that is why holding and dragging in one go is not relied on. When a phone allows it,
+ * the week held is carried in the same touch all the same.
  */
 export function WeekStrip({ weeks, index, onSelect, onMove, onAdd, caption }: {
   weeks: CourseWeek[]
@@ -48,6 +53,10 @@ export function WeekStrip({ weeks, index, onSelect, onMove, onAdd, caption }: {
   const strip = useRef<HTMLDivElement>(null)
   const chips = useRef<(HTMLButtonElement | null)[]>([])
   const [drag, setDrag] = useState<Drag | null>(null)
+  /** Loose: the weeks wiggle and can be carried with a touch, until settled. */
+  const [loose, setLoose] = useState(false)
+  const looseRef = useRef(false)
+  looseRef.current = loose
   const live = useRef<Drag | null>(null)
   const press = useRef<{ i: number; x: number; y: number; mouse: boolean; timer: number } | null>(null)
   const pointer = useRef({ x: 0, y: 0 })
@@ -116,10 +125,28 @@ export function WeekStrip({ weeks, index, onSelect, onMove, onAdd, caption }: {
       if (i < 0 || e.button !== 0 || chips.current.filter(Boolean).length < 2) return
       pointer.current = { x: e.clientX, y: e.clientY }
       const mouse = e.pointerType === 'mouse'
-      press.current = { i, x: e.clientX, y: e.clientY, mouse, timer: mouse ? 0 : window.setTimeout(() => { if (press.current) { press.current = null; begin(i, e.clientX, e.clientY) } }, HOLD) }
+      // Loose, a touch on a week takes hold of it at once.
+      if (looseRef.current && !mouse) { begin(i, e.clientX, e.clientY); return }
+      press.current = {
+        i, x: e.clientX, y: e.clientY, mouse,
+        timer: mouse ? 0 : window.setTimeout(() => {
+          if (!press.current) return
+          press.current = null
+          setLoose(true)
+          begin(i, e.clientX, e.clientY)
+        }, HOLD),
+      }
     }
     const onUp = () => drop(true)
+    // A phone that took the touch for scrolling cancels it: the weeks stay loose, and the next touch carries one.
     const onCancel = () => drop(false)
+    // Touching anywhere but the weeks settles them. Done, in the row, does it itself: settled here, the button under the
+    // finger would be another one by the time the touch ends.
+    const settle = (e: PointerEvent) => {
+      if (!looseRef.current || el.contains(e.target as Node)) return
+      setLoose(false)
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && looseRef.current) setLoose(false) }
     // Once a week is loose the finger carries it: the page and the strip must not scroll under it.
     const onTouch = (e: TouchEvent) => { if (live.current) e.preventDefault() }
     const onMenu = (e: Event) => { if (live.current || press.current) e.preventDefault() }
@@ -143,6 +170,8 @@ export function WeekStrip({ weeks, index, onSelect, onMove, onAdd, caption }: {
     window.addEventListener('pointermove', onMoved)
     window.addEventListener('pointerup', onUp)
     window.addEventListener('pointercancel', onCancel)
+    document.addEventListener('pointerdown', settle, true)
+    document.addEventListener('keydown', onKey)
     return () => {
       cancelAnimationFrame(frame)
       if (press.current) clearTimeout(press.current.timer)
@@ -152,13 +181,16 @@ export function WeekStrip({ weeks, index, onSelect, onMove, onAdd, caption }: {
       window.removeEventListener('pointermove', onMoved)
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onCancel)
+      document.removeEventListener('pointerdown', settle, true)
+      document.removeEventListener('keydown', onKey)
     }
   }, [])
 
   const laid = drag ? lay(drag, drag.over) : null
   chips.current.length = weeks.length
   return (
-    <div ref={strip} data-weeks data-dragging={drag ? '' : undefined} className="no-scrollbar -mx-5 -my-2 flex gap-2 overflow-x-auto px-5 py-2 lg:sticky lg:top-8 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0">
+    <div className="lg:sticky lg:top-8">
+    <div ref={strip} data-weeks data-loose={loose ? '' : undefined} data-dragging={drag ? '' : undefined} className="no-scrollbar -mx-5 -my-2 flex gap-2 overflow-x-auto px-5 py-2 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0">
       {weeks.map((w, i) => {
         const carried = drag?.from === i
         // The carried week follows the finger, kept inside the row; the others step aside.
@@ -169,31 +201,42 @@ export function WeekStrip({ weeks, index, onSelect, onMove, onAdd, caption }: {
         return (
           <button
             key={w.id} ref={(el) => { chips.current[i] = el }} data-week={w.id} data-carried={carried ? '' : undefined} title={weeks.length > 1 ? 'Hold and drag to move this week' : undefined}
-            onClick={() => { if (!swallow.current) onSelect(i) }}
+            onClick={() => { if (!swallow.current && !loose) onSelect(i) }}
             onKeyDown={(e) => {
               if (!e.altKey) return
               const to = e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? i - 1 : e.key === 'ArrowRight' || e.key === 'ArrowDown' ? i + 1 : -1
               if (to >= 0 && to < weeks.length) { e.preventDefault(); onMove(i, to) }
             }}
-            style={drag ? { transform: `translate${drag.axis === 'x' ? 'X' : 'Y'}(${shift}px)${carried ? ' scale(1.05)' : ''}`, transition: carried ? 'none' : 'transform 0.2s ease', zIndex: carried ? 2 : undefined } : undefined}
+            style={drag ? { touchAction: loose ? 'none' : undefined, transform: `translate${drag.axis === 'x' ? 'X' : 'Y'}(${shift}px)${carried ? ' scale(1.05)' : ''}`, transition: carried ? 'none' : 'transform 0.2s ease', zIndex: carried ? 2 : undefined } : loose ? { touchAction: 'none', animationDelay: `${-(i % 3) * 0.11}s` } : undefined}
             className={cx(
               'relative flex h-[52px] min-w-[76px] shrink-0 flex-col justify-center rounded-2xl border px-3.5 text-left select-none [-webkit-touch-callout:none] lg:h-auto lg:py-2.5',
-              !drag && 'pressable',
+              !drag && !loose && 'pressable',
+              loose && !carried && 'week-loose',
               selected ? 'border-ink bg-ink text-bg' : cx('border-line text-ink-2', carried ? 'bg-surface-2' : 'hover:bg-surface'),
               carried && 'shadow-[0_10px_28px_-8px_rgba(0,0,0,0.6)] ring-2 ring-accent',
             )}
           >
-            <span className="text-[13.5px] font-medium">Week {(laid ? laid.order.indexOf(i) : i) + 1}</span>
+            <span className="flex items-center gap-1 text-[13.5px] font-medium">{loose && <GripVertical size={12} className="-ml-1 opacity-60" aria-hidden />}Week {(laid ? laid.order.indexOf(i) : i) + 1}</span>
             <span className={cx('truncate text-[11px]', selected ? 'opacity-70' : 'text-ink-3')}>{caption(w, selected)}</span>
           </button>
         )
       })}
+      {loose ? (
+        <button data-weeks-done onClick={() => setLoose(false)} className="pressable flex h-[52px] shrink-0 items-center gap-1.5 rounded-2xl bg-ink px-4 text-[13.5px] font-medium text-bg lg:h-11 lg:w-full lg:justify-center">
+          <Check size={16} strokeWidth={2.6} /> Done
+        </button>
+      ) : (
       <button
         aria-label="Add week" onClick={onAdd}
         className="pressable flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl border border-dashed border-line-strong text-ink-2 lg:h-11 lg:w-full lg:gap-2 lg:text-[13px]"
       >
         <Plus size={17} /><span className="hidden lg:inline">Add week</span>
       </button>
+      )}
+    </div>
+    <p className={cx('mt-1 text-[12px] text-ink-3 transition-opacity lg:mt-2', loose ? 'opacity-100' : 'h-0 overflow-hidden opacity-0')} aria-live="polite" data-weeks-hint>
+      {loose ? 'Drag a week to its place. Touch anywhere else to finish.' : ''}
+    </p>
     </div>
   )
 }
