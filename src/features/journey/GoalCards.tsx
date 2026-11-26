@@ -60,7 +60,10 @@ export function GoalCards({ options = GOALS, value, onChange, official }: {
   useEffect(() => { preloadDemos() }, [])
 
   const boxOf = (id: string): Box => {
-    const r = cards.current[id]!.getBoundingClientRect()
+    // A card no longer on the page (the page moved on while one was turned) is laid back where it was taken from.
+    const el = cards.current[id]
+    if (!el) return open?.from ?? { left: window.innerWidth / 2, top: window.innerHeight / 2, width: 0, height: 0 }
+    const r = el.getBoundingClientRect()
     return { left: r.left, top: r.top, width: r.width, height: r.height }
   }
   return (

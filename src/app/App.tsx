@@ -21,6 +21,7 @@ import AssessmentDone from '@/features/journey/AssessmentDone'
 import { GroupPage } from '@/features/assess/Group'
 import { CloudJoin, HandInImport, JoinInvite } from '@/features/assess/Join'
 import { CourseJoin } from '@/features/assess/CourseJoin'
+const Joined = lazy(() => import('@/features/journey/Joined'))
 import { Splash } from '@/features/account/Account'
 import { arrived, useCloud } from '@/data/cloud'
 import { readLink } from '@/features/assess/links'
@@ -159,6 +160,7 @@ export function App() {
           <Route path="/assess/:sessionId/reveal" element={<Reveal />} />
           <Route path="/assess/:sessionId/done" element={<AssessmentDone />} />
           <Route path="/assess/:sessionId/group" element={<GroupPage />} />
+          <Route path="/joined/:courseId" element={<Suspense fallback={null}><Joined /></Suspense>} />
           <Route element={<Shell />}>
             <Route index element={<Home />} />
             <Route path="tree" element={<SkillTree />} />

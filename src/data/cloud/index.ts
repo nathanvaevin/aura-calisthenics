@@ -448,7 +448,13 @@ async function resumeJoin() {
 export async function joinCourseByLink(courseId: string): Promise<string> {
   const to = `/train/course/${courseId}`
   if (!useStore.getState().cloudUid) {
-    useStore.getState().joinCourse(courseId)
+    // Without an account the device can only join a course it holds.
+    const s = useStore.getState()
+    const course = s.courses.find((c) => c.id === courseId)
+    if (!course) throw new Error('This course is not on this device. Open the link from aurathletics.nl and sign in.')
+    if (course.coachId === s.meId) return `/coach/course/${courseId}`
+    if (course.status !== 'active') throw new Error('This course isn’t open to join. Ask your coach.')
+    s.joinCourse(courseId)
     return to
   }
   await ready()
@@ -474,13 +480,15 @@ async function resumeCourse() {
   const pending = read<{ courseId: string; at: number }>(COURSE_KEY)
   write(COURSE_KEY, null)
   if (!pending) return
-  if (Date.now() - pending.at > 20 * 60000) return useCloud.setState({ joining: false })
+  // Two days: the welcome and signing in may wait for a quiet moment.
+  if (Date.now() - pending.at > 2 * 86400000) return useCloud.setState({ joining: false })
   try {
     useCloud.setState({ joining: true })
     const to = await joinCourseByLink(pending.courseId)
     // Someone new still has the welcome questions before them; they end on their own profile, in the course.
+    // Someone who has been here before is told they are in, asked their goals if they have none, and goes to their profile.
     const me = useStore.getState().athletes[engineUid!]
-    useCloud.setState({ joining: false, ...(me?.handle ? { goto: to } : {}) })
+    useCloud.setState({ joining: false, ...(me?.handle ? { goto: to.startsWith('/train/course/') ? `/joined/${pending.courseId}` : to } : {}) })
   } catch (e) {
     useCloud.setState({ joining: false, notice: e instanceof Error ? e.message : 'Could not join the course.' })
   }
