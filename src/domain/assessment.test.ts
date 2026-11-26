@@ -4,7 +4,7 @@ import { DISCIPLINE_IDS, exerciseById } from './catalog'
 import {
   ALL_TESTS, PROTOCOL, STATIONS, compareProfiles, decodeHandIn, decodeInvite, encodeHandIn, encodeInvite, groupInsights, ladderAdvice,
   needsAttention, nextTest, overallProgress, profileOf, resultsToEvidence, startingStation, stationById, stationProgress, suggestPairs,
-  testById, toMember, visibleTests, type Results, menuOf, harderThan, beyondTarget, ladderOf, fromLevel, levelAbove, allLevels, difficultyOf, protocolKnown, groupOf, rotationOf, compareResults,
+  testById, toMember, visibleTests, type Results, menuOf, harderThan, beyondTarget, ladderOf, fromLevel, levelAbove, allLevels, difficultyOf, levelToFind, reached, protocolKnown, groupOf, rotationOf, compareResults,
 } from './assessment'
 import { allRatings } from './scoring/mastery'
 
@@ -224,6 +224,37 @@ describe('station menus', () => {
     expect(levelAbove(testById[ladder[at - 1]], { pushup: r(30) }, queue)).toBeNull()
     expect(levelAbove(testById[ladder[at - 2]], {}, queue)).toBeNull()
     expect(levelAbove(testById[ladder[ladder.length - 1]])).toBeNull()
+  })
+
+  it('go one level further down, one at a time, until one is reached', () => {
+    const push = stationById.push, ladder = ladderOf(push).map((t) => t.id)
+    const at = ladder.indexOf('pushup'), run = fromLevel(push, 'pushup')
+    const low = (id: string) => testById[id].target![0]
+    // Not done yet: nothing to suggest.
+    expect(levelToFind(push, run, { pushup: r(0) })).toBeNull()
+    // None of the three reached: the next one down.
+    const missed = Object.fromEntries(run.map((id) => [id, r(Math.max(0, low(id) - 1))]))
+    expect(levelToFind(push, run, missed)?.id).toBe(ladder[at - 3])
+    // That one not reached either: the next, until the first.
+    const deeper = { ...missed, [ladder[at - 3]]: r(0) }
+    expect(levelToFind(push, [...run, ladder[at - 3]], deeper)?.id).toBe(ladder[at - 4])
+    // One reached: the level is found.
+    expect(levelToFind(push, [...run, ladder[at - 3]], { ...missed, [ladder[at - 3]]: r(low(ladder[at - 3])) })).toBeNull()
+    expect(levelToFind(push, run, { ...missed, [ladder[at - 1]]: r(low(ladder[at - 1])) })).toBeNull()
+    // A level below already on record counts as it is.
+    expect(levelToFind(push, run, { ...missed, [ladder[at - 3]]: r(low(ladder[at - 3])) })).toBeNull()
+    expect(levelToFind(push, run, { ...missed, [ladder[at - 3]]: r(0) })?.id).toBe(ladder[at - 4])
+    // Nothing tried for real (all could not be tested today), or nothing below: nothing to suggest.
+    expect(levelToFind(push, run, Object.fromEntries(run.map((id) => [id, { ...r(0), skipped: true }])))).toBeNull()
+    expect(levelToFind(push, [ladder[0]], { [ladder[0]]: r(0) })).toBeNull()
+  })
+
+  it('call a level reached at the bottom of its range, or a position that shows something', () => {
+    expect(reached(testById.pushup, testById.pushup.target![0])).toBe(true)
+    expect(reached(testById.pushup, testById.pushup.target![0] - 1)).toBe(false)
+    const choice = ALL_TESTS.find((t) => t.kind === 'choice')!
+    expect(reached(choice, 0)).toBe(false)
+    expect(reached(choice, choice.options!.length - 1)).toBe(true)
   })
 
   it('or every level from the first, skipping what is on record', () => {

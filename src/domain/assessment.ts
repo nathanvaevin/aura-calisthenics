@@ -295,6 +295,29 @@ export function levelAbove(t: AssessmentTest, results: Results = {}, coming: str
   return above.some((x) => results[x.id] || coming.includes(x.id)) ? null : above[0] ?? null
 }
 
+/** A level reached: the bottom of its suggested range, or for a choice, a position that shows something. */
+export const reached = (t: AssessmentTest, value: number) =>
+  t.kind === 'choice' ? (t.options?.[value]?.ev.length ?? 0) > 0 : !!t.target && value >= t.target[0]
+
+/**
+ * Started from a level, until a level is found (the owner's design, 2026-11-26): once every level of the run is done
+ * and none of them was reached, the next one down, one at a time, until one is reached or there is none below. A level
+ * below already on record counts as it is: reached, it is found; not reached, the one under it is next.
+ */
+export function levelToFind(station: Station, run: string[], results: Results): AssessmentTest | null {
+  if (run.length === 0 || run.some((id) => !results[id])) return null
+  const tried = run.filter((id) => !results[id].skipped)
+  if (tried.length === 0 || tried.some((id) => reached(testById[id], results[id].value))) return null
+  const ladder = ladderOf(station)
+  const lowest = Math.min(...run.map((id) => ladder.findIndex((t) => t.id === id)).filter((i) => i >= 0))
+  for (let i = lowest - 1; i >= 0; i--) {
+    const r = results[ladder[i].id]
+    if (!r) return ladder[i]
+    if (!r.skipped && reached(ladder[i], r.value)) return null
+  }
+  return null
+}
+
 /** Past the top of the target range: worth suggesting the harder variation. Never a limit. */
 export const beyondTarget = (t: AssessmentTest, value: number) => t.kind === 'max' && !!t.target && value > t.target[1]
 

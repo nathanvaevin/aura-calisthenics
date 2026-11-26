@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { DemoSlot, useHasDemo } from '@/features/library/DemoSlot'
 import { StageScreen, useBurst } from '@/features/library/StageScreen'
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router'
 import { ArrowLeft, ArrowRight, Check, Hand, Minus, Pause, Play, Plus } from 'lucide-react'
 import type { DisciplineId } from '@/domain/types'
 import {
-  beyondTarget, demonstrated, groupCount, harderThan, levelAbove, modeOf, nextTest, overallProgress, rotationOf, startingStation, stationById, stationOfTest, stationProgress,
+  beyondTarget, demonstrated, groupCount, harderThan, ladderOf, levelAbove, levelToFind, modeOf, nextTest, overallProgress, rotationOf, startingStation, stationById, stationOfTest, stationProgress,
   testById, visibleTests, type AssessmentMode, type AssessmentTest,
 } from '@/domain/assessment'
 import { disciplineById, exerciseById } from '@/domain/catalog'
@@ -216,7 +216,11 @@ export function StationRunner() {
   const toggleStationSkip = useStore((s) => s.toggleStationSkip)
   const sound = useStore((s) => s.settings.sound)
   /** A result past the top of its range, and the variation it points to. */
-  const [nudge, setNudge] = useState<{ test: AssessmentTest; harder: AssessmentTest; value: number } | null>(null)
+  /** `down`: none of the levels tried was reached, and this one is one level easier. */
+  const [nudge, setNudge] = useState<{ test: AssessmentTest; harder: AssessmentTest; value: number; down?: boolean } | null>(null)
+  // A suggestion taken stays up until the address has it: cleared before, the screen would find nothing left to do and leave.
+  const taken = !!nudge && !!params.get('q')?.split(',').includes(nudge.harder.id)
+  useEffect(() => { if (taken) setNudge(null) }, [taken])
 
   const st = station ? stationById[station as DisciplineId] : undefined
   if (!session || !target || !st || !session.stations.includes(st.id)) return <Navigate to={session ? `/assess/${session.id}` : '/train'} replace />
@@ -275,8 +279,14 @@ export function StationRunner() {
     if (editing) setParams(queue ? withQueue(queue) : picking && !guide ? withChosen(chosen) : { ...pOnly, ...(guide ? { guide: '1' } : {}) }, { replace: true })
     // Past the range: suggest the next variation, once, without stopping anyone.
     const harder = !skipped && beyondTarget(test, value) ? harderOf(test) : null
-    if (harder && !target.results[harder.id] && !queue?.includes(harder.id) && (queue || mode === 'stations')) setNudge({ test, harder, value })
+    if (harder && !target.results[harder.id] && !queue?.includes(harder.id) && (queue || mode === 'stations')) return setNudge({ test, harder, value })
+    // Started from a level and none of them reached: one level easier, until one is.
+    if (ladder && queue && !editing) {
+      const easier = levelToFind(st, queue, { ...target.results, [test.id]: { value, tier: 'self', at: '', ...(skipped ? { skipped: true } : {}) } })
+      if (easier) setNudge({ test, harder: easier, value, down: true })
+    }
   }
+  const lv = (t: AssessmentTest) => ladderOf(st).findIndex((x) => x.id === t.id) + 1
 
   // Everything chosen has been done: straight back to the areas, where this one now shows what was recorded.
   if (picking && queue && !current && !nudge) return <Navigate to={exit} replace />
@@ -301,24 +311,35 @@ export function StationRunner() {
         </div>
       </header>
 
-      {nudge ? (
+      {nudge && !taken ? (
         <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-5">
           <div className="rise flex flex-1 flex-col justify-center">
-            <Eyebrow>Above the suggested range</Eyebrow>
-            <h1 className="display mt-2 text-[34px] leading-[1.06]">You may be ready for {exerciseById[nudge.harder.exerciseId].name}.</h1>
-            <p className="mt-3 text-[15px] leading-relaxed text-ink-2">
-              You recorded {resultLabel(nudge.test, nudge.value)} on {exerciseById[nudge.test.exerciseId].name}, past the suggested {targetLabel(nudge.test)}. It is saved as it is. A harder variation usually shows more of what you can do than more repetitions of this one.
-            </p>
-            <p className="mt-2 text-[13px] text-ink-3">{exerciseById[nudge.harder.exerciseId].name}: {targetLabel(nudge.harder)} suggested.{ladder && (queue?.filter((id) => !target.results[id] && id !== nudge.test.id).length ?? 0) > 0 ? ' The easier levels come after it, either way.' : ''}</p>
+            {nudge.down ? (
+              <>
+                <Eyebrow>One level easier</Eyebrow>
+                <h1 className="display mt-2 text-[34px] leading-[1.06]" data-nudge="down">Try Lv.{lv(nudge.harder)}, {exerciseById[nudge.harder.exerciseId].name}.</h1>
+                <p className="mt-3 text-[15px] leading-relaxed text-ink-2">
+                  {exerciseById[nudge.test.exerciseId].name} is not there yet: {resultLabel(nudge.test, nudge.value)}, where {targetLabel(nudge.test)} is suggested. It is saved as it is. One level easier finds where you start.
+                </p>
+              </>
+            ) : (
+              <>
+                <Eyebrow>Above the suggested range</Eyebrow>
+                <h1 className="display mt-2 text-[34px] leading-[1.06]" data-nudge="up">You may be ready for {exerciseById[nudge.harder.exerciseId].name}.</h1>
+                <p className="mt-3 text-[15px] leading-relaxed text-ink-2">
+                  You recorded {resultLabel(nudge.test, nudge.value)} on {exerciseById[nudge.test.exerciseId].name}, past the suggested {targetLabel(nudge.test)}. It is saved as it is. A harder variation usually shows more of what you can do than more repetitions of this one.
+                </p>
+              </>
+            )}
+            <p className="mt-2 text-[13px] text-ink-3">{exerciseById[nudge.harder.exerciseId].name}: {targetLabel(nudge.harder)} suggested.{!nudge.down && ladder && (queue?.filter((id) => !target.results[id] && id !== nudge.test.id).length ?? 0) > 0 ? ' The easier levels come after it, either way.' : ''}</p>
           </div>
           <div className="space-y-2.5 pt-6">
             <button className="btn btn-primary btn-lg w-full" onClick={() => {
-              const at = queue ? queue.indexOf(nudge.test.id) + 1 : 0
+              const at = queue ? (nudge.down ? queue.length : queue.indexOf(nudge.test.id) + 1) : 0
               const next = queue ? [...queue.slice(0, at), nudge.harder.id, ...queue.slice(at)] : [nudge.harder.id]
-              setNudge(null)
               setParams(withQueue(next), { replace: true })
             }}>Try {exerciseById[nudge.harder.exerciseId].name} <ArrowRight size={17} /></button>
-            <button className="btn btn-outline w-full" onClick={() => setNudge(null)}>Not now</button>
+            <button className="btn btn-outline w-full" onClick={() => setNudge(null)}>{nudge.down ? 'Finish here' : 'Not now'}</button>
           </div>
         </div>
       ) : current ? (
