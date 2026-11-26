@@ -85,18 +85,21 @@ export function App() {
   const official = (location.pathname.startsWith('/assess/') && !location.pathname.endsWith('/done')) || !!readLink(location.hash)
   const theme = official ? STANDARD_THEME : own
 
+  // Painted again on every page: a screen that showed another theme (Personalize, while one is looked at) puts its own
+  // back as it closes, and that must not outlast the page that follows, an assessment least of all.
+  const page = location.pathname
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     document.documentElement.dataset.scheme = THEMES[theme].scheme
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEMES[theme].chrome)
-  }, [theme])
+  }, [theme, page])
 
   // The colour chosen for this theme. Never in an assessment: that is shown in the standard one.
   const tone = toneAttr(theme, useStore((s) => s.settings.tones), official)
   useEffect(() => {
     if (tone) document.documentElement.dataset.tone = tone
     else delete document.documentElement.dataset.tone
-  }, [tone])
+  }, [tone, page])
 
   // Text size is the device's own, whatever the theme and also in an assessment.
   const size = useStore((s) => s.settings.size)
