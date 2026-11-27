@@ -50,7 +50,7 @@ export const TABLES: TableDef[] = [
   },
   { name: 'athlete_goals', key: ['athlete_id', 'skill_id'], cols: ['athlete_id', 'skill_id'] },
   { name: 'follows', key: ['follower_id', 'followee_id'], cols: ['follower_id', 'followee_id'] },
-  { name: 'courses', key: ['id'], cols: ['id', 'coach_id', 'title', 'tagline', 'description', 'focus', 'format', 'status', 'start_date'] },
+  { name: 'courses', key: ['id'], cols: ['id', 'coach_id', 'title', 'tagline', 'description', 'focus', 'format', 'status', 'start_date', 'link_open'] },
   { name: 'course_milestones', key: ['course_id', 'skill_id'], cols: ['course_id', 'skill_id'] },
   { name: 'course_weeks', key: ['id'], cols: ['id', 'course_id', 'position', 'title', 'objective', 'kind', 'focus'] },
   { name: 'course_sessions', key: ['id'], cols: ['id', 'week_id', 'day', 'title'] },

@@ -98,7 +98,7 @@ const EARLY = '00000000-0000-0000-0000-0000000000e1'
 const CHOSE = '00000000-0000-0000-0000-0000000000e2'
 console.log('Applying schema')
 await db.exec(PRELUDE)
-for (const file of ['0001_core.sql', '0002_storage.sql', '0003_evidence_observed.sql', '0004_assessments.sql', '0005_places.sql', '0006_live.sql', '0007_coach_access.sql', '0008_course_weeks_and_station_mode.sql', '0009_visual_content.sql', '0010_start_over.sql', '0011_personal_style.sql', '0012_ratings_open.sql', '0013_more_themes.sql', '0014_coach_sees_training.sql', '0015_block_name_and_unit.sql', '0016_block_complete.sql']) {
+for (const file of ['0001_core.sql', '0002_storage.sql', '0003_evidence_observed.sql', '0004_assessments.sql', '0005_places.sql', '0006_live.sql', '0007_coach_access.sql', '0008_course_weeks_and_station_mode.sql', '0009_visual_content.sql', '0010_start_over.sql', '0011_personal_style.sql', '0012_ratings_open.sql', '0013_more_themes.sql', '0014_coach_sees_training.sql', '0015_block_name_and_unit.sql', '0016_block_complete.sql', '0017_course_link_switch.sql']) {
   // Two athletes from before ratings were opened: one who never chose, one who chose to keep them.
   if (file === '0012_ratings_open.sql') await db.exec(`insert into auth.users (id) values ('${EARLY}'), ('${CHOSE}'); insert into public.athlete_identity (athlete_id) values ('${EARLY}'); insert into public.athlete_identity (athlete_id, sharing_at) values ('${CHOSE}', now());`)
   await db.exec(read(`../supabase/migrations/${file}`))
@@ -556,6 +556,16 @@ await expectOk('…or simply completed (0016)', TC, `update public.course_blocks
 await expectOk('a student logs it as written', T2, `
   insert into public.workout_logs (id, athlete_id, title, source_type, source_ref, started_at, finished_at) values ('50000000-0000-0000-0000-0000000000b2', '${T2}', 'Push', 'library', 'x', now(), now());
   insert into public.workout_log_entries (id, log_id, position, kind, assigned_exercise_id, assigned_target, exercise_id, target, title, metric) values ('60000000-0000-0000-0000-0000000000b2', '50000000-0000-0000-0000-0000000000b2', 0, 'warmup', 'pushup', 60, 'pushup', 60, 'Wrist preparation + warm up', 'hold');`)
+
+// ── A coach closes a course's link and opens it again (0017) ──────────────
+console.log('\nA coach closes a course’s link and opens it again')
+await expectOk('the coach closes the link', TC, `update public.courses set link_open = false where id = '${tcourse}';`)
+await expectDenied('then nobody joins by themselves', T2, `insert into public.course_enrollments (course_id, athlete_id) values ('${tcourse}', '${T2}');`)
+await expectOk('…though the coach can still add someone', TC, `insert into public.course_enrollments (course_id, athlete_id) values ('${tcourse}', '${TO}');`)
+await as(T2, 'authenticated', () => db.exec(`update public.courses set link_open = true where id = '${tcourse}';`)).catch(() => undefined)
+;(await count(`select 1 from public.courses where id = '${tcourse}' and not link_open`)) === 1 ? ok('a student cannot open it') : bad('link', 'a student opened a course link')
+await expectOk('the coach opens it again', TC, `update public.courses set link_open = true where id = '${tcourse}';`)
+await expectOk('and the same link works', T2, `insert into public.course_enrollments (course_id, athlete_id) values ('${tcourse}', '${T2}');`)
 
 console.log(`\n${passed} passed, ${failed} failed`)
 await db.close()

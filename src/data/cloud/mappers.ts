@@ -101,7 +101,7 @@ export function project(s: Synced, uid: string): RowSet {
   const sessions = new Set<string>()
   for (const c of s.courses) {
     if (!isUuid(c.id) || !isUuid(c.coachId)) continue
-    put(set, 'courses', { id: c.id, coach_id: c.coachId, title: c.title, tagline: c.tagline, description: c.description, focus: c.focus, format: c.format, status: c.status, start_date: c.startDate })
+    put(set, 'courses', { id: c.id, coach_id: c.coachId, title: c.title, tagline: c.tagline, description: c.description, focus: c.focus, format: c.format, status: c.status, start_date: c.startDate, link_open: !c.linkClosed })
     for (const skill_id of c.milestones) put(set, 'course_milestones', { course_id: c.id, skill_id })
     c.weeks.forEach((w, wi) => {
       put(set, 'course_weeks', { id: w.id, course_id: c.id, position: wi, title: w.title, objective: w.objective, kind: w.kind ?? 'training', focus: orNull(w.focus) })
@@ -313,8 +313,10 @@ export function build(set: RowSet, uid: string, prev: Synced): Synced {
         sessions: ordered(built, (x) => x.id, wasWeek.get(wid)?.sessions.map((x) => x.id)),
       }
     })
+    const { linkClosed: _closed, ...wasRest } = was ?? ({} as Partial<Course>)
     const next: Course = {
-      ...was,
+      ...(wasRest as Course),
+      ...(r.link_open === false ? { linkClosed: true } : {}),
       id, coachId: String(r.coach_id), title: String(r.title ?? ''), tagline: String(r.tagline ?? ''), description: String(r.description ?? ''),
       focus: r.focus as Course['focus'], format: r.format as Course['format'], status: r.status as Course['status'], startDate: String(r.start_date),
       milestones: ordered((milestonesOf.get(id) ?? []).map((m) => String(m.skill_id)).sort(), (m) => m, was?.milestones), weeks,

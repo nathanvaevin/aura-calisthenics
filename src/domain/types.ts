@@ -266,6 +266,8 @@ export interface Course {
   focus: DisciplineId | 'full'
   format: 'group' | 'individual' | 'online'
   status: 'draft' | 'active' | 'archived'
+  /** The coach closed the course's invite link: nobody new joins by it until it is opened again. Unset is open. */
+  linkClosed?: boolean
   /** ISO date of the Monday of week 1. */
   startDate: string
   /** Skills this course works toward. */

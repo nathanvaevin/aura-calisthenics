@@ -445,6 +445,8 @@ async function resumeJoin() {
  * Put the signed-in athlete in a course. Answers with where to go next. The
  * server decides: an athlete may join a course that is active, and no other.
  */
+const CLOSED = 'Your coach has closed this course’s link for now. Ask them to open it again.'
+
 export async function joinCourseByLink(courseId: string): Promise<string> {
   const to = `/train/course/${courseId}`
   if (!useStore.getState().cloudUid) {
@@ -453,7 +455,9 @@ export async function joinCourseByLink(courseId: string): Promise<string> {
     const course = s.courses.find((c) => c.id === courseId)
     if (!course) throw new Error('This course is not on this device. Open the link from aurathletics.nl and sign in.')
     if (course.coachId === s.meId) return `/coach/course/${courseId}`
+    if (s.enrollments.some((e) => e.courseId === courseId && e.athleteId === s.meId)) return to
     if (course.status !== 'active') throw new Error('This course isn’t open to join. Ask your coach.')
+    if (course.linkClosed) throw new Error(CLOSED)
     s.joinCourse(courseId)
     return to
   }
@@ -463,6 +467,9 @@ export async function joinCourseByLink(courseId: string): Promise<string> {
   const course = useStore.getState().courses.find((c) => c.id === courseId)
   if (!course || (course.status !== 'active' && course.coachId !== id)) throw new Error('This course isn’t open to join. Ask your coach.')
   if (course.coachId === id) return `/coach/course/${courseId}`
+  // Already in: the link only brings them back.
+  if (useStore.getState().enrollments.some((e) => e.courseId === courseId && e.athleteId === id)) return to
+  if (course.linkClosed) throw new Error(CLOSED)
   useStore.getState().joinCourse(courseId)
   await flush('all')
   if (!useStore.getState().cloudShadow[`course_enrollments/${courseId}|${id}`]) {

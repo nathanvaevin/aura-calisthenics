@@ -191,6 +191,17 @@ describe('state and rows', () => {
     expect([log.entries[0].title, log.entries[0].metric]).toEqual([entry.title, 'hold'])
   })
 
+  it('carries a closed course link, and opens it again', () => {
+    const closed = structuredClone(mine)
+    closed.courses[0].linkClosed = true
+    const rows = project(closed, COACH)
+    expect(rows.courses.get(closed.courses[0].id)?.link_open).toBe(false)
+    const back = build(rows, COACH, blank())
+    expect(back.courses[0].linkClosed).toBe(true)
+    const reopened = build(project(mine, COACH), COACH, back)
+    expect(reopened.courses[0].linkClosed).toBeUndefined()
+  })
+
   it('keeps the objects the app already holds when nothing changed', () => {
     const again = build(project(mine, COACH), COACH, mine)
     expect(again.courses[0]).toBe(mine.courses[0])

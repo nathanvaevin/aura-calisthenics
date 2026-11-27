@@ -6,11 +6,13 @@ import { useStore } from '@/data/store'
 import { SyncLine } from '@/features/account/Account'
 import { copyText, courseUrl, isLocalOnly } from '@/features/assess/links'
 import { QrCode } from '@/ui/QrCode'
+import { Toggle } from '@/ui/primitives'
 
 /**
  * A course's link: copy it, send it, and whoever opens it ends up in the
  * course, with an account they have or one they make there. A draft has to be
- * made active first, because the server lets nobody join a draft.
+ * made active first, because the server lets nobody join a draft. The coach
+ * can close the link and open it again; closed, nobody new joins by it.
  */
 export function CourseInvite({ course, code }: { course: Course; /** Show the code to scan as well. */ code?: boolean }) {
   const coach = useStore((s) => (s.meId ? s.athletes[s.meId] : null))
@@ -31,8 +33,25 @@ export function CourseInvite({ course, code }: { course: Course; /** Show the co
         <button className="btn btn-primary mt-3 w-full" onClick={() => mutateCourse(course.id, (c) => { c.status = 'active' })}>Make it active</button>
       </div>
     )
+  const open = !course.linkClosed
+  const toggle = (
+    <div className="flex items-center justify-between gap-3">
+      <span className="min-w-0">
+        <span className="block text-[13.5px] font-medium">{open ? 'Invite link open' : 'Invite link closed'}</span>
+        <span className="block text-[12px] text-ink-3">{open ? 'Anyone with it can join' : 'Nobody new joins by it. Students in the course stay'}</span>
+      </span>
+      <Toggle on={open} label="Invite link open" onChange={(on) => mutateCourse(course.id, (c) => { if (on) delete c.linkClosed; else c.linkClosed = true })} />
+    </div>
+  )
+  if (!open)
+    return (
+      <div className="card p-4" data-course-invite data-link-closed>
+        {toggle}
+      </div>
+    )
   return (
     <div className="card p-4" data-course-invite>
+      <div className="mb-3.5 border-b border-line pb-3.5">{toggle}</div>
       <div className="flex gap-2.5">
         <button className="btn btn-primary flex-1" disabled={!ready} data-copy-course={url} onClick={() => void copy()}>{copied ? <><Check size={16} /> Copied</> : <><Copy size={16} /> Copy invite link</>}</button>
         {canShare && <button className="btn btn-outline" disabled={!ready} aria-label="Share the link" onClick={() => void navigator.share({ title: course.title, text: `Join ${course.title} on Aura`, url }).catch(() => undefined)}><Share2 size={16} /></button>}

@@ -5,7 +5,7 @@
 -- once. It creates the schema, the access rules and the catalog + demo data.
 -- See supabase/README.md for the full setup, including Google sign-in.
 --
--- Contents: 0001_core.sql, 0002_storage.sql, 0003_evidence_observed.sql, 0004_assessments.sql, 0005_places.sql, 0006_live.sql, 0007_coach_access.sql, 0008_course_weeks_and_station_mode.sql, 0009_visual_content.sql, 0010_start_over.sql, 0011_personal_style.sql, 0012_ratings_open.sql, 0013_more_themes.sql, 0014_coach_sees_training.sql, 0015_block_name_and_unit.sql, 0016_block_complete.sql, then seed.sql.
+-- Contents: 0001_core.sql, 0002_storage.sql, 0003_evidence_observed.sql, 0004_assessments.sql, 0005_places.sql, 0006_live.sql, 0007_coach_access.sql, 0008_course_weeks_and_station_mode.sql, 0009_visual_content.sql, 0010_start_over.sql, 0011_personal_style.sql, 0012_ratings_open.sql, 0013_more_themes.sql, 0014_coach_sees_training.sql, 0015_block_name_and_unit.sql, 0016_block_complete.sql, 0017_course_link_switch.sql, then seed.sql.
 
 
 -- ════════════════════════════════════════════════════════════════════════
@@ -1911,6 +1911,28 @@ alter table public.course_blocks add constraint course_blocks_metric_check check
 
 alter table public.workout_log_entries drop constraint if exists workout_log_entries_metric_check;
 alter table public.workout_log_entries add constraint workout_log_entries_metric_check check (metric is null or metric in ('reps', 'hold', 'done'));
+
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 0017_course_link_switch.sql
+-- ════════════════════════════════════════════════════════════════════════
+
+-- A coach closes a course's invite link, and opens it again.
+--
+-- Anyone signed in could join an active course by its link (the policy of
+-- 0001). A coach may now close that link: while it is closed nobody joins the
+-- course by themselves; students already in keep their place, and the coach
+-- can still add someone. Opening it again makes the same link work again.
+-- Joining through a coach's assessment is not affected. Safe to run twice.
+
+alter table public.courses add column if not exists link_open boolean not null default true;
+
+drop policy if exists enrollments_join on public.course_enrollments;
+create policy enrollments_join on public.course_enrollments for insert to authenticated
+  with check (
+    public.coaches_course(course_id)
+    or (athlete_id = auth.uid() and exists (select 1 from public.courses c where c.id = course_id and c.status = 'active' and c.link_open))
+  );
 
 
 -- ════════════════════════════════════════════════════════════════════════
