@@ -113,7 +113,7 @@ export function project(s: Synced, uid: string): RowSet {
           put(set, 'course_blocks', {
             id: b.id, session_id: cs.id, position: bi, kind: b.kind, exercise_id: b.exerciseId, progression_id: orNull(b.progressionId), level: orNull(b.level),
             min_level: orNull(b.minLevel), max_level: orNull(b.maxLevel), sets: Math.max(1, Math.round(b.sets)), target: Math.max(1, Math.round(b.target)),
-            rest: Math.max(0, Math.round(b.rest)), note: orNull(b.note), is_primary: !!b.primary,
+            rest: Math.max(0, Math.round(b.rest)), note: orNull(b.note), is_primary: !!b.primary, title: orNull(b.title), metric: orNull(b.metric),
           })
         })
       }
@@ -141,7 +141,7 @@ export function project(s: Synced, uid: string): RowSet {
       put(set, 'workout_log_entries', {
         id, log_id: l.id, position: i, kind: e.kind, block_id: blocks.has(e.blockId) ? e.blockId : null, progression_id: orNull(e.progressionId),
         assigned_exercise_id: e.assignedExerciseId, assigned_level: orNull(e.assignedLevel), assigned_target: Math.round(e.assignedTarget),
-        exercise_id: e.exerciseId, level: orNull(e.level), target: Math.round(e.target), rest: Math.max(0, Math.round(e.rest)),
+        exercise_id: e.exerciseId, level: orNull(e.level), target: Math.round(e.target), rest: Math.max(0, Math.round(e.rest)), title: orNull(e.title), metric: orNull(e.metric),
       })
       e.sets.forEach((x, j) => put(set, 'workout_log_sets', { entry_id: id, position: j, exercise_id: x.exerciseId, level: orNull(x.level), value: Math.max(0, Math.round(x.value)) }))
     })
@@ -300,6 +300,8 @@ export function build(set: RowSet, uid: string, prev: Synced): Synced {
           id: String(b.id), kind: b.kind as WorkoutBlock['kind'], exerciseId: String(b.exercise_id), progressionId: opt<string>(b.progression_id), level: opt<number>(b.level),
           minLevel: opt<number>(b.min_level), maxLevel: opt<number>(b.max_level), sets: Number(b.sets), target: Number(b.target), rest: Number(b.rest), note: opt<string>(b.note),
           ...(b.is_primary ? { primary: true } : {}),
+          ...(b.title ? { title: String(b.title) } : {}),
+          ...(b.metric === 'reps' || b.metric === 'hold' ? { metric: b.metric as WorkoutBlock['metric'] } : {}),
         })),
       }))
       // Sessions have no order of their own in the database: keep the device's, else by day.
@@ -353,6 +355,8 @@ export function build(set: RowSet, uid: string, prev: Synced): Synced {
       blockId: String(e.block_id ?? e.id), kind: e.kind as LogEntry['kind'], progressionId: opt<string>(e.progression_id), assignedExerciseId: String(e.assigned_exercise_id),
       assignedLevel: opt<number>(e.assigned_level), assignedTarget: Number(e.assigned_target), exerciseId: String(e.exercise_id), level: opt<number>(e.level),
       target: Number(e.target), rest: Number(e.rest),
+      ...(e.title ? { title: String(e.title) } : {}),
+      ...(e.metric === 'reps' || e.metric === 'hold' ? { metric: e.metric as LogEntry['metric'] } : {}),
       sets: (setsOf.get(String(e.id)) ?? []).sort(byPosition).map((x) => ({ value: Number(x.value), done: true, exerciseId: String(x.exercise_id), level: opt<number>(x.level) })),
     }))
     logs.push({

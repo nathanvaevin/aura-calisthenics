@@ -56,7 +56,7 @@ export const TABLES: TableDef[] = [
   { name: 'course_sessions', key: ['id'], cols: ['id', 'week_id', 'day', 'title'] },
   {
     name: 'course_blocks', key: ['id'],
-    cols: ['id', 'session_id', 'position', 'kind', 'exercise_id', 'progression_id', 'level', 'min_level', 'max_level', 'sets', 'target', 'rest', 'note', 'is_primary'],
+    cols: ['id', 'session_id', 'position', 'kind', 'exercise_id', 'progression_id', 'level', 'min_level', 'max_level', 'sets', 'target', 'rest', 'note', 'is_primary', 'title', 'metric'],
   },
   // Keyed by the pair, not the id: the server creates enrolments too (joining, finalising).
   { name: 'course_enrollments', key: ['course_id', 'athlete_id'], cols: ['course_id', 'athlete_id', 'status'], extra: ['joined_at'] },
@@ -67,7 +67,7 @@ export const TABLES: TableDef[] = [
   },
   {
     name: 'workout_log_entries', key: ['id'],
-    cols: ['id', 'log_id', 'position', 'kind', 'block_id', 'progression_id', 'assigned_exercise_id', 'assigned_level', 'assigned_target', 'exercise_id', 'level', 'target', 'rest'],
+    cols: ['id', 'log_id', 'position', 'kind', 'block_id', 'progression_id', 'assigned_exercise_id', 'assigned_level', 'assigned_target', 'exercise_id', 'level', 'target', 'rest', 'title', 'metric'],
   },
   { name: 'workout_log_sets', key: ['entry_id', 'position'], cols: ['entry_id', 'position', 'exercise_id', 'level', 'value'] },
   {

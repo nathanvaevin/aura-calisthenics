@@ -86,7 +86,7 @@ Never present simulated or sample behaviour as real. If something cannot work wi
 
 - `npm run dev` · `npm test` · `npm run build`
 - `npm run db:seed` regenerates `supabase/seed.sql` from `src/domain`
-- `npm run db:check` applies all fourteen migrations + seed to an in-process Postgres and checks the access rules
+- `npm run db:check` applies all fifteen migrations + seed to an in-process Postgres and checks the access rules
 - `npm run db:bundle` regenerates `supabase/apply.sql` (the one-paste setup) from the migrations and seed — run it after changing either
 - `npm run deploy` tests, builds and publishes to https://aurathletics.nl (the `gh-pages` branch of `nathanvaevin/aurathletics`). `npm run deploy:forward` puts `forward/index.html` at the old address. Publishing is outward-facing: run either only when the owner says so. Never give the old repository a CNAME
 - `npm run character:build` regenerates the six characters in `public/characters/` (`-- power`, `-- iron male` build some of them; `-- --draft` is quick and coarse, for sculpting)

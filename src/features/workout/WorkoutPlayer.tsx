@@ -123,7 +123,11 @@ function Live({ a }: { a: ActiveWorkout }) {
   const harder = hasLadder && entry.level! < max ? stepAt(entry.progressionId!, entry.level! + 1) : null
   const offset = hasLadder && entry.assignedLevel ? entry.level! - entry.assignedLevel : 0
   const changed = entry.exerciseId !== entry.assignedExerciseId
-  const hold = ex.metric === 'hold'
+  // The coach may have written it in seconds (or reps) rather than the exercise's own unit.
+  const hold = (entry.metric ?? ex.metric) === 'hold'
+  // …and given it a name of their own; the exercise is still shown beneath it.
+  const name = entry.title ?? ex.name
+  const beneath = entry.title ? <div className="mt-1 text-[12.5px] text-ink-3">{ex.name}</div> : null
   const unit = hold ? 's' : ex.perSide ? '/side' : ''
 
   // Where the exercise has an approved demonstration, it is the screen: the session is written over it.
@@ -170,12 +174,12 @@ function Live({ a }: { a: ActiveWorkout }) {
                   {d === e.sets.length ? <Check size={13} strokeWidth={3} /> : <span className="num text-[11px]">{i + 1}</span>}
                 </Ring>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[14px] font-medium">{x.name}</span>
+                  <span className="block truncate text-[14px] font-medium">{e.title ?? x.name}</span>
                   <span className="block truncate text-[12px] text-ink-3">
                     {KIND_LABEL[e.kind]}{e.level ? ` · Level ${e.level}` : ''}{e.exerciseId !== e.assignedExerciseId ? ` (${planned} ${exerciseById[e.assignedExerciseId].short})` : ''}
                   </span>
                 </span>
-                <span className="num text-[12.5px] text-ink-2">{e.sets.length} × {e.target}{x.metric === 'hold' ? 's' : ''}</span>
+                <span className="num text-[12.5px] text-ink-2">{e.sets.length} × {e.target}{(e.metric ?? x.metric) === 'hold' ? 's' : ''}</span>
               </button>
             )
           })}
@@ -256,7 +260,8 @@ function Live({ a }: { a: ActiveWorkout }) {
               </header>
               <div className="px-5 pt-3 pb-1">
                 <Eyebrow className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />{where}</Eyebrow>
-                <h1 className="display mt-1.5 text-[30px] leading-[1.04]">{ex.name}</h1>
+                <h1 className="display mt-1.5 text-[30px] leading-[1.04]">{name}</h1>
+                {beneath}
                 {entry.note && !resting && <p className="mt-2 border-l-2 pl-3 text-[13px] leading-snug text-ink-2" style={{ borderColor: color }}>{entry.note}</p>}
               </div>
             </>
@@ -350,7 +355,8 @@ function Live({ a }: { a: ActiveWorkout }) {
           miniTop={
             <div className="safe-top px-5 pt-4">
               <Eyebrow className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />{where}</Eyebrow>
-              <div className="display mt-1 text-[24px] leading-tight">{ex.name}</div>
+              <div className="display mt-1 text-[24px] leading-tight">{name}</div>
+              {beneath}
               <div className="num mt-0.5 text-[12px] text-ink-2">{setLine}</div>
             </div>
           }
@@ -441,10 +447,11 @@ function Live({ a }: { a: ActiveWorkout }) {
                 transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
                 className={cx('display', resting ? 'text-[30px]' : 'text-[38px]')}
               >
-                {ex.name}
+                {name}
               </motion.h1>
             </AnimatePresence>
           </div>
+          {beneath}
           {entry.note && !resting && <p className="mt-2 border-l-2 pl-3 text-[13.5px] leading-snug text-ink-2" style={{ borderColor: color }}>{entry.note}</p>}
         </div>
 
@@ -658,8 +665,8 @@ function Summary({ a }: { a: ActiveWorkout }) {
                 return (
                   <div key={e.blockId} className="px-4 py-3">
                     <div className="flex items-baseline justify-between gap-3">
-                      <span className="min-w-0 truncate text-[14.5px] font-medium">{names.map((n) => exerciseById[n].name).join(' → ')}</span>
-                      <span className="num shrink-0 text-[13.5px] text-ink-2">{done.map((s) => s.value).join(' · ')}{x.metric === 'hold' ? ' s' : ''}</span>
+                      <span className="min-w-0 truncate text-[14.5px] font-medium">{e.title ?? names.map((n) => exerciseById[n].name).join(' → ')}</span>
+                      <span className="num shrink-0 text-[13.5px] text-ink-2">{done.map((s) => s.value).join(' · ')}{(e.metric ?? x.metric) === 'hold' ? ' s' : ''}</span>
                     </div>
                     {(differs || done.length < e.sets.length) && (
                       <div className="mt-0.5 text-[12px] text-ink-3">

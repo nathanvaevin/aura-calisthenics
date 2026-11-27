@@ -176,6 +176,21 @@ describe('state and rows', () => {
     expect(rebuilt.courses[0].weeks[0].sessions[0].blocks.map((b) => b.exerciseId)).toEqual(mine.courses[0].weeks[0].sessions[0].blocks.map((b) => b.exerciseId))
   })
 
+  it('carries a coach’s own name and unit for an exercise, on the course and on the log', () => {
+    const named = structuredClone(mine)
+    const block = named.courses[0].weeks[0].sessions[0].blocks[0]
+    block.title = 'Wrist preparation + warm up'
+    block.metric = block.metric === 'hold' ? 'reps' : 'hold'
+    const entry = named.logs[0].entries[0]
+    entry.title = block.title
+    entry.metric = 'hold'
+    const rebuilt = build(project(named, COACH), COACH, blank())
+    const back = rebuilt.courses[0].weeks[0].sessions[0].blocks[0]
+    expect([back.title, back.metric]).toEqual([block.title, block.metric])
+    const log = rebuilt.logs.find((l) => l.id === named.logs[0].id)!
+    expect([log.entries[0].title, log.entries[0].metric]).toEqual([entry.title, 'hold'])
+  })
+
   it('keeps the objects the app already holds when nothing changed', () => {
     const again = build(project(mine, COACH), COACH, mine)
     expect(again.courses[0]).toBe(mine.courses[0])

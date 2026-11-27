@@ -1,4 +1,4 @@
-import type { DisciplineId, Exercise, Progression, Skill } from '../types'
+import type { DisciplineId, Exercise, Metric, Progression, Skill } from '../types'
 import { bandOf } from '../scoring/config'
 import { curveRating } from '../scoring/curve'
 import { handstandExercises } from './exercises/handstand'
@@ -35,6 +35,16 @@ export const formatValue = (ex: Pick<Exercise, 'metric' | 'perSide'>, value: num
   const side = ex.perSide ? (long ? ' per side' : '/side') : ''
   return long ? `${value} ${value === 1 ? 'rep' : 'reps'}${side}` : `${value}${side}`
 }
+
+/**
+ * An exercise as a course wrote it: in the coach's unit when they chose the
+ * other one (`WorkoutBlock.metric`), otherwise as it is.
+ */
+export const written = <T extends Pick<Exercise, 'metric'>>(ex: T, metric?: Metric): T =>
+  metric && metric !== ex.metric ? { ...ex, metric } : ex
+
+/** Whether a value written in `metric` is in the exercise's own unit, so it can count as a record. */
+export const inOwnUnit = (exerciseId: string, metric?: Metric) => !metric || metric === exerciseById[exerciseId]?.metric
 
 /** Every (progression, level) an exercise appears at, primary or alternate. */
 export const placementsOf = (exerciseId: string) => {

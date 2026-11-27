@@ -155,10 +155,18 @@ export interface WorkoutBlock {
   minLevel?: number
   maxLevel?: number
   sets: number
-  /** Reps or seconds, for the assigned exercise. */
+  /** Reps or seconds, for the assigned exercise (or in `metric`, when the coach chose the other). */
   target: number
   rest: number
   note?: string
+  /** The coach's own name for this part of the session ("Wrist preparation + warm up"). The exercise stays what is shown and performed. */
+  title?: string
+  /**
+   * The coach's choice of unit, set only when it differs from the exercise's own
+   * (seconds of a movement counted in reps, say). Work done in another unit is
+   * never a record: it does not count towards a rating.
+   */
+  metric?: Metric
   /** Part of the week's primary focus, as opposed to support work. Set by the coach. */
   primary?: boolean
 }
@@ -195,6 +203,9 @@ export interface LogEntry {
   minLevel?: number
   maxLevel?: number
   note?: string
+  /** As on the block it came from. */
+  title?: string
+  metric?: Metric
   sets: SetLog[]
 }
 

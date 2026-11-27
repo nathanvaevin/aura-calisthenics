@@ -7,7 +7,7 @@ import type {
 import { PRESENCE, isLive, liveVisit, mergePlaces, privacyOf } from '@/domain/places'
 import { PROTOCOL, protocolKnown, resultsToEvidence, stationById, type HandIn, type Invite } from '@/domain/assessment'
 import { DEFAULT_AURA_SETTINGS, addNote, makeOfficial, move, newAsset, revise, type AssetStatus, type AuraSettings, type DemoAsset, type NewDemo, type WorkoutVideo } from '@/domain/media'
-import { exerciseById, skillById, stepAt } from '@/domain/catalog'
+import { exerciseById, inOwnUnit, skillById, stepAt } from '@/domain/catalog'
 import { bestEvidence } from '@/domain/scoring/mastery'
 import { adaptTarget, skillStatuses } from '@/domain/scoring/skills'
 import { startOfWeek } from '@/domain/scoring/aura'
@@ -339,6 +339,8 @@ const entryFromBlock = (b: WorkoutBlock): LogEntry => ({
   minLevel: b.minLevel,
   maxLevel: b.maxLevel,
   note: b.note,
+  ...(b.title ? { title: b.title } : {}),
+  ...(b.metric ? { metric: b.metric } : {}),
   sets: Array.from({ length: b.sets }, () => ({ value: 0, done: false, exerciseId: b.exerciseId, level: b.level })),
 })
 
@@ -356,7 +358,8 @@ export function candidatesIn(log: WorkoutLog, evidence: Evidence[]): Candidate[]
   const top = new Map<string, number>()
   for (const entry of log.entries) {
     for (const s of entry.sets) {
-      if (!s.done || !exerciseById[s.exerciseId]?.curve) continue
+      // Work in another unit than the exercise's own (seconds of push-ups) is training, not a record.
+      if (!s.done || !exerciseById[s.exerciseId]?.curve || !inOwnUnit(s.exerciseId, entry.metric)) continue
       top.set(s.exerciseId, Math.max(top.get(s.exerciseId) ?? 0, s.value))
     }
   }
@@ -537,7 +540,8 @@ export const useStore = create<State>()(
           if (entry.maxLevel && level > entry.maxLevel) return s
           const nextId = exerciseId && [step.exerciseId, ...(step.alternates ?? [])].includes(exerciseId) ? exerciseId : step.exerciseId
           const next = exerciseById[nextId]
-          const target = adaptTarget(exerciseById[entry.assignedExerciseId], entry.assignedTarget, next, level - (entry.assignedLevel ?? level))
+          // In the coach's own unit the time stays as written; otherwise the target follows the variation.
+          const target = entry.metric ? entry.assignedTarget : adaptTarget(exerciseById[entry.assignedExerciseId], entry.assignedTarget, next, level - (entry.assignedLevel ?? level))
           const entries = s.active.log.entries.map((e, i) =>
             i === index
               ? {

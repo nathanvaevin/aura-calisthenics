@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router'
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ChevronDown, ClipboardCheck, Copy, Plus, Repeat2, Trash2, UserPlus, X } from 'lucide-react'
-import type { BlockKind, Course, CourseSession, CourseWeek, DisciplineId, Exercise, WeekKind, WorkoutBlock } from '@/domain/types'
+import type { BlockKind, Course, CourseSession, CourseWeek, DisciplineId, Exercise, Metric, WeekKind, WorkoutBlock } from '@/domain/types'
 import { STATIONS } from '@/domain/assessment'
-import { DISCIPLINES, DISCIPLINE_IDS, disciplineById, exerciseById, formatValue, progressionById, skillById, stepAt } from '@/domain/catalog'
+import { DISCIPLINES, DISCIPLINE_IDS, disciplineById, exerciseById, formatValue, progressionById, skillById, stepAt, written } from '@/domain/catalog'
 import { auraFor } from '@/domain/scoring/aura'
 import { adaptTarget, makeBlock } from '@/domain/scoring/skills'
 import { estimateMinutes } from '@/domain/training'
@@ -45,8 +45,10 @@ function setLevel(b: WorkoutBlock, level: number) {
   if (!step) return
   const down = b.level - (b.minLevel ?? b.level)
   const up = (b.maxLevel ?? b.level) - b.level
-  b.target = adaptTarget(exerciseById[b.exerciseId], b.target, exerciseById[step.exerciseId], level - b.level)
+  // Written in the coach's own unit, the amount stays theirs; otherwise it follows the variation.
+  if (!b.metric) b.target = adaptTarget(exerciseById[b.exerciseId], b.target, exerciseById[step.exerciseId], level - b.level)
   b.exerciseId = step.exerciseId
+  if (b.metric === exerciseById[b.exerciseId].metric) delete b.metric
   b.level = level
   b.minLevel = Math.max(1, level - down)
   b.maxLevel = Math.min(ladderSteps(b), level + up)
@@ -251,7 +253,14 @@ function Program({ course, mutate }: { course: Course; mutate: Mutate }) {
             if (!s) return
             if (target.replace) {
               const b = s.blocks.find((x) => x.id === target.replace)
-              if (b) Object.assign(b, { ...fresh, id: b.id, sets: b.sets, note: b.note })
+              if (b) {
+                // The coach's name and unit stay with the part of the session; the unit only while it is not the new exercise's own.
+                const metric = b.metric && b.metric !== exerciseById[exerciseId].metric ? b.metric : undefined
+                // In the coach's unit, the amount they wrote stays too.
+                Object.assign(b, { ...fresh, id: b.id, sets: b.sets, note: b.note, title: b.title, metric, ...(metric ? { target: b.target } : {}) })
+                if (!b.title) delete b.title
+                if (!b.metric) delete b.metric
+              }
             } else {
               s.blocks.push(fresh)
             }
@@ -283,7 +292,16 @@ function BlockEditor({
   const ladder = steps > 0 && b.level !== undefined
   const adjustable = ladder && b.minLevel !== b.maxLevel
   const color = dvar(ex.discipline)
-  const unit = ex.metric === 'hold' ? 's' : ex.perSide ? '/side' : ''
+  const as = written(ex, b.metric)
+  const seconds = as.metric === 'hold'
+  const unit = seconds ? 's' : ex.perSide ? '/side' : ''
+  /** Reps or seconds. The exercise's own unit is stored as nothing; the other one is the coach's choice. */
+  const setUnit = (m: Metric) => onEdit((x) => {
+    if ((x.metric ?? ex.metric) === m) return
+    if (m === ex.metric) delete x.metric
+    else x.metric = m
+    x.target = m === 'hold' ? 30 : 10
+  })
   const icon = 'flex h-8 w-8 items-center justify-center rounded-full text-ink-3 hover:bg-surface-3 hover:text-ink disabled:opacity-25'
 
   return (
@@ -293,9 +311,9 @@ function BlockEditor({
           {b.level ? `L${b.level}` : '·'}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-2 truncate text-[14px] font-medium">{ex.name}{focus && <RoleTag primary={!!b.primary} />}</span>
+          <span className="flex items-center gap-2 truncate text-[14px] font-medium">{b.title ?? ex.name}{focus && <RoleTag primary={!!b.primary} />}</span>
           <span className="block truncate text-[11.5px] text-ink-3">
-            {b.note ? `${b.note} · ` : ''}{KIND_LABEL[b.kind]} · {b.sets} × {formatValue(ex, b.target)} · rest {b.rest}s{ladder ? (adjustable ? ` · L${b.minLevel}–${b.maxLevel}` : ' · locked') : ''}
+            {b.title ? `${ex.name} · ` : ''}{b.note ? `${b.note} · ` : ''}{KIND_LABEL[b.kind]} · {b.sets} × {formatValue(as, b.target)} · rest {b.rest}s{ladder ? (adjustable ? ` · L${b.minLevel}–${b.maxLevel}` : ' · locked') : ''}
           </span>
         </span>
         <ChevronDown size={15} className={cx('shrink-0 text-ink-3 transition-transform', open && 'rotate-180')} />
@@ -303,6 +321,14 @@ function BlockEditor({
 
       {open && (
         <div className="space-y-4 border-t border-line px-3 pt-3.5 pb-3">
+          <input
+            aria-label="Name shown to students"
+            className="field !h-11 !rounded-xl text-[13.5px]"
+            maxLength={80}
+            placeholder={`Name shown to students: ${ex.name}`}
+            value={b.title ?? ''}
+            onChange={(e) => onEdit((x) => { const t = e.target.value.replace(/^\s+/, ''); if (t) x.title = t; else delete x.title })}
+          />
           <div className="flex items-center gap-2">
             <select aria-label="Block type" className="field !h-10 !w-auto min-w-[140px] !rounded-xl !pl-3 text-[13.5px]" value={b.kind} onChange={(e) => onEdit((x) => { x.kind = e.target.value as BlockKind })}>
               {(Object.keys(KIND_LABEL) as BlockKind[]).map((k) => <option key={k} value={k}>{KIND_LABEL[k]}</option>)}
@@ -347,10 +373,22 @@ function BlockEditor({
             <p className="rounded-xl bg-surface p-3 text-[12.5px] text-ink-3">This exercise is not on a difficulty ladder, so every student performs it as written.</p>
           )}
 
+          <div className="flex items-center justify-between gap-3">
+            <span className="min-w-0">
+              <span className="block text-[13px] font-medium">Count in</span>
+              {as.metric !== ex.metric && <span className="block text-[11.5px] text-ink-3">Training only: not a record for {ex.short}</span>}
+            </span>
+            <Segmented<Metric>
+              options={[{ value: 'reps', label: 'Reps' }, { value: 'hold', label: 'Seconds' }]}
+              value={as.metric}
+              onChange={setUnit}
+            />
+          </div>
+
           <div className="grid grid-cols-3 gap-2">
             {([
               ['Sets', b.sets, 1, 12, 1, '', (v: number) => onEdit((x) => { x.sets = v })],
-              [ex.metric === 'hold' ? 'Hold' : 'Reps', b.target, 1, 600, ex.metric === 'hold' && b.target >= 20 ? 5 : 1, unit, (v: number) => onEdit((x) => { x.target = v })],
+              [seconds ? (ex.metric === 'hold' ? 'Hold' : 'Time') : 'Reps', b.target, 1, 600, seconds && b.target >= 20 ? 5 : 1, unit, (v: number) => onEdit((x) => { x.target = v })],
               ['Rest', b.rest, 0, 300, 15, 's', (v: number) => onEdit((x) => { x.rest = v })],
             ] as const).map(([label, value, min, max, step, suffix, set]) => (
               <div key={label} className="rounded-xl bg-surface px-1.5 py-2.5 text-center">
@@ -587,10 +625,10 @@ function Results({ course }: { course: Course }) {
                 <div key={b.id} className="card overflow-hidden">
                   <div className="flex items-center justify-between gap-3 border-b border-line bg-surface-2/60 px-4 py-2.5">
                     <span className="flex min-w-0 items-center gap-2 text-[14px] font-medium">
-                      <DisciplineDot id={ex.discipline} /><span className="truncate">{ex.name}</span>
+                      <DisciplineDot id={ex.discipline} /><span className="truncate">{b.title ?? ex.name}</span>
                       {b.level && <span className="shrink-0 font-mono text-[10.5px] text-ink-3">L{b.level}</span>}
                     </span>
-                    <span className="num shrink-0 text-[12.5px] text-ink-2">{b.sets} × {formatValue(ex, b.target)}</span>
+                    <span className="num shrink-0 text-[12.5px] text-ink-2">{b.sets} × {formatValue(written(ex, b.metric), b.target)}</span>
                   </div>
                   <div className="divide-y divide-line">
                     {byStudent.map(({ athlete, log }) => {
@@ -606,7 +644,7 @@ function Results({ course }: { course: Course }) {
                                 {entry.level ? `L${entry.level}` : '—'}
                               </span>
                               <span className="min-w-0 flex-1 truncate text-[13px]">{entry.exerciseId === b.exerciseId ? <span className="text-ink-3">as assigned</span> : did.name}</span>
-                              <span className="num shrink-0 text-[12.5px]">{entry.sets.map((s) => s.value).join(' · ')}</span>
+                              <span className="num shrink-0 text-[12.5px]">{entry.sets.map((s) => s.value).join(' · ')}{(entry.metric ?? did.metric) === 'hold' ? ' s' : ''}</span>
                             </>
                           ) : (
                             <span className="text-[12.5px] text-ink-3">{log ? 'skipped' : 'not done'}</span>

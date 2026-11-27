@@ -56,7 +56,7 @@ function ResumeBar() {
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[13.5px] font-medium">{active.log.title}</span>
             <span className="block truncate text-[11.5px] text-ink-3">
-              {active.phase === 'summary' ? 'Ready to save' : exerciseById[entry.exerciseId]?.name} · {done}/{total} sets
+              {active.phase === 'summary' ? 'Ready to save' : entry.title ?? exerciseById[entry.exerciseId]?.name} · {done}/{total} sets
             </span>
           </span>
           <span className="flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-ink px-3.5 text-[13px] font-semibold text-bg">

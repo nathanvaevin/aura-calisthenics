@@ -270,7 +270,7 @@ export function buildGoalWorkout(goalId: string, evidence: Evidence[], statuses:
 export function estimateMinutes(blocks: WorkoutBlock[]): number {
   const seconds = blocks.reduce((sum, b) => {
     const ex = exerciseById[b.exerciseId]
-    const work = ex?.metric === 'hold' ? b.target : b.target * 3
+    const work = (b.metric ?? ex?.metric) === 'hold' ? b.target : b.target * 3
     return sum + b.sets * (work + b.rest) + 30
   }, 0)
   return Math.max(5, Math.round(seconds / 60 / 5) * 5)

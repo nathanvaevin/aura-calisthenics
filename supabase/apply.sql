@@ -5,7 +5,7 @@
 -- once. It creates the schema, the access rules and the catalog + demo data.
 -- See supabase/README.md for the full setup, including Google sign-in.
 --
--- Contents: 0001_core.sql, 0002_storage.sql, 0003_evidence_observed.sql, 0004_assessments.sql, 0005_places.sql, 0006_live.sql, 0007_coach_access.sql, 0008_course_weeks_and_station_mode.sql, 0009_visual_content.sql, 0010_start_over.sql, 0011_personal_style.sql, 0012_ratings_open.sql, 0013_more_themes.sql, 0014_coach_sees_training.sql, then seed.sql.
+-- Contents: 0001_core.sql, 0002_storage.sql, 0003_evidence_observed.sql, 0004_assessments.sql, 0005_places.sql, 0006_live.sql, 0007_coach_access.sql, 0008_course_weeks_and_station_mode.sql, 0009_visual_content.sql, 0010_start_over.sql, 0011_personal_style.sql, 0012_ratings_open.sql, 0013_more_themes.sql, 0014_coach_sees_training.sql, 0015_block_name_and_unit.sql, then seed.sql.
 
 
 -- ════════════════════════════════════════════════════════════════════════
@@ -1866,6 +1866,33 @@ create policy feedback_insert on public.feedback for insert to authenticated
         and (public.coaches_athlete(wl.athlete_id) or (wl.course_id is not null and public.coaches_course(wl.course_id)))
     )
   );
+
+
+-- ════════════════════════════════════════════════════════════════════════
+-- 0015_block_name_and_unit.sql
+-- ════════════════════════════════════════════════════════════════════════
+
+-- A coach names a part of a session and chooses its unit.
+--
+-- An exercise in a course was always written in the exercise's own unit
+-- (repetitions, or seconds for a hold) and shown by the exercise's name. A
+-- coach may now write it their own way: "Wrist preparation + warm up", one
+-- round of 60 seconds. `title` is that name; `metric` is the unit, set only
+-- when it differs from the exercise's own. A workout logged from such a block
+-- keeps both, so the coach reads it as it was written.
+--
+-- Work in another unit than the exercise's own is never a record: the app
+-- does not offer it as a result, so no rating changes because of this.
+--
+-- Two new columns on two tables, nothing else. Safe to run twice.
+
+alter table public.course_blocks
+  add column if not exists title text check (title is null or char_length(title) <= 80),
+  add column if not exists metric text check (metric is null or metric in ('reps', 'hold'));
+
+alter table public.workout_log_entries
+  add column if not exists title text check (title is null or char_length(title) <= 80),
+  add column if not exists metric text check (metric is null or metric in ('reps', 'hold'));
 
 
 -- ════════════════════════════════════════════════════════════════════════
