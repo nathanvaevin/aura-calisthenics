@@ -98,7 +98,7 @@ const EARLY = '00000000-0000-0000-0000-0000000000e1'
 const CHOSE = '00000000-0000-0000-0000-0000000000e2'
 console.log('Applying schema')
 await db.exec(PRELUDE)
-for (const file of ['0001_core.sql', '0002_storage.sql', '0003_evidence_observed.sql', '0004_assessments.sql', '0005_places.sql', '0006_live.sql', '0007_coach_access.sql', '0008_course_weeks_and_station_mode.sql', '0009_visual_content.sql', '0010_start_over.sql', '0011_personal_style.sql', '0012_ratings_open.sql', '0013_more_themes.sql', '0014_coach_sees_training.sql', '0015_block_name_and_unit.sql']) {
+for (const file of ['0001_core.sql', '0002_storage.sql', '0003_evidence_observed.sql', '0004_assessments.sql', '0005_places.sql', '0006_live.sql', '0007_coach_access.sql', '0008_course_weeks_and_station_mode.sql', '0009_visual_content.sql', '0010_start_over.sql', '0011_personal_style.sql', '0012_ratings_open.sql', '0013_more_themes.sql', '0014_coach_sees_training.sql', '0015_block_name_and_unit.sql', '0016_block_complete.sql']) {
   // Two athletes from before ratings were opened: one who never chose, one who chose to keep them.
   if (file === '0012_ratings_open.sql') await db.exec(`insert into auth.users (id) values ('${EARLY}'), ('${CHOSE}'); insert into public.athlete_identity (athlete_id) values ('${EARLY}'); insert into public.athlete_identity (athlete_id, sharing_at) values ('${CHOSE}', now());`)
   await db.exec(read(`../supabase/migrations/${file}`))
@@ -552,6 +552,7 @@ await expectOk('the coach writes wrist preparation as one round of 60 seconds', 
   insert into public.course_sessions (id, week_id, day, title) values ('${tsession}', '${tweek}', 0, 'Push');
   insert into public.course_blocks (id, session_id, position, kind, exercise_id, sets, target, rest, title, metric) values ('${tblock}', '${tsession}', 0, 'warmup', 'pushup', 1, 60, 0, 'Wrist preparation + warm up', 'hold');`)
 await expectDenied('a unit is reps or seconds, nothing else', TC, `update public.course_blocks set metric = 'minutes' where id = '${tblock}';`)
+await expectOk('…or simply completed (0016)', TC, `update public.course_blocks set metric = 'done', target = 1 where id = '${tblock}';`)
 await expectOk('a student logs it as written', T2, `
   insert into public.workout_logs (id, athlete_id, title, source_type, source_ref, started_at, finished_at) values ('50000000-0000-0000-0000-0000000000b2', '${T2}', 'Push', 'library', 'x', now(), now());
   insert into public.workout_log_entries (id, log_id, position, kind, assigned_exercise_id, assigned_target, exercise_id, target, title, metric) values ('60000000-0000-0000-0000-0000000000b2', '50000000-0000-0000-0000-0000000000b2', 0, 'warmup', 'pushup', 60, 'pushup', 60, 'Wrist preparation + warm up', 'hold');`)

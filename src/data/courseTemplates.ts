@@ -1,5 +1,6 @@
 import type { BlockKind, Course, CourseSession, CourseWeek, DisciplineId, WeekKind, WorkoutBlock } from '@/domain/types'
 import { exerciseById, levelOf, placementsOf } from '@/domain/catalog'
+import { withHandstandWarmup } from '@/domain/training'
 
 export const uid = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -37,7 +38,8 @@ const session = (day: number, title: string, rows: Row[]): CourseSession => ({
   id: uid(),
   day,
   title,
-  blocks: rows.map(block),
+  // A session with handstand work opens with the body and the wrists.
+  blocks: withHandstandWarmup(rows.map(block), uid()),
 })
 
 const week = (title: string, objective: string, sessions: CourseSession[], opts: { kind?: WeekKind; focus?: DisciplineId | 'full' } = {}): CourseWeek => ({

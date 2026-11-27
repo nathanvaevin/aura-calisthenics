@@ -23,6 +23,35 @@ const fixed = (kind: BlockKind, exerciseId: string, sets?: number, target?: numb
   target,
 })
 
+// ── The warm-up of a handstand session ───────────────────────────────────
+//
+// Every session with handstand work opens with the body and the wrists (the
+// owner's decision, 2026-11-27): one round, simply completed, shown with the
+// wrist preparation's movement. Where a session already opens with wrist
+// preparation, that is what it becomes; otherwise it is put first. A course a
+// coach has already written keeps what they wrote.
+
+export const HANDSTAND_WARMUP = {
+  title: 'Warm-up: body and wrists',
+  note: 'Circle every joint from the neck to the ankles, then rock and lift the wrists on all fours. About five minutes.',
+} as const
+
+/** Handstand work: a balance on the hands, not the preparation for one. */
+const handstandWork = (b: WorkoutBlock) => {
+  const ex = exerciseById[b.exerciseId]
+  return ex?.discipline === 'handstand' && ex.category !== 'Preparation'
+}
+
+/** A session's blocks, opening with the body-and-wrists warm-up when it holds handstand work. */
+export function withHandstandWarmup(blocks: WorkoutBlock[], id: string): WorkoutBlock[] {
+  if (!blocks.some(handstandWork)) return blocks
+  const warmup = { ...HANDSTAND_WARMUP, metric: 'done' as const, sets: 1, target: 1 }
+  const at = blocks.findIndex((b) => b.kind === 'warmup' && b.exerciseId === 'wrist-prep')
+  if (at >= 0) return blocks.map((b, i) => (i === at ? { ...b, ...warmup } : b))
+  const first = makeBlock('warmup', 'wrist-prep', { progressionId: undefined, level: undefined })
+  return [{ ...first, id, ...warmup, rest: 20 }, ...blocks]
+}
+
 /**
  * Ready-made sessions. Ladder items resolve to the athlete's own working level
  * when the session starts, so the same template suits a beginner and an
@@ -133,7 +162,7 @@ export function buildWorkout(template: WorkoutTemplate, evidence: Evidence[]): W
     const block = makeBlock(item.kind, item.exerciseId, { progressionId: undefined, level: undefined })
     return { ...block, id, sets: item.sets ?? block.sets, target: item.target ?? block.target }
   })
-  return { id: template.id, title: template.title, focus: template.focus, summary: template.summary, minutes: template.minutes, blocks }
+  return { id: template.id, title: template.title, focus: template.focus, summary: template.summary, minutes: template.minutes, blocks: withHandstandWarmup(blocks, `${template.id}-warmup`) }
 }
 
 // ── The first week of a course ───────────────────────────────────────────
@@ -262,7 +291,7 @@ export function buildGoalWorkout(goalId: string, evidence: Evidence[], statuses:
     focus: goal.discipline,
     summary: `Built from what stands between you and ${goal.name}.`,
     minutes: Math.max(15, blocks.length * 6),
-    blocks: blocks.slice(0, 7),
+    blocks: withHandstandWarmup(blocks, `goal-${goalId}-warmup`).slice(0, 7),
   }
 }
 
@@ -270,7 +299,8 @@ export function buildGoalWorkout(goalId: string, evidence: Evidence[], statuses:
 export function estimateMinutes(blocks: WorkoutBlock[]): number {
   const seconds = blocks.reduce((sum, b) => {
     const ex = exerciseById[b.exerciseId]
-    const work = (b.metric ?? ex?.metric) === 'hold' ? b.target : b.target * 3
+    const unit = b.metric ?? ex?.metric
+    const work = unit === 'done' ? 180 : unit === 'hold' ? b.target : b.target * 3
     return sum + b.sets * (work + b.rest) + 30
   }, 0)
   return Math.max(5, Math.round(seconds / 60 / 5) * 5)

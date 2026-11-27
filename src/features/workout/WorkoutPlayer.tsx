@@ -6,7 +6,7 @@ import { Navigate, useNavigate } from 'react-router'
 import { AnimatePresence, motion } from 'motion/react'
 import { AlertTriangle, ArrowRight, Check, ChevronDown, ChevronLeft, ChevronRight, List, Minus, Pause, Play, Plus, RotateCcw, SkipForward } from 'lucide-react'
 import type { LogEntry } from '@/domain/types'
-import { exerciseById, formatValue, progressionById, stepAt } from '@/domain/catalog'
+import { amountOf, exerciseById, formatValue, progressionById, stepAt } from '@/domain/catalog'
 import { candidatesIn, useStore, type ActiveWorkout } from '@/data/store'
 import { useNow } from '@/data/hooks'
 import { MuscleMap } from '@/ui/MuscleMap'
@@ -125,6 +125,8 @@ function Live({ a }: { a: ActiveWorkout }) {
   const changed = entry.exerciseId !== entry.assignedExerciseId
   // The coach may have written it in seconds (or reps) rather than the exercise's own unit.
   const hold = (entry.metric ?? ex.metric) === 'hold'
+  // …or as something simply completed: no count, no timer.
+  const complete = entry.metric === 'done'
   // …and given it a name of their own; the exercise is still shown beneath it.
   const name = entry.title ?? ex.name
   const beneath = entry.title ? <div className="mt-1 text-[12.5px] text-ink-3">{ex.name}</div> : null
@@ -150,7 +152,7 @@ function Live({ a }: { a: ActiveWorkout }) {
       {hold && (
         <button className="btn btn-outline btn-lg flex-1" onClick={startTimer}><Play size={15} fill="currentColor" /> Start timer</button>
       )}
-      <button className="btn btn-primary btn-lg flex-[1.4]" disabled={bursting} onClick={finishSet}><Check size={17} strokeWidth={2.6} /> Complete set</button>
+      <button className="btn btn-primary btn-lg flex-[1.4]" disabled={bursting} onClick={finishSet}><Check size={17} strokeWidth={2.6} /> {complete ? 'Done' : 'Complete set'}</button>
     </div>
   )
   const tertiary = (
@@ -179,7 +181,7 @@ function Live({ a }: { a: ActiveWorkout }) {
                     {KIND_LABEL[e.kind]}{e.level ? ` · Level ${e.level}` : ''}{e.exerciseId !== e.assignedExerciseId ? ` (${planned} ${exerciseById[e.assignedExerciseId].short})` : ''}
                   </span>
                 </span>
-                <span className="num text-[12.5px] text-ink-2">{e.sets.length} × {e.target}{(e.metric ?? x.metric) === 'hold' ? 's' : ''}</span>
+                <span className="num text-[12.5px] text-ink-2">{amountOf(x, { sets: e.sets.length, target: e.target, metric: e.metric })}</span>
               </button>
             )
           })}
@@ -225,7 +227,7 @@ function Live({ a }: { a: ActiveWorkout }) {
 
   if (staged) {
     const where = `${resting ? 'Up next' : KIND_LABEL[entry.kind]} · ${a.index + 1} of ${entries.length}`
-    const setLine = setIdx >= 0 ? `Set ${setIdx + 1} of ${entry.sets.length} · target ${entry.target}${unit}` : 'All sets logged'
+    const setLine = setIdx < 0 ? 'All sets logged' : complete ? (entry.sets.length > 1 ? `Round ${setIdx + 1} of ${entry.sets.length} · no count, just finish it` : 'No count, no timer: finish it, then Done') : `Set ${setIdx + 1} of ${entry.sets.length} · target ${entry.target}${unit}`
     return (
       <>
         <StageScreen
@@ -325,7 +327,7 @@ function Live({ a }: { a: ActiveWorkout }) {
                         className={cx('num flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-[12px] font-medium', x.done ? 'text-bg' : i === setIdx ? 'border-[1.5px] text-ink' : 'border border-line text-ink-3')}
                         style={x.done ? { background: color } : i === setIdx ? { borderColor: color } : undefined}
                       >
-                        {x.done ? x.value : i + 1}
+                        {x.done ? (complete ? '✓' : x.value) : i + 1}
                       </span>
                     ))}
                   </div>
@@ -337,7 +339,7 @@ function Live({ a }: { a: ActiveWorkout }) {
                           <span className="display num min-w-[110px] text-center text-[60px] leading-none">{value}<span className="ml-1 font-sans text-[16px] text-ink-3">s</span></span>
                           <button className="pressable flex h-12 w-12 items-center justify-center rounded-full border border-line bg-(--stage)/55 backdrop-blur-md" onClick={() => setValue(value + 5)} aria-label="More time"><Plus size={18} /></button>
                         </div>
-                      ) : (
+                      ) : complete ? null : (
                         <Stepper value={value} onChange={setValue} min={0} max={999} size="lg" suffix={ex.perSide ? '/side' : ''} />
                       )}
                       <div className="mt-1.5 text-[12px] text-ink-3">{setLine}{entry.target !== entry.assignedTarget && changed && <span> (adjusted for this variation)</span>}</div>
@@ -560,7 +562,7 @@ function Live({ a }: { a: ActiveWorkout }) {
                   style={s.done ? { background: color } : i === setIdx ? { borderColor: color } : undefined}
                   title={s.done ? exerciseById[s.exerciseId].name : undefined}
                 >
-                  {s.done ? s.value : i + 1}
+                  {s.done ? (complete ? '✓' : s.value) : i + 1}
                 </span>
               ))}
             </div>
@@ -580,11 +582,11 @@ function Live({ a }: { a: ActiveWorkout }) {
                       <div className="h-full rounded-full transition-all duration-200" style={{ width: `${Math.min(1, (timerStart ? elapsed : 0) / entry.target) * 100}%`, background: color }} />
                     </div>
                   </>
-                ) : (
+                ) : complete ? null : (
                   <Stepper value={value} onChange={setValue} min={0} max={999} size="lg" suffix={ex.perSide ? '/side' : ''} />
                 )}
                 <div className="mt-2 text-[12.5px] text-ink-3">
-                  Set {setIdx + 1} of {entry.sets.length} · target {entry.target}{unit}
+                  {complete ? (entry.sets.length > 1 ? `Round ${setIdx + 1} of ${entry.sets.length} · no count, just finish it` : 'No count, no timer: finish it, then Done') : `Set ${setIdx + 1} of ${entry.sets.length} · target ${entry.target}${unit}`}
                   {entry.target !== entry.assignedTarget && changed && <span> (adjusted for this variation)</span>}
                 </div>
               </div>
@@ -666,7 +668,7 @@ function Summary({ a }: { a: ActiveWorkout }) {
                   <div key={e.blockId} className="px-4 py-3">
                     <div className="flex items-baseline justify-between gap-3">
                       <span className="min-w-0 truncate text-[14.5px] font-medium">{e.title ?? names.map((n) => exerciseById[n].name).join(' → ')}</span>
-                      <span className="num shrink-0 text-[13.5px] text-ink-2">{done.map((s) => s.value).join(' · ')}{(e.metric ?? x.metric) === 'hold' ? ' s' : ''}</span>
+                      <span className="num shrink-0 text-[13.5px] text-ink-2">{e.metric === 'done' ? 'Done' : <>{done.map((s) => s.value).join(' · ')}{(e.metric ?? x.metric) === 'hold' ? ' s' : ''}</>}</span>
                     </div>
                     {(differs || done.length < e.sets.length) && (
                       <div className="mt-0.5 text-[12px] text-ink-3">

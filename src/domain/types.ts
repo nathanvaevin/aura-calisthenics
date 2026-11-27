@@ -21,6 +21,8 @@ export interface Discipline {
 }
 
 export type Metric = 'reps' | 'hold'
+/** How a coach counts a part of a session: an exercise's units, or `done`: no count, no time, it is simply completed. */
+export type Unit = Metric | 'done'
 
 export type MuscleId =
   | 'delts' | 'rear_delts' | 'chest' | 'triceps' | 'biceps' | 'forearms'
@@ -163,10 +165,11 @@ export interface WorkoutBlock {
   title?: string
   /**
    * The coach's choice of unit, set only when it differs from the exercise's own
-   * (seconds of a movement counted in reps, say). Work done in another unit is
-   * never a record: it does not count towards a rating.
+   * (seconds of a movement counted in reps, say), or `done`: no count, just
+   * completed. Work done in another unit is never a record: it does not count
+   * towards a rating.
    */
-  metric?: Metric
+  metric?: Unit
   /** Part of the week's primary focus, as opposed to support work. Set by the coach. */
   primary?: boolean
 }
@@ -205,7 +208,7 @@ export interface LogEntry {
   note?: string
   /** As on the block it came from. */
   title?: string
-  metric?: Metric
+  metric?: Unit
   sets: SetLog[]
 }
 

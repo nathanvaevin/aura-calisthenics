@@ -1,4 +1,4 @@
-import type { DisciplineId, Exercise, Metric, Progression, Skill } from '../types'
+import type { DisciplineId, Exercise, Progression, Skill, Unit } from '../types'
 import { bandOf } from '../scoring/config'
 import { curveRating } from '../scoring/curve'
 import { handstandExercises } from './exercises/handstand'
@@ -40,11 +40,15 @@ export const formatValue = (ex: Pick<Exercise, 'metric' | 'perSide'>, value: num
  * An exercise as a course wrote it: in the coach's unit when they chose the
  * other one (`WorkoutBlock.metric`), otherwise as it is.
  */
-export const written = <T extends Pick<Exercise, 'metric'>>(ex: T, metric?: Metric): T =>
-  metric && metric !== ex.metric ? { ...ex, metric } : ex
+export const written = <T extends Pick<Exercise, 'metric'>>(ex: T, metric?: Unit): T =>
+  metric && metric !== 'done' && metric !== ex.metric ? { ...ex, metric } : ex
 
 /** Whether a value written in `metric` is in the exercise's own unit, so it can count as a record. */
-export const inOwnUnit = (exerciseId: string, metric?: Metric) => !metric || metric === exerciseById[exerciseId]?.metric
+export const inOwnUnit = (exerciseId: string, metric?: Unit) => !metric || metric === exerciseById[exerciseId]?.metric
+
+/** How much is asked, as a course writes it: "3 × 10", "2 × 30s", or for something simply completed "Complete" / "2 rounds". */
+export const amountOf = (ex: Pick<Exercise, 'metric' | 'perSide'>, b: { sets: number; target: number; metric?: Unit }) =>
+  b.metric === 'done' ? (b.sets === 1 ? 'Complete' : `${b.sets} rounds`) : `${b.sets} × ${formatValue(written(ex, b.metric), b.target)}`
 
 /** Every (progression, level) an exercise appears at, primary or alternate. */
 export const placementsOf = (exerciseId: string) => {

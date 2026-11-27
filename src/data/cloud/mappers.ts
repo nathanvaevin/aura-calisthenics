@@ -301,7 +301,7 @@ export function build(set: RowSet, uid: string, prev: Synced): Synced {
           minLevel: opt<number>(b.min_level), maxLevel: opt<number>(b.max_level), sets: Number(b.sets), target: Number(b.target), rest: Number(b.rest), note: opt<string>(b.note),
           ...(b.is_primary ? { primary: true } : {}),
           ...(b.title ? { title: String(b.title) } : {}),
-          ...(b.metric === 'reps' || b.metric === 'hold' ? { metric: b.metric as WorkoutBlock['metric'] } : {}),
+          ...(b.metric === 'reps' || b.metric === 'hold' || b.metric === 'done' ? { metric: b.metric as WorkoutBlock['metric'] } : {}),
         })),
       }))
       // Sessions have no order of their own in the database: keep the device's, else by day.
@@ -356,7 +356,7 @@ export function build(set: RowSet, uid: string, prev: Synced): Synced {
       assignedLevel: opt<number>(e.assigned_level), assignedTarget: Number(e.assigned_target), exerciseId: String(e.exercise_id), level: opt<number>(e.level),
       target: Number(e.target), rest: Number(e.rest),
       ...(e.title ? { title: String(e.title) } : {}),
-      ...(e.metric === 'reps' || e.metric === 'hold' ? { metric: e.metric as LogEntry['metric'] } : {}),
+      ...(e.metric === 'reps' || e.metric === 'hold' || e.metric === 'done' ? { metric: e.metric as LogEntry['metric'] } : {}),
       sets: (setsOf.get(String(e.id)) ?? []).sort(byPosition).map((x) => ({ value: Number(x.value), done: true, exerciseId: String(x.exercise_id), level: opt<number>(x.level) })),
     }))
     logs.push({

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ArrowDown, ArrowUp, BadgeCheck, ChevronRight, MessageSquare, Send } from 'lucide-react'
 import type { WorkoutBlock, WorkoutLog } from '@/domain/types'
-import { exerciseById, formatValue, written } from '@/domain/catalog'
+import { amountOf, exerciseById, formatValue } from '@/domain/catalog'
 import { isVerified } from '@/domain/scoring/config'
 import { useStore } from '@/data/store'
 import { Eyebrow, Sheet, TierTag } from '@/ui/primitives'
@@ -50,7 +50,7 @@ export function BlockList({ blocks }: { blocks: WorkoutBlock[] }) {
                 {b.title ? `${ex.name} · ` : ''}{b.note ? `${b.note} · ` : ''}{KIND_LABEL[b.kind]}{adjustable ? ` · adjustable L${b.minLevel}–${b.maxLevel}` : b.level ? ' · level fixed' : ''}
               </span>
             </span>
-            <span className="num shrink-0 text-[12.5px] text-ink-2">{b.sets} × {formatValue(written(ex, b.metric), b.target)}</span>
+            <span className="num shrink-0 text-[12.5px] text-ink-2">{amountOf(ex, b)}</span>
           </li>
         )
       })}
@@ -121,7 +121,7 @@ export function LogSheet({ logId, onClose, coach }: { logId: string | null; onCl
             <div key={e.blockId} className="px-4 py-3">
               <div className="flex items-baseline justify-between gap-3">
                 <span className="min-w-0 truncate text-[14px] font-medium">{e.title ?? names.map((n) => exerciseById[n].name).join(' → ')}</span>
-                <span className="num shrink-0 text-[13px]">{e.sets.map((s) => s.value).join(' · ')}{(e.metric ?? last.metric) === 'hold' ? ' s' : ''}</span>
+                <span className="num shrink-0 text-[13px]">{e.metric === 'done' ? 'Done' : <>{e.sets.map((s) => s.value).join(' · ')}{(e.metric ?? last.metric) === 'hold' ? ' s' : ''}</>}</span>
               </div>
               <div className="mt-1 flex items-center gap-2 text-[12px] text-ink-3">
                 {swapped ? (
@@ -135,7 +135,7 @@ export function LogSheet({ logId, onClose, coach }: { logId: string | null; onCl
                   lastLevel && <span className="rounded-full bg-surface-2 px-2 py-0.5 text-ink-2">L{lastLevel}</span>
                 )}
                 <span className="truncate">
-                  {swapped ? `Assigned ${assigned.name}` : 'As assigned'}{e.assignedLevel && swapped ? ` (L${e.assignedLevel})` : ''} · {e.sets.length} × {formatValue(written(assigned, e.metric), e.assignedTarget)}
+                  {swapped ? `Assigned ${assigned.name}` : 'As assigned'}{e.assignedLevel && swapped ? ` (L${e.assignedLevel})` : ''} · {amountOf(assigned, { sets: e.sets.length, target: e.assignedTarget, metric: e.metric })}
                 </span>
               </div>
             </div>

@@ -5,7 +5,7 @@
 -- once. It creates the schema, the access rules and the catalog + demo data.
 -- See supabase/README.md for the full setup, including Google sign-in.
 --
--- Contents: 0001_core.sql, 0002_storage.sql, 0003_evidence_observed.sql, 0004_assessments.sql, 0005_places.sql, 0006_live.sql, 0007_coach_access.sql, 0008_course_weeks_and_station_mode.sql, 0009_visual_content.sql, 0010_start_over.sql, 0011_personal_style.sql, 0012_ratings_open.sql, 0013_more_themes.sql, 0014_coach_sees_training.sql, 0015_block_name_and_unit.sql, then seed.sql.
+-- Contents: 0001_core.sql, 0002_storage.sql, 0003_evidence_observed.sql, 0004_assessments.sql, 0005_places.sql, 0006_live.sql, 0007_coach_access.sql, 0008_course_weeks_and_station_mode.sql, 0009_visual_content.sql, 0010_start_over.sql, 0011_personal_style.sql, 0012_ratings_open.sql, 0013_more_themes.sql, 0014_coach_sees_training.sql, 0015_block_name_and_unit.sql, 0016_block_complete.sql, then seed.sql.
 
 
 -- ════════════════════════════════════════════════════════════════════════
@@ -1896,6 +1896,24 @@ alter table public.workout_log_entries
 
 
 -- ════════════════════════════════════════════════════════════════════════
+-- 0016_block_complete.sql
+-- ════════════════════════════════════════════════════════════════════════
+
+-- A part of a session that is simply completed.
+--
+-- Since 0015 a coach counts an exercise in a course in repetitions or seconds.
+-- A third way: `done`, no count and no time, the student finishes it and taps
+-- Done (a warm-up of the body and wrists, say). Only the list of allowed units
+-- changes. Safe to run twice.
+
+alter table public.course_blocks drop constraint if exists course_blocks_metric_check;
+alter table public.course_blocks add constraint course_blocks_metric_check check (metric is null or metric in ('reps', 'hold', 'done'));
+
+alter table public.workout_log_entries drop constraint if exists workout_log_entries_metric_check;
+alter table public.workout_log_entries add constraint workout_log_entries_metric_check check (metric is null or metric in ('reps', 'hold', 'done'));
+
+
+-- ════════════════════════════════════════════════════════════════════════
 -- seed.sql — catalog and demo data
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -2434,7 +2452,7 @@ on conflict (skill_id, requires_id) do nothing;
 
 update public.scoring_models set is_active = false where is_active;
 insert into public.scoring_models (version, config, is_active, note) values
-  ('provisional-0.1', '{"version":"provisional-0.1","slotWeights":[0.5,0.3,0.2],"auraExponent":3,"auraScale":10,"verifiedShare":0.6,"estimatedShare":0.5,"extrapolation":0.5,"dedicationWeeks":8,"bands":[{"id":"foundation","label":"Foundation","min":0},{"id":"beginner","label":"Beginner","min":200},{"id":"intermediate","label":"Intermediate","min":400},{"id":"advanced","label":"Advanced","min":600},{"id":"elite","label":"Elite","min":800},{"id":"world","label":"World-class","min":1000}],"auraClasses":[{"id":"spark","label":"Spark","min":0},{"id":"ember","label":"Ember","min":1500},{"id":"kindled","label":"Kindled","min":3000},{"id":"radiant","label":"Radiant","min":4500},{"id":"luminous","label":"Luminous","min":6000},{"id":"stellar","label":"Stellar","min":7500},{"id":"corona","label":"Corona","min":9000},{"id":"singular","label":"Singular","min":10500}]}'::jsonb, true, 'Provisional. A coach’s ordering of benchmarks onto one scale; to be recalibrated against athlete data.')
+  ('provisional-0.1', '{"version":"provisional-0.1","slotWeights":[0.5,0.3,0.2],"auraExponent":3,"auraScale":10,"observedShare":0.6,"verifiedShare":0.6,"estimatedShare":0.5,"extrapolation":0.5,"dedicationWeeks":8,"bands":[{"id":"foundation","label":"Foundation","min":0},{"id":"beginner","label":"Beginner","min":200},{"id":"intermediate","label":"Intermediate","min":400},{"id":"advanced","label":"Advanced","min":600},{"id":"elite","label":"Elite","min":800},{"id":"world","label":"World-class","min":1000}],"auraClasses":[{"id":"spark","label":"Spark","min":0},{"id":"ember","label":"Ember","min":1500},{"id":"kindled","label":"Kindled","min":3000},{"id":"radiant","label":"Radiant","min":4500},{"id":"luminous","label":"Luminous","min":6000},{"id":"stellar","label":"Stellar","min":7500},{"id":"corona","label":"Corona","min":9000},{"id":"singular","label":"Singular","min":10500}]}'::jsonb, true, 'Provisional. A coach’s ordering of benchmarks onto one scale; to be recalibrated against athlete data.')
 on conflict (version) do update set config = excluded.config, is_active = excluded.is_active, note = excluded.note;
 
 delete from public.rating_curves where model_version = 'provisional-0.1';
