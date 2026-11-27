@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { exerciseById, skillById } from './catalog'
 import { GOALS, MAX_GOALS, acceptGoal, declineGoal } from './goals'
-import { decodeCourseInvite, encodeCourseInvite } from './courseLink'
+import { courseOfCode, decodeCourseInvite, encodeCourseInvite, shortCourseCode } from './courseLink'
 
 describe('the goals on offer', () => {
   it('are skills, each shown by an exercise', () => {
@@ -26,6 +26,15 @@ describe('an invitation to a course', () => {
     expect(data).toMatch(/^[A-Za-z0-9_-]+$/)
     expect(data.length).toBeLessThan(220)
     expect(decodeCourseInvite(data)).toEqual(i)
+  })
+
+  it('is short: the course alone, in 22 characters, and back', () => {
+    const id = '3f2a9c1e-7b44-4d0a-9e2f-0c5b8a6d1e93'
+    const code = shortCourseCode(id)!
+    expect(code).toMatch(/^[A-Za-z0-9_-]{22}$/)
+    expect(courseOfCode(code)).toBe(id)
+    expect(shortCourseCode('local-course')).toBeNull()
+    for (const bad of ['', 'abc', code.slice(1), code + 'A']) expect(courseOfCode(bad)).toBeNull()
   })
 
   it('is nothing when it cannot be read', () => {

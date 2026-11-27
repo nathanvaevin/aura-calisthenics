@@ -1,6 +1,6 @@
 import type { AssessmentParticipant, AssessmentSession } from '@/domain/types'
 import { encodeHandIn, encodeInvite } from '@/domain/assessment'
-import { encodeCourseInvite, type CourseInvite } from '@/domain/courseLink'
+import { encodeCourseInvite, shortCourseCode, type CourseInvite } from '@/domain/courseLink'
 
 /**
  * Links are carried in the URL fragment of the app's root address. The page
@@ -19,14 +19,20 @@ export const inviteUrl = (s: AssessmentSession) =>
 
 export const handInUrl = (p: AssessmentParticipant, s: AssessmentSession) => `${root()}#handin=${encodeHandIn(p, s.protocol)}`
 
-/** An invitation to a course, to copy and send to anyone. */
-export const courseUrl = (i: CourseInvite) => `${root()}#course=${encodeCourseInvite(i)}`
+/**
+ * An invitation to a course, to copy and send to anyone: short (`#c=`, the course alone). The long
+ * form (`#course=`, which also carried the title and the coach's name) is still read, for links already sent.
+ */
+export const courseUrl = (i: CourseInvite) => {
+  const code = shortCourseCode(i.courseId)
+  return code ? `${root()}#c=${code}` : `${root()}#course=${encodeCourseInvite(i)}`
+}
 
 /** What kind of link, if any, the current address carries. */
-export type LinkKind = 'j' | 'join' | 'handin' | 'spot' | 'course'
+export type LinkKind = 'j' | 'join' | 'handin' | 'spot' | 'course' | 'c'
 
 export function readLink(hash: string): { kind: LinkKind; data: string } | null {
-  const m = hash.match(/^#(j|join|handin|spot|course)=([A-Za-z0-9_-]+)$/)
+  const m = hash.match(/^#(j|join|handin|spot|course|c)=([A-Za-z0-9_-]+)$/)
   return m ? { kind: m[1] as LinkKind, data: m[2] } : null
 }
 

@@ -136,7 +136,7 @@ export function App() {
   if (link) {
     return (
       <ThemeContext value={STANDARD_THEME}>
-        {link.kind === 'course' ? <CourseJoin data={link.data} /> : link.kind === 'spot' ? <SpotLanding data={link.data} /> : link.kind === 'j' ? <CloudJoin token={link.data} /> : link.kind === 'join' ? <JoinInvite data={link.data} /> : <HandInImport data={link.data} />}
+        {link.kind === 'course' || link.kind === 'c' ? <CourseJoin data={link.data} short={link.kind === 'c'} /> : link.kind === 'spot' ? <SpotLanding data={link.data} /> : link.kind === 'j' ? <CloudJoin token={link.data} /> : link.kind === 'join' ? <JoinInvite data={link.data} /> : <HandInImport data={link.data} />}
       </ThemeContext>
     )
   }

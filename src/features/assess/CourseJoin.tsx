@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { decodeCourseInvite } from '@/domain/courseLink'
+import { courseOfCode, decodeCourseInvite } from '@/domain/courseLink'
 import { useStore } from '@/data/store'
 import { joinCourseByLink, rememberCourse, useCloud } from '@/data/cloud'
 import { Frame, Problem } from './Join'
@@ -11,9 +11,14 @@ import { Frame, Problem } from './Join'
  * with a profile is put in at once (`resumeCourse`). Already signed in here, they are put in now. Either way, what the
  * coach sees is said where they land.
  */
-export function CourseJoin({ data }: { data: string }) {
+export function CourseJoin({ data, short = false }: { data: string; short?: boolean }) {
   const navigate = useNavigate()
-  const invite = useMemo(() => decodeCourseInvite(data), [data])
+  // The short link names the course alone; the long one, sent before 2026-11-27, also carried its title.
+  const invite = useMemo(() => {
+    if (!short) return decodeCourseInvite(data)
+    const courseId = courseOfCode(data)
+    return courseId ? { courseId } : null
+  }, [data, short])
   const configured = useCloud((s) => s.configured)
   const auth = useCloud((s) => s.auth)
   const me = useStore((s) => (s.meId && !s.demo ? s.athletes[s.meId] : null))
